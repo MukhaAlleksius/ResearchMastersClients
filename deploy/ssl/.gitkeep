@@ -1,0 +1,8 @@
+# Place TLS certificates here for docker-compose.prod.yml:
+#   fullchain.pem
+#   privkey.pem
+#
+# Example (certbot on host):
+#   certbot certonly --webroot -w ./deploy/certbot/www -d your-domain.by
+#   cp /etc/letsencrypt/live/your-domain.by/fullchain.pem deploy/ssl/
+#   cp /etc/letsencrypt/live/your-domain.by/privkey.pem deploy/ssl/

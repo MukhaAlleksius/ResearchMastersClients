@@ -1,0 +1,23 @@
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check /health
+        env:
+          HEALTH_URL: ${{ secrets.HEALTH_URL }}
+          UPTIME_ALERT_WEBHOOK_URL: ${{ secrets.UPTIME_ALERT_WEBHOOK_URL }}
+        run: |
+          if [ -z "$HEALTH_URL" ]; then
+            echo "HEALTH_URL secret not set — skipping"
+            exit 0
+          fi
+          chmod +x deploy/scripts/uptime_check.sh
+          ./deploy/scripts/uptime_check.sh

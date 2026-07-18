@@ -1,0 +1,10 @@
+COMMISSION_RATE = 0.10
+
+PAYMENT_STATUS_PENDING = "pending"
+PAYMENT_STATUS_ESCROW = "escrow"
+PAYMENT_STATUS_RELEASED = "released"
+PAYMENT_STATUS_FAILED = "failed"
+
+HELD_PAYMENT_STATUSES = (PAYMENT_STATUS_ESCROW, PAYMENT_STATUS_RELEASED)
+# Legacy alias kept for old rows / mock callbacks during migration
+LEGACY_RELEASED_STATUSES = ("paid", "completed")
