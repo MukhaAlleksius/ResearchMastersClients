@@ -2,8 +2,15 @@
 set -e
 
 if [ "${RUN_MIGRATIONS_ON_STARTUP:-true}" = "true" ]; then
-  echo "Running Alembic migrations..."
-  alembic upgrade head
+  echo "Checking database schema..."
+  status="$(python bootstrap_schema.py)"
+  if [ "$status" = "created" ]; then
+    echo "Fresh database detected: schema created, stamping Alembic head..."
+    alembic stamp head
+  else
+    echo "Running Alembic migrations..."
+    alembic upgrade head
+  fi
 fi
 
 echo "Starting gunicorn..."
