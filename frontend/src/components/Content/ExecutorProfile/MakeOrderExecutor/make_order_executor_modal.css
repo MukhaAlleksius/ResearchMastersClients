@@ -1,0 +1,197 @@
+.moe-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.moe-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 440px;
+  max-height: min(85vh, 520px);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.moe-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.moe-modal__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.moe-modal__close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  margin: -4px -4px 0 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.375rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.moe-modal__close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.moe-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 16px;
+}
+
+.moe-modal__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0 10px;
+  font-size: 0.8125rem;
+}
+
+.moe-modal__count {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.moe-modal__link {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #2563eb;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.moe-modal__link:hover {
+  color: #1d4ed8;
+}
+
+.moe-modal__empty {
+  margin: 24px 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.55;
+  text-align: left;
+}
+
+.moe-modal__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.moe-order-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+}
+
+.moe-order-row:last-child {
+  border-bottom: none;
+}
+
+.moe-order-row__checkbox {
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.moe-order-row__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.moe-order-row__title {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.moe-order-row__meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.moe-modal__footer {
+  display: flex;
+  gap: 10px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.moe-modal__btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.moe-modal__btn--secondary {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+}
+
+.moe-modal__btn--secondary:hover {
+  background: #f8fafc;
+}
+
+.moe-modal__btn--primary {
+  border: none;
+  background: #2563eb;
+  color: #fff;
+}
+
+.moe-modal__btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.moe-modal__btn--primary:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}

@@ -1,4 +1,6 @@
 .env
+.env.*
+!.env*.example
 .env.local
 venv/
 __pycache__/
@@ -8,6 +10,7 @@ avatars/
 portfolio/
 node_modules/
 frontend/build/
+frontend/.git.bak/
 .idea/
 .vscode/
 *.log

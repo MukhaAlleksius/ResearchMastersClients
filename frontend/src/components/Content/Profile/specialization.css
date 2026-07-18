@@ -1,0 +1,174 @@
+/* Общий фон страницы и контейнер */
+.page-wrapper {
+  background-color: #f9fafb; /* светлый серо-голубой фон */
+  min-height: 100vh;
+  padding: 2rem 1.5rem;
+  font-family: "Inter", sans-serif;
+  color: #1f2937; /* темно-серый текст */
+}
+
+/* Центрирование и ширина */
+.container {
+  max-width: 96rem; /* примерно 6xl */
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Заголовок страницы */
+.page-title {
+  font-weight: 700;
+  font-size: 1.875rem; /* 3xl */
+  margin-bottom: 2.5rem;
+}
+
+/* Блок с белым фоном и тенью */
+.card {
+  background-color: #ffffff;
+  border-radius: 0.75rem; /* 12px */
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 1px 2px rgb(0 0 0 / 0.06);
+  overflow: hidden;
+}
+
+/* Меню вкладок */
+.tab-nav {
+  display: flex;
+  gap: 2rem;
+  padding: 1.5rem 2rem 0 2rem;
+  border-bottom: 1px solid #e5e7eb; /* border-gray-200 */
+}
+
+/* Кнопка вкладки */
+.tab-button {
+  padding-bottom: 1rem;
+  border-bottom: 4px solid transparent;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: color 0.3s ease, border-bottom-color 0.3s ease;
+  color: #6b7280; /* gray-500 */
+  background: none;
+  border: none;
+}
+
+/* Активная вкладка */
+.tab-button.active {
+  border-bottom-color: #2563eb; /* blue-600 */
+  color: #1e40af; /* blue-700 */
+  font-weight: 600;
+}
+
+/* Внутренний контент вкладок с отступами и минимальной высотой */
+.tab-content {
+  padding: 2rem;
+  min-height: 21rem; /* примерно min-h-[336px] */
+}
+
+/* Вкладка специализации - обертка */
+.specialization-wrapper {
+  max-width: 64rem; /* 4xl */
+  margin: 0 auto;
+  padding: 1.5rem;
+  background-color: #fff;
+  border-radius: 0.5rem; /* 8px */
+  box-shadow: 0 4px 6px rgb(0 0 0 / 0.1);
+}
+
+/* Заголовок вкладки специализации */
+.specialization-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827; /* gray-900 */
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb; /* gray-200 */
+  padding-bottom: 0.5rem;
+}
+
+/* Сетка карточек */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Карточка специальности */
+.spec-card {
+  border: 1px solid #d1d5db; /* gray-300 */
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: box-shadow 0.3s ease;
+  background-color: #fff;
+}
+
+.spec-card:hover,
+.spec-card:focus {
+  box-shadow: 0 10px 15px rgb(0 0 0 / 0.1);
+  outline: none;
+}
+
+/* Заголовок карточки */
+.spec-card-title {
+  font-weight: 600;
+  font-size: 1.125rem; /* lg */
+  margin-bottom: 0.5rem;
+  color: #111827; /* gray-900 */
+}
+
+/* Описание */
+.spec-card-desc {
+  color: #4b5563; /* gray-600 */
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+/* Кнопка назад */
+.back-button {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  color: #2563eb; /* blue-600 */
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.back-button:hover {
+  color: #1e40af; /* blue-700 */
+}
+
+/* Внутренние вкладки специализации */
+.inner-tabs {
+  display: flex;
+  gap: 1.5rem;
+  border-bottom: 1px solid #e5e7eb; /* gray-200 */
+  margin-bottom: 1.5rem;
+}
+
+.inner-tab-button {
+  padding-bottom: 0.75rem;
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border-bottom: 4px solid transparent;
+  color: #6b7280; /* gray-500 */
+  transition: color 0.3s ease, border-bottom-color 0.3s ease;
+  background: none;
+  border: none;
+}
+
+.inner-tab-button.active {
+  border-bottom-color: #2563eb; /* blue-600 */
+  color: #2563eb; /* blue-600 */
+  font-weight: 600;
+}
+
+/* Контент внутренних вкладок */
+.inner-tab-content {
+  min-height: 11.25rem; /* 180px */
+  color: #374151; /* gray-700 */
+  font-size: 1rem;
+  line-height: 1.5;
+  transition: all 0.3s ease;
+}

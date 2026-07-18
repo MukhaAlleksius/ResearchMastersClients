@@ -1,0 +1,115 @@
+.modal {
+  position: fixed;
+  inset: 0; /* top:0; right:0; bottom:0; left:0; */
+  background-color: rgba(75, 85, 99, 0.6); /* bg-gray-600 с opacity 0.5 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  margin: 1rem;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.modal-title {
+  font-size: 1.125rem; /* text-lg */
+  font-weight: 600; /* font-semibold */
+  color: #1a202c; /* text-gray-900 */
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: #a0aec0; /* text-gray-400 */
+  cursor: pointer;
+  font-size: 1.25rem; /* ניתן להתאים */
+  transition: color 0.2s ease;
+}
+
+.close-button:hover {
+  color: #4a5568; /* hover:text-gray-600 */
+}
+
+.benefits-title {
+  font-weight: 600;
+  font-size: 1.125rem;
+  margin-bottom: 12px;
+  color: #1a202c;
+}
+
+.benefits-list {
+  list-style: none;
+  padding-left: 0;
+  color: #4a5568; /* text-gray-700 */
+  margin-bottom: 24px;
+}
+
+.benefits-list li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.benefits-list li i {
+  color: #48bb78; /* text-green-500 */
+  margin-right: 8px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+label {
+  display: block;
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  color: #4a5568;
+  margin-bottom: 8px;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cbd5e0; /* border-gray-300 */
+  border-radius: 12px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+form .grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.submit-button {
+  background-color: #ed8936; /* bg-orange-500 */
+  color: white;
+  padding: 12px 0;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.submit-button:hover {
+  background-color: #dd6b20; /* bg-orange-600 */
+}

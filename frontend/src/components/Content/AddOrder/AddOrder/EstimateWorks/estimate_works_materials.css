@@ -1,0 +1,195 @@
+.container-wrap {
+  max-width: 900px;
+  margin: auto;
+  font-family: Arial, sans-serif;
+  padding: 1rem;
+}
+
+.estimate-table {
+  width: 100%;
+  table-layout: fixed; /* фиксированная ширина колонок */
+  border-collapse: collapse;
+}
+
+.estimate-table th,
+.estimate-table td {
+  padding: 8px;
+  border: 1px solid #aaa;
+  word-wrap: break-word; /* перенос строк внутри ячейки */
+  overflow-wrap: break-word; /* поддержка в разных браузерах */
+  white-space: normal; /* разрешает перенос */
+  max-width: 150px; /* ограничение максимальной ширины колонки */
+  vertical-align: top;
+}
+
+.estimate-table th {
+  background-color: #f4f4f4;
+  font-weight: bold;
+  text-align: left;
+}
+
+/* Можно при необходимости на конкретные колонки */
+.estimate-table th:nth-child(1),
+.estimate-table td:nth-child(1) {
+  max-width: 250px;
+}
+
+.estimate-table th:nth-child(2),
+.estimate-table td:nth-child(2) {
+  max-width: 80px;
+  text-align: center;
+}
+
+.estimate-table th:nth-child(3),
+.estimate-table td:nth-child(3) {
+  max-width: 80px;
+  text-align: center;
+}
+
+/* И дальнейшие колонки можно настроить по аналогии */
+
+.input-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.input-row select,
+.input-row input {
+  flex: 1;
+  padding: 8px;
+  font-size: 14px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.btn-add {
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 40px;
+  width: 100%;
+}
+
+.btn-delete {
+  padding: 0.3rem 0.6rem;
+  background-color: #dc3545;
+  border: none;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-add-materials {
+  padding: 0.3rem 0.6rem;
+  background-color: #14e641;
+  border: none;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.modal-overlay-add-materials {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  z-index: 1000;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.modal-add-materials {
+  background: #fff;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: min(80vh, 90vw);
+  overflow-y: auto;
+  padding: 24px 32px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Выровнять содержимое по левому краю */
+  box-sizing: border-box;
+}
+
+.modal-add-materials h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: #2563eb;
+  user-select: text;
+  width: 100%;
+  text-align: center; /* Можно заменить на left если нужно */
+}
+
+.modal-add-materials label {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 15px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.modal-add-materials input,
+.modal-add-materials select {
+  width: 100%; /* Полная ширина поля */
+  height: 36px; /* Одинаковая высота */
+  padding: 6px 10px;
+  font-size: 1rem;
+  line-height: 1.2;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-family: inherit;
+  outline-offset: 2px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.modal-add-materials input:focus,
+.modal-add-materials select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 4px rgba(37, 99, 235, 0.6);
+}
+
+.modal-add-materials-close-btn {
+  margin-top: 20px;
+  padding: 10px 24px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  background-color: #3b82f6;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.35);
+  transition: background-color 0.25s ease, box-shadow 0.25s ease;
+  user-select: none;
+  align-self: center; /* Кнопка по центру */
+  letter-spacing: 0.05em;
+}
+
+.modal-add-materials-close-btn:hover {
+  background-color: #2563eb;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.55);
+}
+
+.modal-add-materials-close-btn:active {
+  background-color: #1e40af;
+  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.7);
+}

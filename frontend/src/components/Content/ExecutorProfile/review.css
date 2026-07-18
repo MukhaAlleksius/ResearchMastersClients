@@ -1,0 +1,31 @@
+.avatar {
+  width: 3rem; /* 48px */
+  height: 3rem;
+  border-radius: 9999px; /* округление в круг */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+/* Определите нужные градиенты */
+
+.gradient-blue-green {
+  background: linear-gradient(
+    to right,
+    #3b82f6,
+    #10b981
+  ); /* from-blue-500 to-green-500 */
+}
+
+.gradient-red-yellow {
+  background: linear-gradient(
+    to right,
+    #ef4444,
+    #f59e0b
+  ); /* from-red-500 to-yellow-500 */
+}
+
+.gradient-gray {
+  background: linear-gradient(to right, #6b7280, #374151); /* оттенки серого */
+}

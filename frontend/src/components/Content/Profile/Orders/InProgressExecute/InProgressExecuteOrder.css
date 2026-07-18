@@ -1,0 +1,200 @@
+.in-progress-order {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.5rem 1.75rem 2.5rem;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.14);
+}
+
+.in-progress-order__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.in-progress-order__loader {
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  border: 3px solid #d1d5db;
+  border-top-color: #2563eb;
+  animation: inProgressSpin 0.8s linear infinite;
+  margin-bottom: 0.75rem;
+}
+
+.in-progress-order__loader-text {
+  font-size: 0.95rem;
+  color: #4b5563;
+}
+
+@keyframes inProgressSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.in-progress-order__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.in-progress-order__back-btn {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 0.85rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.in-progress-order__back-btn:hover {
+  background: rgba(37, 99, 235, 0.06);
+  color: #1d4ed8;
+}
+
+.in-progress-order__title-block {
+  flex: 1;
+}
+
+.in-progress-order__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.3;
+}
+
+.in-progress-order__subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.in-progress-order__error {
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 4px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.in-progress-order__error-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.in-progress-order__error-close {
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.in-progress-order__summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.in-progress-order__meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.in-progress-order__info {
+  text-align: right;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.in-progress-order__info span {
+  font-weight: 600;
+}
+
+/* Контейнер табов - ТОЧНО как в WaitExecuteWork.css */
+.in-progress-order__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 4px;
+  background: #f3f4f6;
+  margin-bottom: 1.5rem;
+}
+
+.in-progress-order__tab {
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #4b5563;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.2s ease;
+}
+
+.in-progress-order__tab-icon {
+  font-size: 1rem;
+}
+
+.in-progress-order__tab:hover {
+  background: #e5e7eb;
+}
+
+/* Активный таб */
+.in-progress-order__tab--active {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-radius: 6px;
+}
+
+.in-progress-order__panel {
+  margin-top: 0.6rem;
+  background: #ffffff;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .in-progress-order {
+    padding: 1.1rem 1rem 2rem;
+  }
+  .in-progress-order__header,
+  .in-progress-order__summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .in-progress-order__info {
+    text-align: left;
+  }
+  .in-progress-order__tabs {
+    border-radius: 4px;
+  }
+}

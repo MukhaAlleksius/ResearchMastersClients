@@ -1,0 +1,109 @@
+.wait-order {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.5rem 1.75rem 2.5rem;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.14);
+}
+
+.wait-order__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.wait-order__back-btn {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.wait-order__back-btn:hover {
+  background: rgba(37, 99, 235, 0.06);
+  color: #1d4ed8;
+  transform: translateX(-1px);
+}
+
+.wait-order__title-block {
+  flex: 1;
+}
+
+.wait-order__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.wait-order__subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.wait-order__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: #f3f4f6;
+  margin: 1rem 0 1.25rem;
+}
+
+.wait-order__tab {
+  border: none;
+  background: transparent;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease,
+    transform 0.08s ease;
+}
+
+.wait-order__tab:hover {
+  background: #e5e7eb;
+}
+
+.wait-order__tab--active {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.35);
+  transform: translateY(-1px);
+}
+
+.wait-order__panel {
+  margin-top: 1rem;
+  color: #374151;
+}
+
+@media (max-width: 768px) {
+  .wait-order {
+    padding: 1rem 1.1rem 2rem;
+  }
+
+  .wait-order__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .wait-order__tabs {
+    border-radius: 14px;
+    padding: 0.35rem 0.4rem;
+  }
+}
+

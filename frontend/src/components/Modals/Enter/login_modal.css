@@ -1,0 +1,76 @@
+.login-modal {
+  max-width: 440px;
+  max-height: min(92vh, 620px);
+}
+
+.login-modal__google {
+  flex-shrink: 0;
+  padding: 0.85rem 1.15rem 1.1rem;
+  text-align: center;
+}
+
+.login-modal__google-divider {
+  margin-bottom: 0.65rem;
+  font-size: 0.8125rem;
+  opacity: 0.75;
+}
+
+.login-modal__google-button {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.login-modal__forgot {
+  margin-top: 0.85rem;
+  text-align: center;
+}
+
+.login-modal__forgot-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.login-modal__forgot-btn:hover {
+  text-decoration: underline;
+}
+
+.login-modal__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.login-modal__secondary {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.login-modal__secondary:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.login-modal__secondary:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}

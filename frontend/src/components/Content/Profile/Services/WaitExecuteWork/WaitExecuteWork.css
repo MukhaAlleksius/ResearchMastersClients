@@ -1,0 +1,215 @@
+.wait-work {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.5rem 1.75rem 2.5rem;
+  background: #ffffff;
+  border-radius: 8px; /* Уменьшили скругление */
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.14);
+}
+
+.wait-work--loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.wait-work__loader {
+  width: 44px;
+  height: 44px;
+  border-radius: 4px; /* Менее округлый лоадер */
+  border: 3px solid #d1d5db;
+  border-top-color: #2563eb;
+  animation: waitWorkSpin 0.8s linear infinite;
+  margin-bottom: 0.75rem;
+}
+
+.wait-work__loader-text {
+  font-size: 0.95rem;
+  color: #4b5563;
+}
+
+@keyframes waitWorkSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wait-work__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.wait-work__back-btn {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 0.85rem;
+  border-radius: 4px; /* Заменили 999px */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.wait-work__back-btn:hover {
+  background: rgba(37, 99, 235, 0.06);
+  color: #1d4ed8;
+}
+
+.wait-work__start-btn {
+  border: none;
+  border-radius: 4px; /* Заменили 999px */
+  padding: 0.6rem 1.4rem;
+  background: #16a34a;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2);
+  transition: background-color 0.15s ease;
+}
+
+.wait-work__start-btn:hover {
+  background: #15803d;
+}
+
+.wait-work__start-btn--disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.wait-work__error {
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 4px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.wait-work__error-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.wait-work__error-close {
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.wait-work__summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.wait-work__title {
+  margin: 0 0 0.4rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.wait-work__meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.wait-work__info {
+  text-align: right;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.wait-work__info span {
+  font-weight: 600;
+}
+
+/* Контейнер табов стал больше и строже */
+.wait-work__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1rem; /* Увеличили внутренний отступ */
+  border-radius: 4px; /* Заменили 999px */
+  background: #f3f4f6;
+  margin-bottom: 1.5rem;
+}
+
+.wait-work__tab {
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0.6rem 1rem;
+  border-radius: 6px; /* Мягкое скругление табов */
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #4b5563;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.2s ease;
+}
+
+.wait-work__tab-icon {
+  font-size: 1rem;
+}
+
+.wait-work__tab:hover {
+  background: #e5e7eb;
+}
+
+/* Активный таб */
+.wait-work__tab--active {
+  background: #2563eb !important; /* Синий цвет при выборе */
+  color: #ffffff !important; /* Белый текст при выборе */
+  border-radius: 6px; /* Скругление активного таба */
+}
+
+.wait-work__panel {
+  margin-top: 0.6rem;
+  background: #ffffff;
+  border-radius: 4px; /* Заменили 16px */
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .wait-work {
+    padding: 1.1rem 1rem 2rem;
+  }
+  .wait-work__header,
+  .wait-work__summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .wait-work__info {
+    text-align: left;
+  }
+  .wait-work__tabs {
+    border-radius: 4px;
+  }
+}
