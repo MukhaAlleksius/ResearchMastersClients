@@ -37,8 +37,9 @@ RUN pip install poetry \
 # Копируем весь код backend в контейнер (/app)
 COPY backend/src/backend ./
 
-# Делаем entrypoint-скрипт исполняемым (миграции + запуск gunicorn)
-RUN chmod +x docker-entrypoint.sh
+# Убираем Windows CRLF (если Git checkout сделал \r\n) и делаем скрипт исполняемым
+RUN sed -i 's/\r$//' docker-entrypoint.sh \
+    && chmod +x docker-entrypoint.sh
 
 # Документируем, что приложение слушает порт 8000
 EXPOSE 8000
@@ -56,4 +57,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
 
 # При старте контейнера запускается этот скрипт
 # (сначала alembic migrate, потом gunicorn)
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "./docker-entrypoint.sh"]
