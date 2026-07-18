@@ -158,7 +158,7 @@ export default function ServiceCategories() {
           <span className="home-categories__badge">Услуги</span>
           <h2 className="home-categories__title">Популярные услуги</h2>
           <p className="home-categories__subtitle">
-            Выберите категорию — наведите, чтобы увидеть примеры работ и цены
+            Выберите категорию, чтобы перейти в каталог исполнителей
           </p>
         </header>
         <div className="home-categories__grid">
@@ -223,41 +223,6 @@ export default function ServiceCategories() {
                     </span>
                   </span>
                 </article>
-                {dropdownItems.length > 0 && (
-                  <div className="home-category-dropdown__menu">
-                    <p className="home-category-dropdown__menu-title">
-                      Примеры работ
-                    </p>
-                    {dropdownItems.map((work) => (
-                      <button
-                        key={work.id || work.slug}
-                        type="button"
-                        className="home-category-dropdown__item"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (work.id) {
-                            navigate(
-                              `/catalog?category_work=${slug}&work=${work.slug}`,
-                              {
-                                state: {
-                                  categoryTitle: title,
-                                  categorySlug: slug,
-                                },
-                              },
-                            );
-                          }
-                        }}
-                      >
-                        <span className="home-category-dropdown__item-name">
-                          {work.name}
-                        </span>
-                        <span className="home-category-dropdown__item-price">
-                          {work.cost} BYN/{work.unit}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             ),
           )}

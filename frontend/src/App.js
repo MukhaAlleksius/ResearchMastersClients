@@ -92,8 +92,18 @@ function App() {
       localStorage.removeItem("login");
       localStorage.removeItem("user_role");
       setIsLoggedIn(false);
-      navigate("/catalog");
-      setModal("loginModal");
+      // Stay on public pages without forcing login; open modal only for protected flows.
+      const path = window.location.pathname || "";
+      const isPublicBrowse =
+        path.startsWith("/catalog") ||
+        path.startsWith("/orders") ||
+        path.startsWith("/home") ||
+        path.startsWith("/order/") ||
+        path === "/" ||
+        path.startsWith("/legal");
+      if (!isPublicBrowse) {
+        setModal("loginModal");
+      }
     });
     return () => setUnauthorizedHandler(null);
   }, [navigate]);

@@ -199,7 +199,16 @@ function hasAuthSession() {
 
 export async function apiFetch(url, options = {}, config = {}) {
   const method = options.method || "GET";
-  if (isPublicRequest(url, method) && !hasAuthSession()) {
+  // Public catalog/home endpoints must never open the login modal.
+  // Stale tokens in localStorage previously forced fetchWithAuth → 401 → login.
+  if (isPublicRequest(url, method)) {
+    const token = localStorage.getItem("access_token");
+    if (token && !isTokenExpired(token)) {
+      return fetch(url, {
+        ...options,
+        headers: { ...options.headers, ...API.headers(token) },
+      });
+    }
     return fetch(url, options);
   }
   return fetchWithAuth(url, options, config);
