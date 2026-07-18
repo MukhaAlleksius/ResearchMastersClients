@@ -5,9 +5,11 @@
 venv/
 __pycache__/
 *.pyc
-uploads/
-avatars/
-portfolio/
+/uploads/
+/avatars/
+/portfolio/
+backend/**/avatars/
+backend/**/portfolio/
 node_modules/
 frontend/build/
 frontend/.git.bak/
