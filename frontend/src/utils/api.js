@@ -191,12 +191,6 @@ export const fetchWithAuth = async (
   return response;
 };
 
-function hasAuthSession() {
-  return Boolean(
-    localStorage.getItem("refresh_token") || localStorage.getItem("access_token"),
-  );
-}
-
 export async function apiFetch(url, options = {}, config = {}) {
   const method = options.method || "GET";
   // Public catalog/home endpoints must never open the login modal.
