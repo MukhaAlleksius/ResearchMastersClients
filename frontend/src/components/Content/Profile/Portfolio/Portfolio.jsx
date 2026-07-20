@@ -1,353 +1,466 @@
-import { useEffect, useState } from "react";
-import {
-  apiFetch,
-  buildApiUrl,
-  resolveMediaUrl,
-} from "../../../../utils/api.js";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import CreatableSelect from "react-select/creatable";
+import { API, apiFetch } from "../../../../utils/api.js";
+import PortfolioInformation from "./PorfolioInformation/PortfolioInformation";
 import "./portfolio.css";
 
-function getUserId() {
-  return localStorage.getItem("user_id");
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    minHeight: "44px",
+    borderRadius: "10px",
+    border: state.isFocused ? "1px solid #6366f1" : "1px solid #cbd5e1",
+    boxShadow: state.isFocused ? "0 0 0 3px rgba(99, 102, 241, 0.14)" : "none",
+    fontSize: "0.875rem",
+    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+  }),
+  menu: (base) => ({
+    ...base,
+    borderRadius: "10px",
+    overflow: "hidden",
+    boxShadow: "0 12px 28px rgba(15, 23, 42, 0.12)",
+    zIndex: 20,
+  }),
+  option: (base, state) => ({
+    ...base,
+    fontSize: "0.875rem",
+    backgroundColor: state.isSelected
+      ? "#6366f1"
+      : state.isFocused
+        ? "#eef2ff"
+        : "#ffffff",
+    color: state.isSelected ? "#ffffff" : "#334155",
+    cursor: "pointer",
+  }),
+  placeholder: (base) => ({
+    ...base,
+    color: "#94a3b8",
+  }),
+};
+
+function resolveImageUrl(path) {
+  if (!path) return null;
+  return path.startsWith("http") ? path : `${API.baseURL}${path}`;
+}
+
+function enrichProjectsWithImages(projects, imageProjects) {
+  const imageMap = new Map(
+    (imageProjects || []).map((item) => [item.title, item.images || []]),
+  );
+
+  return projects.map((project) => {
+    const images = imageMap.get(project.title) || [];
+    return {
+      ...project,
+      images,
+      coverImage: images[0] || null,
+      imageCount: images.length,
+    };
+  });
+}
+
+function getCategoryInitial(category) {
+  const label = (category || "П").trim();
+  return label.charAt(0).toUpperCase();
+}
+
+function AddPortfolioModal({ visible, onClose, children }) {
+  if (!visible) return null;
+
+  return (
+    <div className="pf-modal-overlay" onClick={onClose} role="presentation">
+      <div
+        className="pf-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pf-add-modal-title"
+      >
+        <header className="pf-modal__header">
+          <div>
+            <span className="pf-modal__badge">Новый проект</span>
+            <h3 id="pf-add-modal-title" className="pf-modal__title">
+              Добавить в портфолио
+            </h3>
+            <p className="pf-modal__subtitle">
+              Расскажите о выполненной работе — заказчики увидят её в вашем
+              профиле
+            </p>
+          </div>
+          <button
+            type="button"
+            className="pf-modal__close"
+            onClick={onClose}
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
+        </header>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function PortfolioSkeleton() {
+  return (
+    <div className="pf-skeleton-grid" aria-hidden="true">
+      {[0, 1, 2].map((key) => (
+        <div key={key} className="pf-skeleton-card">
+          <div className="pf-skeleton-card__media" />
+          <div className="pf-skeleton-card__body">
+            <div className="pf-skeleton-line pf-skeleton-line--short" />
+            <div className="pf-skeleton-line pf-skeleton-line--title" />
+            <div className="pf-skeleton-line" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function Portfolio() {
-  const userId = getUserId();
   const [projects, setProjects] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [uploadProject, setUploadProject] = useState("");
-  const [modalImage, setModalImage] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [addModalVisible, setAddModalVisible] = useState(false);
 
-  const loadPortfolio = async () => {
+  const [categoriesWorksMaster, setCategoriesWorksMaster] = useState([]);
+  const [categoryWorkMaster, setCategoryWorkMaster] = useState(null);
+
+  const categoriesWorksMasterOptions = categoriesWorksMaster.map((cat) => ({
+    value: cat.category_work_id,
+    label: cat.name,
+    key: cat.category_work_id,
+  }));
+
+  const [newProject, setNewProject] = useState({
+    title: "",
+    description: "",
+  });
+
+  const totalPhotos = useMemo(
+    () => projects.reduce((sum, project) => sum + (project.imageCount || 0), 0),
+    [projects],
+  );
+
+  const fetchPortfolioMaster = useCallback(async () => {
+    const userId = localStorage.getItem("user_id");
     if (!userId) {
-      setError("Войдите в аккаунт, чтобы управлять портфолио");
+      setProjects([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError("");
     try {
-      const [portfolioResponse, imagesResponse, categoriesResponse] =
-        await Promise.all([
-          apiFetch(buildApiUrl(`/projects_portfolio_master/${userId}`)),
-          apiFetch(buildApiUrl(`/project_images_portfolio_master/${userId}`)),
-          apiFetch(buildApiUrl(`/categories_works_master/${userId}`)),
-        ]);
+      setLoading(true);
 
-      if (!portfolioResponse.ok) {
-        throw new Error("Не удалось загрузить портфолио");
+      const [projectsResponse, imagesResponse] = await Promise.all([
+        apiFetch(`${API.baseURL}/projects_portfolio_master/${userId}`),
+        apiFetch(`${API.baseURL}/project_images_portfolio_master/${userId}`),
+      ]);
+
+      if (!projectsResponse.ok) {
+        throw new Error("Не получили данных с сервера");
       }
 
-      const portfolioStructure = await portfolioResponse.json();
+      const projectsData = await projectsResponse.json();
       const imagesData = imagesResponse.ok
         ? await imagesResponse.json()
         : { projects: [] };
-      const imageMap = new Map(
-        (imagesData.projects || []).map((item) => [
-          item.title,
-          item.images || [],
-        ]),
+
+      setProjects(
+        enrichProjectsWithImages(
+          Array.isArray(projectsData) ? projectsData : [],
+          imagesData.projects,
+        ),
       );
-
-      const nextProjects = (
-        Array.isArray(portfolioStructure) ? portfolioStructure : []
-      ).map((project) => ({
-        ...project,
-        description: project.description || "",
-        images: imageMap.get(project.title) || [],
-      }));
-
-      setProjects(nextProjects);
-      if (nextProjects.length > 0 && !uploadProject) {
-        setUploadProject(nextProjects[0].title);
-      }
-
-      if (categoriesResponse.ok) {
-        const cats = await categoriesResponse.json();
-        setCategories(Array.isArray(cats) ? cats : []);
-        if (Array.isArray(cats) && cats.length > 0) {
-          setCategoryId(String(cats[0].id ?? cats[0].category_id ?? ""));
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "Ошибка загрузки портфолио");
+    } catch (error) {
+      console.log("Ошибка: ", error);
       setProjects([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadPortfolio();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleAddProject = async (event) => {
-    event.preventDefault();
-    if (!userId || !title.trim() || !categoryId) return;
-
-    setSaving(true);
-    setError("");
+  const fetchCategoriesWorksMaster = useCallback(async () => {
     try {
+      const masterId = localStorage.getItem("user_id");
       const response = await apiFetch(
-        buildApiUrl("/add_project_portfolio_master"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: Number(userId),
-            title: title.trim(),
-            description: description.trim() || null,
-            category_id: Number(categoryId),
-          }),
-        },
+        `${API.baseURL}/categories_works_master/${masterId}`,
       );
-
-      if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(detail || "Не удалось добавить проект");
-      }
-
-      setTitle("");
-      setDescription("");
-      setUploadProject(title.trim());
-      await loadPortfolio();
-    } catch (err) {
-      setError(err.message || "Ошибка сохранения проекта");
-    } finally {
-      setSaving(false);
+      if (!response.ok) throw new Error("Не получили данных с сервера");
+      const data = await response.json();
+      setCategoriesWorksMaster(data);
+    } catch (error) {
+      console.log("Ошибка: ", error);
+      setCategoriesWorksMaster([]);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchPortfolioMaster();
+    fetchCategoriesWorksMaster();
+  }, [fetchPortfolioMaster, fetchCategoriesWorksMaster]);
+
+  const handleSelectCategoryWorkMaster = (selectedCategoryWork) => {
+    setCategoryWorkMaster(selectedCategoryWork);
   };
 
-  const handleUploadImages = async (event) => {
-    const files = Array.from(event.target.files || []);
-    event.target.value = "";
-    if (!files.length || !uploadProject) return;
-
-    setSaving(true);
-    setError("");
-    try {
-      const formData = new FormData();
-      files.forEach((file) => formData.append("files", file));
-
-      const response = await apiFetch(
-        buildApiUrl(
-          `/upload_images_portfolio_master/?project_name=${encodeURIComponent(uploadProject)}`,
-        ),
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
-
-      if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(detail || "Не удалось загрузить изображения");
-      }
-
-      await loadPortfolio();
-    } catch (err) {
-      setError(err.message || "Ошибка загрузки изображений");
-    } finally {
-      setSaving(false);
-    }
+  const handleNewProjectChange = (e) => {
+    const { name, value } = e.target;
+    setNewProject((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleDeleteImage = async (projectName, imagePath) => {
-    const filename = String(imagePath).split("/").pop();
-    if (!filename || !projectName) return;
+  const handleAddProjectSubmit = async (e) => {
+    e.preventDefault();
 
-    setSaving(true);
-    setError("");
-    try {
-      const response = await apiFetch(
-        buildApiUrl(
-          `/delete_image_portfolio_master/?project_name=${encodeURIComponent(projectName)}&filename=${encodeURIComponent(filename)}`,
-        ),
-        { method: "DELETE" },
-      );
-
-      if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(detail || "Не удалось удалить изображение");
-      }
-
-      await loadPortfolio();
-    } catch (err) {
-      setError(err.message || "Ошибка удаления изображения");
-    } finally {
-      setSaving(false);
+    if (!newProject.title.trim()) {
+      alert("Введите название проекта");
+      return;
     }
+
+    if (!categoryWorkMaster?.value) {
+      alert("Выберите категорию работ");
+      return;
+    }
+
+    const masterId = +localStorage.getItem("user_id");
+
+    const response = await apiFetch(
+      `${API.baseURL}/add_project_portfolio_master`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: masterId,
+          title: newProject.title.trim(),
+          description: newProject.description.trim(),
+          category_id: categoryWorkMaster.value,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      alert("Ошибка при добавлении проекта");
+      return;
+    }
+
+    await fetchPortfolioMaster();
+    setNewProject({ title: "", description: "" });
+    setCategoryWorkMaster(null);
+    setAddModalVisible(false);
   };
+
+  const closeModal = () => {
+    setAddModalVisible(false);
+    setCategoryWorkMaster(null);
+    setNewProject({ title: "", description: "" });
+  };
+
+  if (selectedProject) {
+    return (
+      <PortfolioInformation
+        project={selectedProject}
+        onBack={() => setSelectedProject(null)}
+        onImagesChanged={fetchPortfolioMaster}
+      />
+    );
+  }
 
   return (
     <div className="pf-page">
       <header className="pf-header">
-        <h1 className="pf-title">Портфолио</h1>
-        <p className="pf-subtitle">
-          Добавляйте проекты и фотографии работ для профиля исполнителя
-        </p>
+        <div className="pf-header__text">
+          <span className="pf-header__badge">Портфолио</span>
+          <h2 className="pf-header__title">Ваши проекты</h2>
+          <p className="pf-header__subtitle">
+            Покажите лучшие работы с фотографиями и описанием — это помогает
+            заказчикам быстрее принять решение
+          </p>
+          {!loading && projects.length > 0 && (
+            <div className="pf-header__stats">
+              <span className="pf-stat">
+                Проектов: <strong>{projects.length}</strong>
+              </span>
+              <span className="pf-stat">
+                Фотографий: <strong>{totalPhotos}</strong>
+              </span>
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setAddModalVisible(true)}
+          className="pf-btn-add"
+        >
+          <span className="pf-btn-add__icon" aria-hidden="true">
+            +
+          </span>
+          Добавить проект
+        </button>
       </header>
 
-      {error ? <div className="pf-alert">{error}</div> : null}
-
-      <section className="pf-card">
-        <h2 className="pf-card__title">Новый проект</h2>
-        <form className="pf-form" onSubmit={handleAddProject}>
-          <label className="pf-field">
-            <span>Название</span>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              minLength={3}
-              maxLength={100}
-              required
-              placeholder="Например: Ремонт квартиры"
-            />
-          </label>
-          <label className="pf-field">
-            <span>Описание</span>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              placeholder="Кратко опишите работу"
-            />
-          </label>
-          <label className="pf-field">
-            <span>Категория</span>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              required
-            >
-              {categories.length === 0 ? (
-                <option value="">Сначала добавьте специализацию</option>
-              ) : (
-                categories.map((cat) => {
-                  const id = cat.id ?? cat.category_id;
-                  const name =
-                    cat.name ||
-                    cat.name_category ||
-                    cat.category_work ||
-                    `Категория ${id}`;
-                  return (
-                    <option key={id} value={id}>
-                      {name}
-                    </option>
-                  );
-                })
-              )}
-            </select>
-          </label>
-          <button
-            type="submit"
-            className="pf-btn"
-            disabled={saving || !categoryId}
-          >
-            {saving ? "Сохранение..." : "Добавить проект"}
-          </button>
-        </form>
-      </section>
-
-      <section className="pf-card">
-        <h2 className="pf-card__title">Фото к проекту</h2>
-        <div className="pf-upload-row">
-          <select
-            value={uploadProject}
-            onChange={(e) => setUploadProject(e.target.value)}
-            disabled={projects.length === 0}
-          >
-            {projects.length === 0 ? (
-              <option value="">Нет проектов</option>
-            ) : (
-              projects.map((project) => (
-                <option key={project.portfolio_item_id || project.title} value={project.title}>
-                  {project.title}
-                </option>
-              ))
-            )}
-          </select>
-          <label className="pf-btn pf-btn--secondary">
-            Загрузить фото
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              hidden
-              disabled={!uploadProject || saving}
-              onChange={handleUploadImages}
-            />
-          </label>
-        </div>
-      </section>
-
-      <section className="pf-card">
-        <h2 className="pf-card__title">Мои проекты</h2>
+      <div className="pf-grid">
         {loading ? (
-          <p className="pf-empty">Загрузка...</p>
+          <PortfolioSkeleton />
         ) : projects.length === 0 ? (
-          <p className="pf-empty">Пока нет проектов в портфолио</p>
-        ) : (
-          <div className="pf-list">
-            {projects.map((project) => (
-              <article
-                key={project.portfolio_item_id || project.title}
-                className="pf-item"
-              >
-                <h3>{project.title}</h3>
-                {project.description ? <p>{project.description}</p> : null}
-                {project.images?.length ? (
-                  <div className="pf-gallery">
-                    {project.images.map((image, index) => {
-                      const src = resolveMediaUrl(image);
-                      return (
-                        <div key={`${project.title}-${index}`} className="pf-thumb">
-                          <button
-                            type="button"
-                            onClick={() => setModalImage(src)}
-                          >
-                            <img src={src} alt={`${project.title} ${index + 1}`} />
-                          </button>
-                          <button
-                            type="button"
-                            className="pf-thumb__delete"
-                            onClick={() =>
-                              handleDeleteImage(project.title, image)
-                            }
-                          >
-                            Удалить
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="pf-empty">Нет изображений</p>
-                )}
-              </article>
-            ))}
+          <div className="pf-empty">
+            <span className="pf-empty__visual" aria-hidden="true">
+              +
+            </span>
+            <p className="pf-empty__title">Портфолио пока пустое</p>
+            <p className="pf-empty__text">
+              Создайте первый проект и загрузите фотографии выполненных работ —
+              они появятся в вашем профиле для заказчиков
+            </p>
+            <button
+              type="button"
+              onClick={() => setAddModalVisible(true)}
+              className="pf-btn-add"
+            >
+              <span className="pf-btn-add__icon" aria-hidden="true">
+                +
+              </span>
+              Добавить проект
+            </button>
           </div>
-        )}
-      </section>
+        ) : (
+          projects.map((project) => {
+            const coverUrl = resolveImageUrl(project.coverImage);
 
-      {modalImage ? (
-        <div
-          className="pf-modal"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setModalImage(null)}
-        >
-          <img src={modalImage} alt="Просмотр" />
-        </div>
-      ) : null}
+            return (
+              <article
+                key={project.id ?? `${project.title}-${project.category_work}`}
+                className="pf-card"
+                onClick={() => setSelectedProject(project)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedProject(project);
+                  }
+                }}
+              >
+                <div className="pf-card__media">
+                  {coverUrl ? (
+                    <>
+                      <img
+                        src={coverUrl}
+                        alt=""
+                        className="pf-card__cover"
+                        loading="lazy"
+                      />
+                      <div className="pf-card__media-overlay" aria-hidden="true" />
+                    </>
+                  ) : (
+                    <div className="pf-card__media-placeholder">
+                      <span className="pf-card__media-placeholder-icon">
+                        {getCategoryInitial(project.category_work)}
+                      </span>
+                      <span className="pf-card__media-placeholder-text">
+                        Нет фото
+                      </span>
+                    </div>
+                  )}
+                  {project.imageCount > 0 && (
+                    <span className="pf-card__photo-badge">
+                      {project.imageCount} фото
+                    </span>
+                  )}
+                </div>
+
+                <div className="pf-card__body">
+                  <span className="pf-card__category">
+                    {project.category_work || "Без категории"}
+                  </span>
+                  <h3 className="pf-card__title">
+                    {project.title || project.category_work || "Проект"}
+                  </h3>
+                  <p className="pf-card__desc">
+                    {project.description || "Добавьте описание проекта"}
+                  </p>
+                  <span className="pf-card__footer">
+                    Открыть проект
+                    <span className="pf-card__footer-arrow" aria-hidden="true">
+                      →
+                    </span>
+                  </span>
+                </div>
+              </article>
+            );
+          })
+        )}
+      </div>
+
+      <AddPortfolioModal visible={addModalVisible} onClose={closeModal}>
+        <form onSubmit={handleAddProjectSubmit}>
+          <div className="pf-form pf-modal__body">
+            <div className="pf-field">
+              <label className="pf-label" htmlFor="pf-category">
+                Категория работ <span>*</span>
+              </label>
+              <CreatableSelect
+                inputId="pf-category"
+                options={categoriesWorksMasterOptions}
+                value={categoryWorkMaster}
+                onChange={handleSelectCategoryWorkMaster}
+                isClearable
+                placeholder="Выберите категорию"
+                styles={selectStyles}
+              />
+              <p className="pf-hint">
+                Укажите направление, к которому относится проект
+              </p>
+            </div>
+
+            <div className="pf-field">
+              <label className="pf-label" htmlFor="pf-title">
+                Название работы <span>*</span>
+              </label>
+              <input
+                id="pf-title"
+                type="text"
+                name="title"
+                placeholder="Например: Ремонт ванной комнаты"
+                value={newProject.title}
+                onChange={handleNewProjectChange}
+                className="pf-input"
+                required
+              />
+            </div>
+
+            <div className="pf-field">
+              <label className="pf-label" htmlFor="pf-description">
+                Описание
+              </label>
+              <textarea
+                id="pf-description"
+                name="description"
+                placeholder="Кратко опишите объём работ, сроки и особенности проекта"
+                value={newProject.description}
+                onChange={handleNewProjectChange}
+                rows={4}
+                className="pf-textarea"
+              />
+            </div>
+          </div>
+
+          <footer className="pf-modal__footer">
+            <button
+              type="button"
+              className="pf-btn-secondary"
+              onClick={closeModal}
+            >
+              Отмена
+            </button>
+            <button type="submit" className="pf-btn-primary">
+              Добавить проект
+            </button>
+          </footer>
+        </form>
+      </AddPortfolioModal>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { API, apiFetch } from "../../../../../utils/api.js";
 import "../portfolio.css";
 import "./portfolio_information.css";
+
 function resolveImageUrl(path) {
   if (!path) return null;
   return path.startsWith("http") ? path : `${API.baseURL}${path}`;
@@ -176,7 +177,7 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
 
   return (
     <div className="pf-detail">
-      <button type="button" onClick={onBack} className="pf-btn pf-back">
+      <button type="button" onClick={onBack} className="pf-back">
         ← К списку проектов
       </button>
 
@@ -254,9 +255,9 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
                 <button
                   type="button"
                   onClick={handleDeleteSelectedOnServer}
-                  className="pf-btn pf-btn-danger"
+                  className="pf-btn-danger"
                 >
-                  Удалить ({selectedForDelete.size})
+                  Удалить выбранные ({selectedForDelete.size})
                 </button>
               )}
             </div>
@@ -331,12 +332,12 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
                     <button
                       type="button"
                       onClick={handleSaveImages}
-                      className="pf-btn pf-btn-save"
+                      className="pf-btn-save"
                       disabled={uploading}
                     >
                       {uploading
                         ? "Загрузка…"
-                        : `Загрузить (${selectedFiles.length})`}
+                        : `Сохранить (${selectedFiles.length})`}
                     </button>
                   )}
                 </div>
@@ -411,7 +412,7 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
               className="pf-textarea"
             />
 
-            <button type="submit" className="pf-btn pf-btn-primary">
+            <button type="submit" className="pf-btn-primary">
               Сохранить
             </button>
           </form>
