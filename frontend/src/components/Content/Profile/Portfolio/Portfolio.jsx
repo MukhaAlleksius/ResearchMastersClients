@@ -272,22 +272,14 @@ export default function Portfolio() {
     <div className="pf-page">
       <header className="pf-header">
         <div className="pf-header__text">
-          <span className="pf-header__badge">Портфолио</span>
-          <h2 className="pf-header__title">Ваши проекты</h2>
+          <h1 className="pf-header__title">Портфолио</h1>
           <p className="pf-header__subtitle">
-            Покажите лучшие работы с фотографиями и описанием — это помогает
-            заказчикам быстрее принять решение
+            {!loading && projects.length > 0
+              ? `${projects.length} ${
+                  projects.length === 1 ? "проект" : "проектов"
+                } · ${totalPhotos} фото — покажите лучшие работы заказчикам`
+              : "Покажите лучшие работы с фотографиями и описанием"}
           </p>
-          {!loading && projects.length > 0 && (
-            <div className="pf-header__stats">
-              <span className="pf-stat">
-                Проектов: <strong>{projects.length}</strong>
-              </span>
-              <span className="pf-stat">
-                Фотографий: <strong>{totalPhotos}</strong>
-              </span>
-            </div>
-          )}
         </div>
         <button
           type="button"
@@ -297,7 +289,7 @@ export default function Portfolio() {
           <span className="pf-btn-add__icon" aria-hidden="true">
             +
           </span>
-          Добавить проект
+          Добавить
         </button>
       </header>
 

@@ -1,5 +1,11 @@
 import { API, apiFetch } from "./api.js";
 
+export const DEFAULT_REGISTRATION_GEO = {
+  country: "Беларусь",
+  region: "Минская область",
+  town: "Солигорск",
+};
+
 export function formatCountry(country) {
   return {
     value: country.country_id || country.id,
@@ -19,6 +25,15 @@ export function formatTown(town) {
     value: town.town_id || town.id,
     label: town.name_town || town.name,
   };
+}
+
+export function findOptionByLabel(options, label) {
+  if (!label || !Array.isArray(options)) return null;
+  const normalized = String(label).trim().toLowerCase();
+  return (
+    options.find((item) => String(item.label).trim().toLowerCase() === normalized) ||
+    null
+  );
 }
 
 export async function fetchCountriesList() {
@@ -42,4 +57,45 @@ export async function fetchTownsList(regionId) {
   if (!response.ok) throw new Error("Не удалось загрузить список городов");
   const data = await response.json();
   return Array.isArray(data) ? data.map(formatTown) : [];
+}
+
+/** Load geography and preselect Беларусь / Минская область / Солигорск when available. */
+export async function loadDefaultRegistrationGeography() {
+  const countries = await fetchCountriesList();
+  const country = findOptionByLabel(countries, DEFAULT_REGISTRATION_GEO.country);
+  if (!country) {
+    return {
+      countries,
+      regions: [],
+      towns: [],
+      countryId: "",
+      regionId: "",
+      townId: "",
+    };
+  }
+
+  const regions = await fetchRegionsList(country.value);
+  const region = findOptionByLabel(regions, DEFAULT_REGISTRATION_GEO.region);
+  if (!region) {
+    return {
+      countries,
+      regions,
+      towns: [],
+      countryId: String(country.value),
+      regionId: "",
+      townId: "",
+    };
+  }
+
+  const towns = await fetchTownsList(region.value);
+  const town = findOptionByLabel(towns, DEFAULT_REGISTRATION_GEO.town);
+
+  return {
+    countries,
+    regions,
+    towns,
+    countryId: String(country.value),
+    regionId: String(region.value),
+    townId: town ? String(town.value) : "",
+  };
 }

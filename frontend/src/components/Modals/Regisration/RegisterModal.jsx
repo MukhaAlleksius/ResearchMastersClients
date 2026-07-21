@@ -3,9 +3,9 @@ import { API, apiFetch } from "../../../utils/api.js";
 import { Link } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
-  fetchCountriesList,
   fetchRegionsList,
   fetchTownsList,
+  loadDefaultRegistrationGeography,
 } from "../../../utils/geographyApi";
 import "./registration_modal.css";
 
@@ -38,12 +38,23 @@ export default function RegisterModal({ isOpen, onClose }) {
   const [townId, setTownId] = useState("");
   const [geoLoading, setGeoLoading] = useState(false);
 
-  const loadCountries = useCallback(async () => {
+  const loadGeographyDefaults = useCallback(async () => {
     try {
       setGeoLoading(true);
-      setCountries(await fetchCountriesList());
+      const geo = await loadDefaultRegistrationGeography();
+      setCountries(geo.countries);
+      setRegions(geo.regions);
+      setTowns(geo.towns);
+      setCountryId(geo.countryId);
+      setRegionId(geo.regionId);
+      setTownId(geo.townId);
     } catch {
       setCountries([]);
+      setRegions([]);
+      setTowns([]);
+      setCountryId("");
+      setRegionId("");
+      setTownId("");
     } finally {
       setGeoLoading(false);
     }
@@ -51,9 +62,9 @@ export default function RegisterModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
-      loadCountries();
+      loadGeographyDefaults();
     }
-  }, [isOpen, loadCountries]);
+  }, [isOpen, loadGeographyDefaults]);
 
   if (!isOpen) return null;
 

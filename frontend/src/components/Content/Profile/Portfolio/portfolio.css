@@ -5,9 +5,10 @@
   --pf-border-soft: #f1f5f9;
   --pf-text: #0f172a;
   --pf-muted: #64748b;
-  --pf-accent: #4f46e5;
-  --pf-accent-soft: #eef2ff;
-  --pf-accent-glow: rgba(79, 70, 229, 0.22);
+  --pf-accent: #2563eb;
+  --pf-accent-soft: #eff6ff;
+  --pf-accent-hover: #1d4ed8;
+  --pf-accent-glow: rgba(37, 99, 235, 0.28);
   --pf-radius-lg: 20px;
   --pf-radius-md: 14px;
   --pf-radius-sm: 10px;
@@ -22,141 +23,84 @@
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Header */
+/* Header — same pattern as Specializations / ProfileSettings */
 .pf-header {
-  position: relative;
   display: flex;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 1.5rem;
-  margin-bottom: 1.75rem;
-  padding: 1.75rem 2rem;
-  border: 1px solid var(--pf-border);
-  border-radius: var(--pf-radius-lg);
-  background:
-    radial-gradient(ellipse 80% 120% at 100% 0%, rgba(99, 102, 241, 0.12), transparent 55%),
-    radial-gradient(ellipse 60% 80% at 0% 100%, rgba(14, 165, 233, 0.08), transparent 50%),
-    linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-  box-shadow: var(--pf-shadow-sm);
-  overflow: hidden;
-}
-
-.pf-header::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.15) 1px, transparent 0);
-  background-size: 24px 24px;
-  pointer-events: none;
-  opacity: 0.35;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 22px 24px;
+  border-radius: var(--pf-radius-md);
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #3b82f6 100%);
+  color: #fff;
+  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.28);
 }
 
 .pf-header__text {
-  position: relative;
-  z-index: 1;
   flex: 1;
   min-width: 0;
 }
 
-.pf-header__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-bottom: 0.6rem;
-  padding: 0.28rem 0.7rem;
-  border-radius: 999px;
-  background: var(--pf-accent-soft);
-  color: #4338ca;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .pf-header__title {
-  margin: 0 0 0.4rem;
-  font-size: clamp(1.5rem, 3vw, 1.875rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+  margin: 0 0 4px;
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: #fff;
 }
 
 .pf-header__subtitle {
   margin: 0;
-  max-width: 34rem;
-  color: var(--pf-muted);
-  font-size: 0.9375rem;
-  line-height: 1.6;
-}
-
-.pf-header__stats {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.pf-stat {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid var(--pf-border);
-  color: #475569;
-  font-size: 0.75rem;
-  font-weight: 600;
-  backdrop-filter: blur(8px);
-}
-
-.pf-stat strong {
-  color: var(--pf-text);
-  font-weight: 800;
+  max-width: 36rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  opacity: 0.9;
+  color: #fff;
 }
 
 .pf-btn-add {
-  position: relative;
-  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 6px;
   flex-shrink: 0;
-  padding: 0.8rem 1.35rem;
-  border: none;
-  border-radius: var(--pf-radius-sm);
-  background: linear-gradient(135deg, #4338ca 0%, #6366f1 50%, #818cf8 100%);
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--pf-accent);
   color: #ffffff;
+  font-family: inherit;
   font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 10px 24px var(--pf-accent-glow);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    filter 0.2s ease;
+  box-shadow: 0 4px 14px var(--pf-accent-glow);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .pf-btn-add:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 32px rgba(79, 70, 229, 0.32);
-  filter: brightness(1.04);
+  background: var(--pf-accent-hover);
+}
+
+.pf-header .pf-btn-add {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: none;
+}
+
+.pf-header .pf-btn-add:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .pf-btn-add__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.35rem;
-  height: 1.35rem;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.22);
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
   line-height: 1;
-  font-weight: 400;
 }
 
 /* Grid */
@@ -649,50 +593,53 @@
 }
 
 .pf-btn-secondary {
-  padding: 0.7rem 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
   border: 1px solid var(--pf-border);
-  border-radius: var(--pf-radius-sm);
-  background: #f8fafc;
-  color: #475569;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #64748b;
   font-family: inherit;
   font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .pf-btn-secondary:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  border-color: #93c5fd;
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
 }
 
 .pf-btn-primary {
-  padding: 0.7rem 1.3rem;
-  border: none;
-  border-radius: var(--pf-radius-sm);
-  background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--pf-accent);
   color: #ffffff;
   font-family: inherit;
   font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 8px 20px var(--pf-accent-glow);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  box-shadow: 0 4px 14px var(--pf-accent-glow);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .pf-btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.32);
+  background: var(--pf-accent-hover);
 }
 
 .pf-btn-primary:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-  transform: none;
   box-shadow: none;
 }
 

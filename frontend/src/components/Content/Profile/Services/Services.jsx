@@ -379,9 +379,11 @@ export default function Services() {
         <div>
           <h2 className="list-page__title">Мои услуги</h2>
           <p className="list-page__subtitle">
-            {servicesExecutor.length > 0
-              ? `Всего ${servicesExecutor.length} — выберите статус для фильтрации`
-              : "У вас пока нет услуг"}
+            {isGraphicTab
+              ? "Календарь и планирование заказов"
+              : servicesExecutor.length > 0
+                ? `Всего ${servicesExecutor.length} — выберите статус для фильтрации`
+                : "У вас пока нет услуг"}
           </p>
         </div>
       </header>
@@ -399,23 +401,36 @@ export default function Services() {
         </div>
       )}
 
-      <div className="list-page__body">
-        <StatusFilterTabs
-          tabs={statusTabs}
-          activeId={activeStatusTab}
-          onChange={handleStatusChange}
-          allTab={{
-            id: "all",
-            label: "Все услуги",
-            count: servicesExecutor.length,
-            updatesCount: totalUpdatesCount,
-          }}
-          getCount={getStatusCount}
-          getUpdatesCount={getUpdatesCount}
-        />
+      <div
+        className={`list-page__body${isGraphicTab ? " list-page__body--full" : ""}`}
+      >
+        {!isGraphicTab && (
+          <StatusFilterTabs
+            tabs={statusTabs}
+            activeId={activeStatusTab}
+            onChange={handleStatusChange}
+            allTab={{
+              id: "all",
+              label: "Все услуги",
+              count: servicesExecutor.length,
+              updatesCount: totalUpdatesCount,
+            }}
+            getCount={getStatusCount}
+            getUpdatesCount={getUpdatesCount}
+          />
+        )}
 
         <div className="list-page__content">
-          {activeTabMeta?.hint && (
+          {isGraphicTab && (
+            <button
+              type="button"
+              className="btn-list-back"
+              onClick={() => handleStatusChange("all")}
+            >
+              ← Назад к услугам
+            </button>
+          )}
+          {activeTabMeta?.hint && !isGraphicTab && (
             <div className="list-hint" role="note">
               <p className="list-hint__text">{activeTabMeta.hint}</p>
             </div>

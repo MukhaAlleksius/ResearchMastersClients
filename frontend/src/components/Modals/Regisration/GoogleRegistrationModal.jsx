@@ -2,9 +2,9 @@ import React, { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { apiFetch, buildApiUrl } from "../../../utils/api.js";
 import {
-  fetchCountriesList,
   fetchRegionsList,
   fetchTownsList,
+  loadDefaultRegistrationGeography,
 } from "../../../utils/geographyApi.js";
 import "./registration_modal.css";
 
@@ -43,12 +43,23 @@ export default function GoogleRegistrationModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const loadCountries = useCallback(async () => {
+  const loadGeographyDefaults = useCallback(async () => {
     try {
       setGeoLoading(true);
-      setCountries(await fetchCountriesList());
+      const geo = await loadDefaultRegistrationGeography();
+      setCountries(geo.countries);
+      setRegions(geo.regions);
+      setTowns(geo.towns);
+      setCountryId(geo.countryId);
+      setRegionId(geo.regionId);
+      setTownId(geo.townId);
     } catch {
       setCountries([]);
+      setRegions([]);
+      setTowns([]);
+      setCountryId("");
+      setRegionId("");
+      setTownId("");
     } finally {
       setGeoLoading(false);
     }
@@ -58,13 +69,8 @@ export default function GoogleRegistrationModal({
     if (!isOpen) return;
     setError("");
     setLoading(false);
-    setCountryId("");
-    setRegionId("");
-    setTownId("");
-    setRegions([]);
-    setTowns([]);
-    loadCountries();
-  }, [isOpen, loadCountries]);
+    loadGeographyDefaults();
+  }, [isOpen, loadGeographyDefaults]);
 
   const handleCountryChange = async (e) => {
     const nextCountryId = e.target.value;

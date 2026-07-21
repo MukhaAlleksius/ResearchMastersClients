@@ -55,6 +55,7 @@
   background: none;
   color: var(--pf-accent);
   box-shadow: none;
+  cursor: pointer;
 }
 
 .pf-back:hover {
@@ -462,29 +463,56 @@
 }
 
 .pf-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 6px 10px;
-  font-size: 0.75rem;
   border: 1px solid #fecaca;
+  border-radius: 10px;
   background: #fef2f2;
   color: #dc2626;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .pf-btn-danger:hover {
   background: #fee2e2;
+  border-color: #fca5a5;
 }
 
 .pf-btn-save,
 .pf-btn-primary {
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
   background: var(--pf-accent);
   color: #ffffff;
-  box-shadow: none;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .pf-btn-save:hover,
 .pf-btn-primary:hover {
   background: var(--pf-accent-hover);
-  transform: none;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+}
+
+.pf-btn-save:disabled,
+.pf-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
   box-shadow: none;
 }
 

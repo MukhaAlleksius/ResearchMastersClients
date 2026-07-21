@@ -91,14 +91,6 @@ export default function ExecutorOrdersSchedule() {
   const days = getDaysInMonth(currentYear, currentMonth);
   const dateOrders = ordersByDate[selectedDate] || [];
 
-  const sortedGraphicOrders = useMemo(
-    () =>
-      [...normalizedGraphicOrders].sort((a, b) =>
-        String(a.date_start || "").localeCompare(String(b.date_start || "")),
-      ),
-    [normalizedGraphicOrders],
-  );
-
   const fetchOrders = useCallback(async () => {
     try {
       const res = await apiFetch(`${API.baseURL}/services_executor`);
@@ -459,69 +451,6 @@ export default function ExecutorOrdersSchedule() {
                       key={item.id}
                       item={item}
                       onDelete={() => confirmDeleteOrder(item.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="gos-card" aria-label="Ожидают выполнения">
-            <div className="gos-card__head">
-              <h2 className="gos-card__title">Ожидают выполнения</h2>
-              <span className="gos-card__count">{orders.length}</span>
-            </div>
-            <div className="gos-card__body">
-              {orders.length === 0 ? (
-                <div className="gos-empty">
-                  <p className="gos-empty__text">
-                    Все заказы запланированы или уже в работе
-                  </p>
-                </div>
-              ) : (
-                orders.map((order) => (
-                  <div key={order.id} className="gos-await-item">
-                    <div className="gos-await-item__title">
-                      #{order.id} — {order.title}
-                    </div>
-                    {order.budget != null && (
-                      <div className="gos-await-item__budget">
-                        Бюджет: {order.budget} BYN
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-
-          <section className="gos-card" aria-label="Весь график">
-            <div className="gos-card__head">
-              <h2 className="gos-card__title">Весь график</h2>
-              <span className="gos-card__count">{sortedGraphicOrders.length}</span>
-            </div>
-            <div className="gos-card__body">
-              {sortedGraphicOrders.length === 0 ? (
-                <div className="gos-empty">
-                  <span className="gos-empty__icon" aria-hidden="true">
-                    <FaCalendarAlt />
-                  </span>
-                  <p className="gos-empty__text">График пока пуст</p>
-                </div>
-              ) : (
-                <div className="gos-list">
-                  {sortedGraphicOrders.map((item) => (
-                    <OrderRow
-                      key={item.id}
-                      item={item}
-                      onDelete={() => confirmDeleteOrder(item.id)}
-                      onSelectDate={() => {
-                        if (!item.dateKey) return;
-                        setSelectedDate(item.dateKey);
-                        const [year, month] = item.dateKey.split("-").map(Number);
-                        setCurrentYear(year);
-                        setCurrentMonth(month - 1);
-                      }}
                     />
                   ))}
                 </div>
