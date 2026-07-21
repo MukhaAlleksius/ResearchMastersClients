@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import Select from "react-select";
 import { createPortal } from "react-dom";
 import { apiFetch, buildApiUrl } from "../../../utils/api.js";
 import {
@@ -25,6 +26,27 @@ function getSelectedLabel(options, id) {
     options.find((item) => String(item.value) === String(id))?.label || ""
   );
 }
+
+function findOption(options, id) {
+  if (id === "" || id == null) return null;
+  return options.find((item) => String(item.value) === String(id)) || null;
+}
+
+const geoSelectStyles = {
+  menuPortal: (base) => ({ ...base, zIndex: 4000 }),
+  control: (base, state) => ({
+    ...base,
+    minHeight: 42,
+    borderRadius: 10,
+    borderColor: state.isFocused ? "#2563eb" : "#e2e8f0",
+    backgroundColor: "#f8fafc",
+    boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : "none",
+    "&:hover": { borderColor: state.isFocused ? "#2563eb" : "#cbd5e1" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "0 12px" }),
+  indicatorsContainer: (base) => ({ ...base, paddingRight: 6 }),
+  menu: (base) => ({ ...base, zIndex: 4000 }),
+};
 
 export default function GoogleRegistrationModal({
   isOpen,
@@ -72,8 +94,8 @@ export default function GoogleRegistrationModal({
     loadGeographyDefaults();
   }, [isOpen, loadGeographyDefaults]);
 
-  const handleCountryChange = async (e) => {
-    const nextCountryId = e.target.value;
+  const handleCountryChange = async (option) => {
+    const nextCountryId = option ? String(option.value) : "";
     setCountryId(nextCountryId);
     setRegionId("");
     setTownId("");
@@ -92,8 +114,8 @@ export default function GoogleRegistrationModal({
     }
   };
 
-  const handleRegionChange = async (e) => {
-    const nextRegionId = e.target.value;
+  const handleRegionChange = async (option) => {
+    const nextRegionId = option ? String(option.value) : "";
     setRegionId(nextRegionId);
     setTownId("");
     setTowns([]);
@@ -102,7 +124,11 @@ export default function GoogleRegistrationModal({
 
     try {
       setGeoLoading(true);
-      setTowns(await fetchTownsList(nextRegionId));
+      const nextTowns = await fetchTownsList(nextRegionId);
+      setTowns(nextTowns);
+      if (nextTowns.length === 1) {
+        setTownId(String(nextTowns[0].value));
+      }
     } catch {
       setTowns([]);
     } finally {
@@ -160,7 +186,6 @@ export default function GoogleRegistrationModal({
   if (!isOpen) return null;
 
   const fieldsDisabled = loading;
-  const inputClass = "reg-modal__input";
 
   return createPortal(
     <div className="reg-modal-overlay" onClick={onClose} role="presentation">
@@ -173,15 +198,10 @@ export default function GoogleRegistrationModal({
       >
         <header className="reg-modal__hero">
           <span className="reg-modal__badge">Fixer</span>
-          <h2
-            id="google-register-modal-title"
-            className="reg-modal__title"
-          >
+          <h2 id="google-register-modal-title" className="reg-modal__title">
             Регистрация через Google
           </h2>
-          <p className="reg-modal__subtitle">
-            Осталось указать географию
-          </p>
+          <p className="reg-modal__subtitle">Осталось указать географию</p>
           <button
             type="button"
             className="reg-modal__close"
@@ -220,24 +240,25 @@ export default function GoogleRegistrationModal({
                 htmlFor="google-reg-country"
                 hint="из справочника"
               >
-                <select
-                  id="google-reg-country"
-                  className={`${inputClass} reg-modal__select`}
-                  value={countryId}
+                <Select
+                  inputId="google-reg-country"
+                  classNamePrefix="reg-geo"
+                  options={countries}
+                  value={findOption(countries, countryId)}
                   onChange={handleCountryChange}
-                  disabled={fieldsDisabled || countries.length === 0}
-                >
-                  <option value="">
-                    {countries.length === 0
+                  isDisabled={fieldsDisabled || countries.length === 0}
+                  isLoading={geoLoading && countries.length === 0}
+                  isClearable={false}
+                  placeholder={
+                    countries.length === 0
                       ? "Нет стран в справочнике"
-                      : "Выберите страну"}
-                  </option>
-                  {countries.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                      : "Выберите страну"
+                  }
+                  noOptionsMessage={() => "Нет вариантов"}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  styles={geoSelectStyles}
+                />
               </FieldRow>
 
               <FieldRow
@@ -245,26 +266,31 @@ export default function GoogleRegistrationModal({
                 htmlFor="google-reg-region"
                 hint={!countryId ? "сначала страна" : ""}
               >
-                <select
-                  id="google-reg-region"
-                  className={`${inputClass} reg-modal__select`}
-                  value={regionId}
+                <Select
+                  inputId="google-reg-region"
+                  classNamePrefix="reg-geo"
+                  options={regions}
+                  value={findOption(regions, regionId)}
                   onChange={handleRegionChange}
-                  disabled={fieldsDisabled || !countryId || regions.length === 0}
-                >
-                  <option value="">
-                    {!countryId
+                  isDisabled={
+                    fieldsDisabled || !countryId || regions.length === 0
+                  }
+                  isLoading={
+                    geoLoading && Boolean(countryId) && regions.length === 0
+                  }
+                  isClearable={false}
+                  placeholder={
+                    !countryId
                       ? "Сначала выберите страну"
                       : regions.length === 0
                         ? "Нет регионов"
-                        : "Выберите регион"}
-                  </option>
-                  {regions.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                        : "Выберите регион"
+                  }
+                  noOptionsMessage={() => "Нет вариантов"}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  styles={geoSelectStyles}
+                />
               </FieldRow>
 
               <FieldRow
@@ -272,26 +298,31 @@ export default function GoogleRegistrationModal({
                 htmlFor="google-reg-town"
                 hint={!regionId ? "сначала регион" : ""}
               >
-                <select
-                  id="google-reg-town"
-                  className={`${inputClass} reg-modal__select`}
-                  value={townId}
-                  onChange={(e) => setTownId(e.target.value)}
-                  disabled={fieldsDisabled || !regionId || towns.length === 0}
-                >
-                  <option value="">
-                    {!regionId
+                <Select
+                  inputId="google-reg-town"
+                  classNamePrefix="reg-geo"
+                  options={towns}
+                  value={findOption(towns, townId)}
+                  onChange={(option) =>
+                    setTownId(option ? String(option.value) : "")
+                  }
+                  isDisabled={fieldsDisabled || !regionId || towns.length === 0}
+                  isLoading={
+                    geoLoading && Boolean(regionId) && towns.length === 0
+                  }
+                  isClearable={false}
+                  placeholder={
+                    !regionId
                       ? "Сначала выберите регион"
                       : towns.length === 0
                         ? "Нет городов"
-                        : "Выберите город"}
-                  </option>
-                  {towns.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                        : "Выберите город"
+                  }
+                  noOptionsMessage={() => "Нет вариантов"}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  styles={geoSelectStyles}
+                />
               </FieldRow>
             </div>
           </div>
@@ -311,4 +342,3 @@ export default function GoogleRegistrationModal({
     document.body,
   );
 }
-
