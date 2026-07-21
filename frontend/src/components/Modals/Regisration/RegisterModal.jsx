@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import Select from "react-select";
 import { API, apiFetch } from "../../../utils/api.js";
 import { Link } from "react-router-dom";
 import { createPortal } from "react-dom";
@@ -20,6 +21,27 @@ function FieldRow({ label, htmlFor, hint, children }) {
     </div>
   );
 }
+
+function findOption(options, id) {
+  if (id === "" || id == null) return null;
+  return options.find((item) => String(item.value) === String(id)) || null;
+}
+
+const geoSelectStyles = {
+  menuPortal: (base) => ({ ...base, zIndex: 4000 }),
+  control: (base, state) => ({
+    ...base,
+    minHeight: 42,
+    borderRadius: 10,
+    borderColor: state.isFocused ? "#2563eb" : "#e2e8f0",
+    backgroundColor: "#f8fafc",
+    boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : "none",
+    "&:hover": { borderColor: state.isFocused ? "#2563eb" : "#cbd5e1" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "0 12px" }),
+  indicatorsContainer: (base) => ({ ...base, paddingRight: 6 }),
+  menu: (base) => ({ ...base, zIndex: 4000 }),
+};
 
 export default function RegisterModal({ isOpen, onClose }) {
   const [firstName, setFirstName] = useState("");
@@ -82,8 +104,8 @@ export default function RegisterModal({ isOpen, onClose }) {
     setError("");
   };
 
-  const handleCountryChange = async (e) => {
-    const nextCountryId = e.target.value;
+  const handleCountryChange = async (option) => {
+    const nextCountryId = option ? String(option.value) : "";
     setCountryId(nextCountryId);
     setRegionId("");
     setTownId("");
@@ -102,8 +124,8 @@ export default function RegisterModal({ isOpen, onClose }) {
     }
   };
 
-  const handleRegionChange = async (e) => {
-    const nextRegionId = e.target.value;
+  const handleRegionChange = async (option) => {
+    const nextRegionId = option ? String(option.value) : "";
     setRegionId(nextRegionId);
     setTownId("");
     setTowns([]);
@@ -112,7 +134,11 @@ export default function RegisterModal({ isOpen, onClose }) {
 
     try {
       setGeoLoading(true);
-      setTowns(await fetchTownsList(nextRegionId));
+      const nextTowns = await fetchTownsList(nextRegionId);
+      setTowns(nextTowns);
+      if (nextTowns.length === 1) {
+        setTownId(String(nextTowns[0].value));
+      }
     } catch {
       setTowns([]);
     } finally {
@@ -136,12 +162,16 @@ export default function RegisterModal({ isOpen, onClose }) {
       !email.trim() ||
       !password
     ) {
-      setError("Заполните все обязательные поля и выберите местоположение из списка.");
+      setError(
+        "Заполните все обязательные поля и выберите местоположение из списка.",
+      );
       return;
     }
 
     if (!agreeTerms) {
-      setError("Подтвердите согласие с условиями и политикой конфиденциальности.");
+      setError(
+        "Подтвердите согласие с условиями и политикой конфиденциальности.",
+      );
       return;
     }
 
@@ -181,7 +211,6 @@ export default function RegisterModal({ isOpen, onClose }) {
     }
   };
 
-  // Don't lock selects with geoLoading — that makes country/region/town unclickable.
   const fieldsDisabled = loading;
   const inputClass = "reg-modal__input";
 
@@ -253,26 +282,27 @@ export default function RegisterModal({ isOpen, onClose }) {
                 htmlFor="reg-country"
                 hint="из справочника"
               >
-                <select
-                  id="reg-country"
-                  className={`${inputClass} reg-modal__select`}
-                  value={countryId}
+                <Select
+                  inputId="reg-country"
+                  classNamePrefix="reg-geo"
+                  options={countries}
+                  value={findOption(countries, countryId)}
                   onChange={handleCountryChange}
-                  disabled={fieldsDisabled || countries.length === 0}
-                >
-                  <option value="">
-                    {countries.length === 0
+                  isDisabled={fieldsDisabled || countries.length === 0}
+                  isLoading={geoLoading && countries.length === 0}
+                  isClearable={false}
+                  placeholder={
+                    countries.length === 0
                       ? geoLoading
                         ? "Загрузка…"
                         : "Нет стран в справочнике"
-                      : "Выберите страну"}
-                  </option>
-                  {countries.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                      : "Выберите страну"
+                  }
+                  noOptionsMessage={() => "Нет вариантов"}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  styles={geoSelectStyles}
+                />
               </FieldRow>
 
               <FieldRow
@@ -280,26 +310,29 @@ export default function RegisterModal({ isOpen, onClose }) {
                 htmlFor="reg-region"
                 hint={!countryId ? "сначала страна" : ""}
               >
-                <select
-                  id="reg-region"
-                  className={`${inputClass} reg-modal__select`}
-                  value={regionId}
+                <Select
+                  inputId="reg-region"
+                  classNamePrefix="reg-geo"
+                  options={regions}
+                  value={findOption(regions, regionId)}
                   onChange={handleRegionChange}
-                  disabled={fieldsDisabled || !countryId || regions.length === 0}
-                >
-                  <option value="">
-                    {!countryId
+                  isDisabled={
+                    fieldsDisabled || !countryId || regions.length === 0
+                  }
+                  isLoading={geoLoading && Boolean(countryId) && regions.length === 0}
+                  isClearable={false}
+                  placeholder={
+                    !countryId
                       ? "Сначала выберите страну"
                       : regions.length === 0
                         ? "Нет регионов"
-                        : "Выберите регион"}
-                  </option>
-                  {regions.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                        : "Выберите регион"
+                  }
+                  noOptionsMessage={() => "Нет вариантов"}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  styles={geoSelectStyles}
+                />
               </FieldRow>
 
               <FieldRow
@@ -307,26 +340,29 @@ export default function RegisterModal({ isOpen, onClose }) {
                 htmlFor="reg-town"
                 hint={!regionId ? "сначала регион" : ""}
               >
-                <select
-                  id="reg-town"
-                  className={`${inputClass} reg-modal__select`}
-                  value={townId}
-                  onChange={(e) => setTownId(e.target.value)}
-                  disabled={fieldsDisabled || !regionId || towns.length === 0}
-                >
-                  <option value="">
-                    {!regionId
+                <Select
+                  inputId="reg-town"
+                  classNamePrefix="reg-geo"
+                  options={towns}
+                  value={findOption(towns, townId)}
+                  onChange={(option) =>
+                    setTownId(option ? String(option.value) : "")
+                  }
+                  isDisabled={fieldsDisabled || !regionId || towns.length === 0}
+                  isLoading={geoLoading && Boolean(regionId) && towns.length === 0}
+                  isClearable={false}
+                  placeholder={
+                    !regionId
                       ? "Сначала выберите регион"
                       : towns.length === 0
                         ? "Нет городов"
-                        : "Выберите город"}
-                  </option>
-                  {towns.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                        : "Выберите город"
+                  }
+                  noOptionsMessage={() => "Нет вариантов"}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  styles={geoSelectStyles}
+                />
               </FieldRow>
 
               <FieldRow label="Email *" htmlFor="reg-email" hint="для входа">
@@ -342,7 +378,11 @@ export default function RegisterModal({ isOpen, onClose }) {
                 />
               </FieldRow>
 
-              <FieldRow label="Пароль *" htmlFor="reg-password" hint="не короче 6 симв.">
+              <FieldRow
+                label="Пароль *"
+                htmlFor="reg-password"
+                hint="не короче 6 симв."
+              >
                 <input
                   id="reg-password"
                   type="password"
@@ -369,7 +409,11 @@ export default function RegisterModal({ isOpen, onClose }) {
                   пользовательским соглашением
                 </Link>{" "}
                 и{" "}
-                <Link to="/legal/privacy" target="_blank" rel="noopener noreferrer">
+                <Link
+                  to="/legal/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   политикой конфиденциальности
                 </Link>
               </span>
