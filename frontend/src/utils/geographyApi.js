@@ -6,6 +6,36 @@ export const DEFAULT_REGISTRATION_GEO = {
   town: "Солигорск",
 };
 
+/** Defaults in code — work on any machine without DB seed. */
+export function getFallbackRegistrationGeography() {
+  const countries = [
+    {
+      value: DEFAULT_REGISTRATION_GEO.country,
+      label: DEFAULT_REGISTRATION_GEO.country,
+    },
+  ];
+  const regions = [
+    {
+      value: DEFAULT_REGISTRATION_GEO.region,
+      label: DEFAULT_REGISTRATION_GEO.region,
+    },
+  ];
+  const towns = [
+    {
+      value: DEFAULT_REGISTRATION_GEO.town,
+      label: DEFAULT_REGISTRATION_GEO.town,
+    },
+  ];
+  return {
+    countries,
+    regions,
+    towns,
+    countryId: DEFAULT_REGISTRATION_GEO.country,
+    regionId: DEFAULT_REGISTRATION_GEO.region,
+    townId: DEFAULT_REGISTRATION_GEO.town,
+  };
+}
+
 export function formatCountry(country) {
   return {
     value: country.country_id || country.id,
@@ -45,6 +75,10 @@ export async function fetchCountriesList() {
 
 export async function fetchRegionsList(countryId) {
   if (!countryId) return [];
+  // Default string ids are not API keys — keep local defaults.
+  if (!/^\d+$/.test(String(countryId))) {
+    return getFallbackRegistrationGeography().regions;
+  }
   const response = await apiFetch(`${API.baseURL}/countries/${countryId}/regions`);
   if (!response.ok) throw new Error("Не удалось загрузить список регионов");
   const data = await response.json();
@@ -53,6 +87,9 @@ export async function fetchRegionsList(countryId) {
 
 export async function fetchTownsList(regionId) {
   if (!regionId) return [];
+  if (!/^\d+$/.test(String(regionId))) {
+    return getFallbackRegistrationGeography().towns;
+  }
   const response = await apiFetch(`${API.baseURL}/regions/${regionId}/towns`);
   if (!response.ok) throw new Error("Не удалось загрузить список городов");
   const data = await response.json();
@@ -60,51 +97,57 @@ export async function fetchTownsList(regionId) {
 }
 
 /**
- * Load geography and preselect Беларусь / Минская область / Солигорск.
- * If exact names are missing, falls back to the first available options
- * so registration never stays blocked on an empty selection.
+ * Prefer справочник when available; otherwise use hardcoded defaults
+ * so registration always opens with Беларусь / Минская область / Солигорск.
  */
 export async function loadDefaultRegistrationGeography() {
-  const countries = await fetchCountriesList();
-  if (!countries.length) {
-    return {
-      countries,
-      regions: [],
-      towns: [],
-      countryId: "",
-      regionId: "",
-      townId: "",
-    };
-  }
+  const fallback = getFallbackRegistrationGeography();
 
-  const country =
-    findOptionByLabel(countries, DEFAULT_REGISTRATION_GEO.country) || countries[0];
+  try {
+    const countries = await fetchCountriesList();
+    if (!countries.length) return fallback;
 
-  const regions = await fetchRegionsList(country.value);
-  if (!regions.length) {
+    const country =
+      findOptionByLabel(countries, DEFAULT_REGISTRATION_GEO.country) ||
+      countries[0];
+
+    let regions = [];
+    try {
+      regions = await fetchRegionsList(country.value);
+    } catch {
+      regions = [];
+    }
+    if (!regions.length) {
+      return {
+        ...fallback,
+        countries,
+        countryId: String(country.value),
+      };
+    }
+
+    const region =
+      findOptionByLabel(regions, DEFAULT_REGISTRATION_GEO.region) || regions[0];
+
+    let towns = [];
+    try {
+      towns = await fetchTownsList(region.value);
+    } catch {
+      towns = [];
+    }
+    const town =
+      findOptionByLabel(towns, DEFAULT_REGISTRATION_GEO.town) ||
+      towns[0] ||
+      fallback.towns[0];
+
     return {
       countries,
       regions,
-      towns: [],
+      towns: towns.length ? towns : fallback.towns,
       countryId: String(country.value),
-      regionId: "",
-      townId: "",
+      regionId: String(region.value),
+      townId: town ? String(town.value) : fallback.townId,
     };
+  } catch {
+    return fallback;
   }
-
-  const region =
-    findOptionByLabel(regions, DEFAULT_REGISTRATION_GEO.region) || regions[0];
-
-  const towns = await fetchTownsList(region.value);
-  const town =
-    findOptionByLabel(towns, DEFAULT_REGISTRATION_GEO.town) || towns[0] || null;
-
-  return {
-    countries,
-    regions,
-    towns,
-    countryId: String(country.value),
-    regionId: String(region.value),
-    townId: town ? String(town.value) : "",
-  };
 }

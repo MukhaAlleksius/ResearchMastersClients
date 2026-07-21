@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import {
   fetchRegionsList,
   fetchTownsList,
+  getFallbackRegistrationGeography,
   loadDefaultRegistrationGeography,
 } from "../../../utils/geographyApi";
 import "./registration_modal.css";
@@ -71,12 +72,13 @@ export default function RegisterModal({ isOpen, onClose }) {
       setRegionId(geo.regionId);
       setTownId(geo.townId);
     } catch {
-      setCountries([]);
-      setRegions([]);
-      setTowns([]);
-      setCountryId("");
-      setRegionId("");
-      setTownId("");
+      const geo = getFallbackRegistrationGeography();
+      setCountries(geo.countries);
+      setRegions(geo.regions);
+      setTowns(geo.towns);
+      setCountryId(geo.countryId);
+      setRegionId(geo.regionId);
+      setTownId(geo.townId);
     } finally {
       setGeoLoading(false);
     }
@@ -116,7 +118,17 @@ export default function RegisterModal({ isOpen, onClose }) {
 
     try {
       setGeoLoading(true);
-      setRegions(await fetchRegionsList(nextCountryId));
+      const nextRegions = await fetchRegionsList(nextCountryId);
+      setRegions(nextRegions);
+      if (nextRegions.length === 1) {
+        const onlyRegionId = String(nextRegions[0].value);
+        setRegionId(onlyRegionId);
+        const nextTowns = await fetchTownsList(onlyRegionId);
+        setTowns(nextTowns);
+        if (nextTowns.length === 1) {
+          setTownId(String(nextTowns[0].value));
+        }
+      }
     } catch {
       setRegions([]);
     } finally {
