@@ -181,7 +181,8 @@ export default function RegisterModal({ isOpen, onClose }) {
     }
   };
 
-  const fieldsDisabled = loading || geoLoading;
+  // Don't lock selects with geoLoading — that makes country/region/town unclickable.
+  const fieldsDisabled = loading;
   const inputClass = "reg-modal__input";
 
   return createPortal(
@@ -261,7 +262,9 @@ export default function RegisterModal({ isOpen, onClose }) {
                 >
                   <option value="">
                     {countries.length === 0
-                      ? "Нет стран в справочнике"
+                      ? geoLoading
+                        ? "Загрузка…"
+                        : "Нет стран в справочнике"
                       : "Выберите страну"}
                   </option>
                   {countries.map((item) => (

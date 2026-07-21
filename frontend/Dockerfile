@@ -19,6 +19,10 @@ COPY frontend/ ./
 ARG REACT_APP_API_URL=/api
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
+# Google OAuth client id (кнопка «Войти через Google» в Docker-сборке)
+ARG REACT_APP_GOOGLE_CLIENT_ID=
+ENV REACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID
+
 # Собираем production-версию сайта в папку /app/build
 RUN npm run build
 

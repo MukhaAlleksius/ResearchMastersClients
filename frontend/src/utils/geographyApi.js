@@ -59,11 +59,14 @@ export async function fetchTownsList(regionId) {
   return Array.isArray(data) ? data.map(formatTown) : [];
 }
 
-/** Load geography and preselect Беларусь / Минская область / Солигорск when available. */
+/**
+ * Load geography and preselect Беларусь / Минская область / Солигорск.
+ * If exact names are missing, falls back to the first available options
+ * so registration never stays blocked on an empty selection.
+ */
 export async function loadDefaultRegistrationGeography() {
   const countries = await fetchCountriesList();
-  const country = findOptionByLabel(countries, DEFAULT_REGISTRATION_GEO.country);
-  if (!country) {
+  if (!countries.length) {
     return {
       countries,
       regions: [],
@@ -74,9 +77,11 @@ export async function loadDefaultRegistrationGeography() {
     };
   }
 
+  const country =
+    findOptionByLabel(countries, DEFAULT_REGISTRATION_GEO.country) || countries[0];
+
   const regions = await fetchRegionsList(country.value);
-  const region = findOptionByLabel(regions, DEFAULT_REGISTRATION_GEO.region);
-  if (!region) {
+  if (!regions.length) {
     return {
       countries,
       regions,
@@ -87,8 +92,12 @@ export async function loadDefaultRegistrationGeography() {
     };
   }
 
+  const region =
+    findOptionByLabel(regions, DEFAULT_REGISTRATION_GEO.region) || regions[0];
+
   const towns = await fetchTownsList(region.value);
-  const town = findOptionByLabel(towns, DEFAULT_REGISTRATION_GEO.town);
+  const town =
+    findOptionByLabel(towns, DEFAULT_REGISTRATION_GEO.town) || towns[0] || null;
 
   return {
     countries,

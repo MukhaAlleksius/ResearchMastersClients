@@ -159,7 +159,7 @@ export default function GoogleRegistrationModal({
 
   if (!isOpen) return null;
 
-  const fieldsDisabled = loading || geoLoading;
+  const fieldsDisabled = loading;
   const inputClass = "reg-modal__input";
 
   return createPortal(

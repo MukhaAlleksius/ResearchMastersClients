@@ -7,7 +7,6 @@
   justify-content: center;
   padding: 12px;
   background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(6px);
 }
 
 .reg-modal {
@@ -19,7 +18,7 @@
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 24px 48px rgba(15, 23, 42, 0.2);
-  overflow: hidden;
+  overflow: visible;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: #0f172a;
 }
@@ -30,6 +29,7 @@
   padding: 1rem 1.15rem 0.9rem;
   background: linear-gradient(135deg, #1e40af 0%, #2563eb 55%, #3b82f6 100%);
   color: #fff;
+  border-radius: 16px 16px 0 0;
 }
 
 .reg-modal__badge {
@@ -86,18 +86,28 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 1rem 1.15rem 0.35rem;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
+  position: relative;
+  z-index: 1;
 }
 
-.reg-modal__body::-webkit-scrollbar {
-  width: 6px;
+.reg-modal__select {
+  appearance: auto;
+  -webkit-appearance: menulist;
+  background-image: none;
+  padding-right: 0.75rem;
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
 }
 
-.reg-modal__body::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 999px;
+.reg-modal__select:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .reg-modal__form {
@@ -172,15 +182,6 @@
 .reg-modal__input:disabled {
   opacity: 0.7;
   cursor: not-allowed;
-}
-
-.reg-modal__select {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  padding-right: 2rem;
-  cursor: pointer;
 }
 
 .reg-modal__terms {

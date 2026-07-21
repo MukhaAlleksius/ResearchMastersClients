@@ -11,6 +11,11 @@ if [ "${RUN_MIGRATIONS_ON_STARTUP:-true}" = "true" ]; then
     echo "Running Alembic migrations..."
     alembic upgrade head
   fi
+
+  # Always ensure registration geography exists (Беларусь / Минская область / Солигорск).
+  # Runs after migrations so tables/constraints are present.
+  echo "Ensuring default geography..."
+  python -c "import asyncio; from bootstrap_schema import seed_default_geography; print('geography_seeded' if asyncio.run(seed_default_geography()) else 'geography_ok')"
 fi
 
 echo "Starting gunicorn..."
