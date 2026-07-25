@@ -10,9 +10,10 @@ WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 
 # Ставим зависимости строго по package-lock.json
-RUN npm ci
+RUN npm ci \
+    && test -f node_modules/use-isomorphic-layout-effect/package.json
 
-# Копируем весь код frontend
+# Копируем весь код frontend (node_modules исключён через .dockerignore)
 COPY frontend/ ./
 
 # URL API, который попадёт в сборку React (по умолчанию /api через nginx)
