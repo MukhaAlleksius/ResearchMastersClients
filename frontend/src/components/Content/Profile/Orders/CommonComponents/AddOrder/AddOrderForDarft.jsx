@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from "react";
 import CreatableSelect from "react-select/creatable";
 import Select from "react-select";
 import { API, apiFetch, buildApiUrl } from "../../../../../../utils/api.js";
+import DeadlineField, {
+  isValidDeadline,
+} from "../../../../Common/DeadlineField.jsx";
 import "./add_order_for_draft.css";
 
 // сохранение заказа в черновик
@@ -10,7 +13,7 @@ export default function AddOrderForDraft({ onSuccess }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [budget, setBudget] = useState("");
-  const [currency, setCurrency] = useState("BYN");
+  const currency = "BYN";
   const [budgetType, setBudgetType] = useState("");
   const [urgencyLevel, setUrgencyLevel] = useState("");
   const [location, setLocation] = useState("");
@@ -185,6 +188,10 @@ export default function AddOrderForDraft({ onSuccess }) {
       alert("Укажите страну");
       return;
     }
+    if (!isValidDeadline(deadline)) {
+      alert("Выберите точную дату выполнения");
+      return;
+    }
 
     const orderUserData = {
       title: title,
@@ -266,7 +273,6 @@ export default function AddOrderForDraft({ onSuccess }) {
     setTitle("");
     setDescription("");
     setBudget("");
-    setCurrency("BYN");
     setBudgetType("");
     setUrgencyLevel("");
     setGeoCountry(null);
@@ -279,7 +285,6 @@ export default function AddOrderForDraft({ onSuccess }) {
     setTowns([]);
   };
 
-  const currencies = ["BYN", "Dollar USA", "Euro"];
   const budgetTypes = ["Фиксированная цена", "Почасовая оплата", "Договорная цена"];
   const urgencyLevels = ["Низкий", "Средний", "Высокий"];
 
@@ -417,21 +422,8 @@ export default function AddOrderForDraft({ onSuccess }) {
               />
             </div>
             <div className="aod-field">
-              <label htmlFor="currency" className="aod-label">
-                Валюта
-              </label>
-              <select
-                id="currency"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="aod-select"
-              >
-                {currencies.map((cur) => (
-                  <option key={cur} value={cur}>
-                    {cur}
-                  </option>
-                ))}
-              </select>
+              <span className="aod-label">Валюта</span>
+              <p className="aod-input aod-input--readonly">BYN</p>
             </div>
           </div>
 
@@ -565,22 +557,15 @@ export default function AddOrderForDraft({ onSuccess }) {
             </h2>
           </div>
 
-          <div className="aod-field">
-            <label htmlFor="deadline" className="aod-label">
-              Когда нужно выполнить
-            </label>
-            <select
-              id="deadline"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-              className="aod-select"
-            >
-              <option>Как можно скорее</option>
-              <option>В течение недели</option>
-              <option>В течение месяца</option>
-              <option>Точная дата</option>
-            </select>
-          </div>
+          <DeadlineField
+            id="deadline"
+            value={deadline}
+            onChange={setDeadline}
+            labelClassName="aod-label"
+            selectClassName="aod-select"
+            inputClassName="aod-input"
+            fieldClassName="aod-field"
+          />
 
           <label className="aod-checkbox">
             <input

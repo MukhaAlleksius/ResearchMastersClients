@@ -48,7 +48,6 @@ export default function OfferCustomer({ orderId, onBack, userId, listActivity })
   return (
     <WorkDetailLayout
       title={order?.title || "Предложение заказчика"}
-      subtitle={orderIdFinal ? `Услуга № ${orderIdFinal}` : undefined}
       backLabel="Назад к услугам"
       onBack={onBack || (() => navigate(-1))}
       activityConfig={

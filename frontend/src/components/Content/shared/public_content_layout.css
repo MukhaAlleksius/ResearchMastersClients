@@ -32,11 +32,11 @@
 
 .public-content-narrow .catalog-card__cta {
   pointer-events: none;
-  transition: var(--catalog-card-cta-transition);
+  transition: box-shadow var(--catalog-card-duration) var(--catalog-card-ease);
 }
 
 .public-content-narrow .catalog-card:hover .catalog-card__cta {
-  transform: translateX(2px);
+  transform: none;
   box-shadow: 0 6px 18px rgba(37, 99, 235, 0.32);
 }
 

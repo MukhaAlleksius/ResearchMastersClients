@@ -39,6 +39,7 @@ class OrderServiceSchema(BaseModel):
     title: str = Field(..., max_length=200, description="Название задания")
     # status: str = Field(..., max_length=20, description="Статус заказа")
     budget: Optional[float]
+    currency: Optional[str] = Field(default="BYN", max_length=100)
     created_at: Optional[datetime]
 
 
@@ -288,18 +289,50 @@ class ReviewSchema(BaseModel):
     reviewer_id: int
     reviewee_id: int
     rating: int
-    comment: Optional[str]
-    criteria_quality: Optional[int]  # Качество
-    criteria_timeliness: Optional[int]  # Своевременность
-    criteria_communication: Optional[int]  # Коммуникация
-    criteria_price: Optional[int]  # Цена
-    is_verified: Optional[bool]  # Проверенный отзыв
+    comment: Optional[str] = None
     created_at: datetime = Field(
-        default_factory=datetime.now, description="время отправки сообщения"
+        default_factory=datetime.now, description="время отправки отзыва"
     )
 
     class Config:
         from_attributes = True
+
+
+class ReviewCreateSchema(BaseModel):
+    """Тело запроса: заказчик оставляет отзыв об исполнителе."""
+
+    executor_id: int = Field(..., description="ID исполнителя (reviewee)")
+    rating: int = Field(..., ge=1, le=5, description="Оценка 1–5")
+    comment: Optional[str] = Field(None, max_length=2000)
+
+
+class ReviewReadSchema(BaseModel):
+    id: int
+    order_id: int
+    reviewer_id: int
+    reviewee_id: int
+    rating: int
+    comment: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ExecutorReviewItemSchema(BaseModel):
+    id: int
+    order_id: int
+    rating: int
+    comment: Optional[str] = None
+    created_at: Optional[datetime] = None
+    reviewer_id: int
+    reviewer_name: str
+
+
+class ExecutorReviewsSummarySchema(BaseModel):
+    average_rating: float = 0.0
+    reviews_count: int = 0
+    reviews: list[ExecutorReviewItemSchema] = []
 
 
 class NotificationSchema(BaseModel):

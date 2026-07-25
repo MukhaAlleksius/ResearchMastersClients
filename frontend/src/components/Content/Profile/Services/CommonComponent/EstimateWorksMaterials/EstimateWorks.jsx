@@ -656,15 +656,16 @@ export default function EstimateWorks({ order_id, category_work_id }) {
   };
 
   useEffect(() => {
-    if (category_work_id) {
-      console.log("🔥 АВТОЗАГРУЗКА работ для категории:", category_work_id);
-      fetchEstimateWorksMaterialsForOrder();
-      fetchWorksForCategoryWork(category_work_id);
-      fetchPersonalWorksForCategoryWork(category_work_id);
-    }
+    if (!orderId) return;
+    fetchEstimateWorksMaterialsForOrder();
+  }, [orderId, fetchEstimateWorksMaterialsForOrder]);
+
+  useEffect(() => {
+    if (!category_work_id) return;
+    fetchWorksForCategoryWork(category_work_id);
+    fetchPersonalWorksForCategoryWork(category_work_id);
   }, [
     category_work_id,
-    fetchEstimateWorksMaterialsForOrder,
     fetchWorksForCategoryWork,
     fetchPersonalWorksForCategoryWork,
   ]);

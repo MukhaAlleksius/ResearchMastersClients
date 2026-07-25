@@ -82,10 +82,16 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--ps-primary-soft);
-  font-size: 1.125rem;
+  color: var(--ps-primary, #2563eb);
   flex-shrink: 0;
+}
+
+.ps-section__icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
 }
 
 .ps-section__title {
@@ -277,8 +283,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.5rem;
   color: #94a3b8;
+}
+
+.ps-avatar-preview--empty svg {
+  display: block;
 }
 
 .ps-file-wrap {

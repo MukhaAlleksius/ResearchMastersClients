@@ -2,21 +2,17 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { apiFetch, buildApiUrl, ensureStoredUserId } from "../../../../../utils/api.js";
 import { useNavigate, useParams } from "react-router-dom";
 import Chat from "../CommonComponent/ChatOrderMaster/ChatOrderMaster";
-import ContractExecutor from "../CommonComponent/CustomerExecutorContractOrder/ContractOrderCustomerExecutor";
 import CustomerInfo from "../CommonComponent/InformationAboutCustomer/InformationAboutCustomer";
 import EstimateWorks from "../CommonComponent/EstimateWorksMaterials/EstimateWorks";
 import ExecutorCancelService from "../CommonComponent/ExecutorCancelService/ExecutorCancelService";
 import OrderInfoWithMyResponse from "../CommonComponent/CustomerOrderInfo/OrderInfoWithMyResponse";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
+import StartWorkModal from "./StartWorkModal";
 import "./WaitExecuteWork.css";
 import {
   getWorkDetailTabs,
   useWorkDetailInitialTab,
 } from "../../Common/workDetailTabs";
-import {
-  getContractBlockReason,
-  useContractStatus,
-} from "../../Common/useContractStatus";
 
 export default function WaitExecuteWorkServiceInfo({
   orderId,
@@ -29,7 +25,9 @@ export default function WaitExecuteWorkServiceInfo({
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [showStartModal, setShowStartModal] = useState(false);
   const [error, setError] = useState(null);
+  const [modalError, setModalError] = useState(null);
 
   const navigate = useNavigate();
   const { slug } = useParams();
@@ -62,32 +60,23 @@ export default function WaitExecuteWorkServiceInfo({
     fetchOrderInfo();
   }, [fetchOrderInfo]);
 
-  const contractStatus = useContractStatus(orderIdFinal, {
-    pollWhileNotReady: true,
-  });
-  const {
-    isReady: isContractReady,
-    loading: contractLoading,
-    refetch: refetchContractStatus,
-  } = contractStatus;
+  const openStartModal = useCallback(() => {
+    if (isStarting || !orderIdFinal) return;
+    setModalError(null);
+    setShowStartModal(true);
+  }, [isStarting, orderIdFinal]);
 
-  const handleContractUpdated = useCallback(() => {
-    refetchContractStatus({ silent: true });
-  }, [refetchContractStatus]);
-
-  useEffect(() => {
-    if (activeTab === "customerExecutorContract") {
-      refetchContractStatus({ silent: true });
-    }
-  }, [activeTab, refetchContractStatus]);
-
-  const contractBlockReason = getContractBlockReason(contractStatus);
-  const canStartWork = !contractLoading && isContractReady;
+  const closeStartModal = useCallback(() => {
+    if (isStarting) return;
+    setShowStartModal(false);
+    setModalError(null);
+  }, [isStarting]);
 
   const handleStartExecuteWork = useCallback(async () => {
-    if (isStarting || !canStartWork || !orderIdFinal) return;
+    if (isStarting || !orderIdFinal) return;
 
     setIsStarting(true);
+    setModalError(null);
     setError(null);
 
     try {
@@ -121,154 +110,125 @@ export default function WaitExecuteWorkServiceInfo({
       }
 
       const newStatus = "В процессе выполнения";
+      setShowStartModal(false);
 
       if (onServiceStatusChanged) {
         onServiceStatusChanged(parsedOrderId, newStatus);
       } else {
-        navigate("/profile/services", {
+        navigate(`/profile/services/continue_execute_work/${parsedOrderId}`, {
+          replace: true,
           state: { activeStatusTab: "inProgress" },
         });
       }
     } catch (err) {
-      setError(err.message || "Ошибка при начале работы");
+      setModalError(err.message || "Ошибка при начале работы");
     } finally {
       setIsStarting(false);
     }
-  }, [
-    isStarting,
-    orderIdFinal,
-    navigate,
-    canStartWork,
-    onServiceStatusChanged,
-  ]);
+  }, [isStarting, orderIdFinal, navigate, onServiceStatusChanged]);
 
   const tabs = useMemo(
     () =>
       getWorkDetailTabs("executor_wait_execute", {
         chatLabel: "Чат с заказчиком",
-        badges: {
-          customerExecutorContract:
-            !contractLoading && !isContractReady ? "!" : undefined,
-        },
       }),
-    [contractLoading, isContractReady],
+    [],
   );
 
   return (
-    <WorkDetailLayout
-      title={order?.title || "Ожидание выполнения"}
-      subtitle={orderIdFinal ? `Услуга № ${orderIdFinal}` : undefined}
-      backLabel="Назад к услугам"
-      onBack={onBack || (() => navigate(-1))}
-      activityConfig={
-        userId && orderIdFinal
-          ? {
-              userId,
-              orderId: orderIdFinal,
-              presetKey: "executor_wait_execute",
-              activity: listActivity,
-            }
-          : undefined
-      }
-      headerExtra={
-        <div className="work-detail__header-action">
-          <button
-            type="button"
-            onClick={handleStartExecuteWork}
-            disabled={isStarting || !orderIdFinal || !canStartWork}
-            className="work-detail__btn-primary"
-            title={
-              !canStartWork
-                ? contractBlockReason ||
-                  "Кнопка заблокирована до составления и подписания договора"
-                : undefined
-            }
-          >
-            {isStarting ? "Обновление..." : "Начать работу"}
-          </button>
-          {!canStartWork && contractBlockReason && (
-            <p className="work-detail__header-action-hint">
-              Кнопка заблокирована до составления и подписания договора
-              {contractBlockReason
-                ? `: ${contractBlockReason.toLowerCase()}`
-                : ""}
-              .
-            </p>
-          )}
-        </div>
-      }
-      meta={
-        <>
-          <span>
-            Бюджет: <strong>{order?.budget || 0} ₽</strong>
-          </span>
-          <span>
-            Локация: <strong>{order?.location || "Не указана"}</strong>
-          </span>
-          <span>
-            Статус: <strong>Ожидает выполнения</strong>
-          </span>
-        </>
-      }
-      tabs={tabs}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-      loading={loading}
-      loadingText="Загрузка информации о заказе..."
-      error={error}
-      onDismissError={() => setError(null)}
-    >
-      {activeTab === "estimateWorks" && (
-        <EstimateWorks
-          order_id={orderIdFinal}
-          category_work_id={order?.category_work_id}
-        />
-      )}
-      {/* 
-      {activeTab === "schedule" && (
-        <GraphicWorks
-          orderId={orderIdFinal}
-          categoryWorkId={order?.category_work_id}
-        />
-      )} */}
-
-      {activeTab === "chat" && <Chat order_id={orderIdFinal} />}
-
-      {activeTab === "customerInfo" && (
-        <CustomerInfo customerId={order?.customer_id} />
-      )}
-
-      {activeTab === "orderInfo" && (
-        <OrderInfoWithMyResponse order={order} embedded />
-      )}
-
-      <div
-        style={{
-          display:
-            activeTab === "customerExecutorContract" ? "block" : "none",
-        }}
+    <>
+      <WorkDetailLayout
+        title={order?.title || "Ожидание выполнения"}
+        backLabel="Назад к услугам"
+        onBack={onBack || (() => navigate(-1))}
+        activityConfig={
+          userId && orderIdFinal
+            ? {
+                userId,
+                orderId: orderIdFinal,
+                presetKey: "executor_wait_execute",
+                activity: listActivity,
+              }
+            : undefined
+        }
+        headerExtra={
+          <div className="work-detail__header-action">
+            <button
+              type="button"
+              onClick={openStartModal}
+              disabled={isStarting || !orderIdFinal}
+              className="work-detail__btn-primary"
+            >
+              {isStarting ? "Обновление..." : "Начать работу"}
+            </button>
+          </div>
+        }
+        meta={
+          <>
+            <span>
+              Бюджет:{" "}
+              <strong>
+                {order?.budget != null
+                  ? `${Number(order.budget).toLocaleString()} ${order.currency || "BYN"}`
+                  : "—"}
+              </strong>
+            </span>
+            <span>
+              Локация: <strong>{order?.location || "Не указана"}</strong>
+            </span>
+            <span>
+              Статус: <strong>Ожидает выполнения</strong>
+            </span>
+          </>
+        }
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        loading={loading}
+        loadingText="Загрузка информации о заказе..."
+        error={error}
+        onDismissError={() => setError(null)}
       >
-        <ContractExecutor
-          order={order}
-          onContractUpdated={handleContractUpdated}
-        />
-      </div>
+        {activeTab === "estimateWorks" && (
+          <EstimateWorks
+            order_id={orderIdFinal}
+            category_work_id={order?.category_work_id}
+          />
+        )}
 
-      {/* {activeTab === "payment" && (
-        <ExecutorPaymentStatus order={orderIdFinal} executorId={executorId} />
-      )} */}
+        {activeTab === "chat" && <Chat order_id={orderIdFinal} />}
 
-      {activeTab === "executorCancelOrder" && (
-        <ExecutorCancelService
-          order={order}
-          executorId={userId}
-          status="pending_customer"
-          onCancelSuccess={() => {
-            alert("Заявка отправлена! Ожидайте решения заказчика.");
-          }}
-          onCustomerCancelAgreed={onBack}
+        {activeTab === "customerInfo" && (
+          <CustomerInfo customerId={order?.customer_id} />
+        )}
+
+        {activeTab === "orderInfo" && (
+          <OrderInfoWithMyResponse order={order} embedded />
+        )}
+
+        {activeTab === "executorCancelOrder" && (
+          <ExecutorCancelService
+            order={order}
+            executorId={userId}
+            status="pending_customer"
+            allowExecutorDecision={false}
+            onCancelSuccess={() => {
+              alert("Заявка отправлена! Ожидайте решения заказчика.");
+            }}
+            onCustomerCancelAgreed={onBack}
+          />
+        )}
+      </WorkDetailLayout>
+
+      {showStartModal && (
+        <StartWorkModal
+          orderTitle={order?.title}
+          onClose={closeStartModal}
+          onConfirm={handleStartExecuteWork}
+          loading={isStarting}
+          error={modalError}
         />
       )}
-    </WorkDetailLayout>
+    </>
   );
 }

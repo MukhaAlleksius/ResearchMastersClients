@@ -170,10 +170,8 @@ export default function MakeOrderExecutorModal({
                         <span className="moe-order-row__title">
                           {order.title || "Без названия"}
                         </span>
-                        {(order.id != null || order.date) && (
+                        {(order.date) && (
                           <span className="moe-order-row__meta">
-                            {order.id != null && <>№{order.id}</>}
-                            {order.id != null && order.date && " · "}
                             {order.date}
                           </span>
                         )}

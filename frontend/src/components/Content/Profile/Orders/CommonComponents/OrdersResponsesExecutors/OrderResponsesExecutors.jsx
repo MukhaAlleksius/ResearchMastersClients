@@ -5,6 +5,7 @@ import { getExecutorProfileLink } from "../../../../../../utils/executorProfile"
 import ExecutorResponseDisplay, {
   getExecutorDisplayName,
 } from "../../../Services/CommonComponent/CustomerOrderInfo/ExecutorResponseDisplay";
+import { IconReply } from "../../../ProfileIcons.jsx";
 import "../../../Services/CommonComponent/CustomerOrderInfo/customer_order_info.css";
 import "./order_responses_executors.css";
 
@@ -150,7 +151,7 @@ const OrderResponsesExecutors = ({ order, onReject, onAcceptSuccess }) => {
       <div className="order-responses">
         <div className="order-responses__empty">
           <span className="order-responses__empty-icon" aria-hidden="true">
-            ↩
+            <IconReply width={28} height={28} />
           </span>
           <h3 className="order-responses__empty-title">
             Нет ответов от исполнителей

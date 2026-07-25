@@ -278,10 +278,13 @@
   width: 3rem;
   height: 3rem;
   margin-bottom: 0.25rem;
-  font-size: 1.25rem;
   color: var(--or-primary);
   background: #eff6ff;
-  border-radius: 12px;
+  border-radius: 8px;
+}
+
+.order-responses__empty-icon svg {
+  display: block;
 }
 
 .order-responses__empty-title {

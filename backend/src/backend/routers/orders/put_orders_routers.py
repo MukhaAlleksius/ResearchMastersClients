@@ -8,6 +8,7 @@ from core.config import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
+from cruds.orders.create_orders import update_order_review
 from cruds.orders.update_orders import (
     put_customer_decision,
     put_executor_decision,
@@ -20,6 +21,8 @@ from schemas.orders_schemas import (
     OrderReadSchema,
     OrderResponseExecutorSchema,
     OrderUpdateSchema,
+    ReviewCreateSchema,
+    ReviewReadSchema,
 )
 from schemas.users_schemas import UserCommonSchema
 
@@ -130,4 +133,28 @@ async def put_customer_decision_api(
 
     except Exception as e:
         logger.error(f"API error for service {executor_decision}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+
+
+@router.put("/order/{order_id}/review", response_model=ReviewReadSchema)
+async def update_order_review_api(
+    order_id: int,
+    schema: ReviewCreateSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_user),
+):
+    try:
+        return await update_order_review(
+            db=db,
+            order_id=order_id,
+            reviewer_id=current_user.user_id,
+            schema=schema,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"API error for update_order_review order_id={order_id}: {e}",
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")

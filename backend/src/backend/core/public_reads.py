@@ -35,6 +35,7 @@ PUBLIC_GET_PATTERNS = (
     re.compile(r"^/information_about_user/\d+$"),
     re.compile(r"^/profile$"),
     re.compile(r"^/users/\d+/contacts$"),
+    re.compile(r"^/users/\d+/reviews$"),
     re.compile(r"^/users/\d+/geography_execute_orders$"),
     re.compile(r"^/countries/\d+/regions$"),
     re.compile(r"^/regions/\d+/towns$"),

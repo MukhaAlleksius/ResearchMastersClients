@@ -4,6 +4,15 @@ import { useLocation } from "react-router-dom";
 import MakeOrderExecutorModal from "./MakeOrderExecutor/MakeOrderExecutorModal";
 import { dedupeOrdersById } from "../../../utils/orders.js";
 import { formatMoney } from "../../../utils/currency";
+import {
+  IconUser,
+  IconDoc,
+  IconImage,
+  IconStar,
+  IconPin,
+  IconCalendar,
+  contactTypeIcon,
+} from "../Profile/ProfileIcons.jsx";
 import "./executor_profile.css";
 const STATUS_SEARCHING_EXECUTOR = "в поиске исполнителя";
 
@@ -21,6 +30,32 @@ function isOrderAvailableForExecutorOffer(order, executorId) {
   }
   return true;
 }
+
+function formatReviewDate(value) {
+  if (!value) return "";
+  try {
+    return new Date(value).toLocaleDateString("ru-RU", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function formatReviewsCount(count) {
+  const n = Number(count) || 0;
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${n} отзыв`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+    return `${n} отзыва`;
+  }
+  return `${n} отзывов`;
+}
+
+const REVIEW_AVATAR_VARIANTS = ["violet", "green", "rose"];
 
 function StarRating({ rating = 5, onDark = true }) {
   const fullStars = Math.floor(rating);
@@ -249,14 +284,6 @@ function GeographySidebar({ data }) {
   );
 }
 
-function contactIcon(type) {
-  const t = (type || "").toLowerCase();
-  if (t.includes("телефон") || t.includes("whatsapp")) return "📱";
-  if (t.includes("телеграм")) return "✈️";
-  if (t.includes("сайт")) return "🌐";
-  return "📇";
-}
-
 function getCategoryLabel(category) {
   return (
     category.name_category_work ||
@@ -420,6 +447,11 @@ export default function ExecutorProfile({ openModal }) {
       ...fallbackName,
     };
   });
+  const [reviewsSummary, setReviewsSummary] = useState({
+    average_rating: 0,
+    reviews_count: 0,
+    reviews: [],
+  });
   const [hasAvatar, setHasAvatar] = useState(false);
   const [ordersCustomer, setOrdersCustomer] = useState([]);
   const [categoriesWorksMaster, setCategoriesWorksMaster] = useState([]);
@@ -506,6 +538,25 @@ export default function ExecutorProfile({ openModal }) {
       } else {
         setProfileMaster(null);
       }
+    }
+  };
+
+  const fetchReviews = async () => {
+    if (!executorId) return;
+    try {
+      const response = await apiFetch(
+        buildApiUrl(`/users/${executorId}/reviews`),
+      );
+      if (!response.ok) throw new Error("Не удалось загрузить отзывы");
+      const data = await response.json();
+      setReviewsSummary({
+        average_rating: Number(data.average_rating) || 0,
+        reviews_count: Number(data.reviews_count) || 0,
+        reviews: Array.isArray(data.reviews) ? data.reviews : [],
+      });
+    } catch (error) {
+      console.log("Ошибка загрузки отзывов:", error);
+      setReviewsSummary({ average_rating: 0, reviews_count: 0, reviews: [] });
     }
   };
 
@@ -641,20 +692,25 @@ export default function ExecutorProfile({ openModal }) {
   useEffect(() => {
     fetchAvatarProfile();
     fetchProfileMaster();
+    fetchReviews();
     fetchContactsMaster();
     fetchUserGeographyOrders();
     fetchPortfolioData();
     fetchCategoriesWorksMaster();
   }, [executorId]);
 
-  const locationParts = profileMaster
-    ? [profileMaster.country, profileMaster.region, profileMaster.town].filter(
-        Boolean,
-      )
-    : [];
+  const addressLabel = [profileMaster?.country, profileMaster?.region, profileMaster?.town]
+    .filter(Boolean)
+    .join(", ");
 
   const displayTags = categoriesWorksMaster.map(getCategoryLabel).slice(0, 6);
   const showContactCta = !isOwnProfile;
+  const averageRating = Number(reviewsSummary.average_rating) || 0;
+  const reviewsCount = Number(reviewsSummary.reviews_count) || 0;
+  const ratingLabel =
+    reviewsCount > 0
+      ? `${averageRating.toFixed(1)} · ${formatReviewsCount(reviewsCount)}`
+      : "Пока нет отзывов";
 
   return (
     <div className="ep-page">
@@ -674,7 +730,7 @@ export default function ExecutorProfile({ openModal }) {
                   className="ep-hero__avatar ep-hero__avatar--placeholder"
                   aria-hidden="true"
                 >
-                  👤
+                  <IconUser width={40} height={40} />
                 </div>
               )}
             </div>
@@ -696,8 +752,8 @@ export default function ExecutorProfile({ openModal }) {
               )}
 
               <div className="ep-hero__rating">
-                <StarRating rating={4.9} />
-                <span className="ep-hero__rating-count">4.9 · 156 отзывов</span>
+                <StarRating rating={reviewsCount > 0 ? averageRating : 0} />
+                <span className="ep-hero__rating-count">{ratingLabel}</span>
               </div>
 
               {displayTags.length > 0 && (
@@ -710,13 +766,12 @@ export default function ExecutorProfile({ openModal }) {
                 </div>
               )}
 
-              {locationParts.length > 0 && (
+              {addressLabel && (
                 <div className="ep-hero__location">
-                  {locationParts.map((part) => (
-                    <span key={part} className="ep-hero__location-item">
-                      📍 {part}
-                    </span>
-                  ))}
+                  <span className="ep-hero__location-item">
+                    <IconPin width={14} height={14} />
+                    {addressLabel}
+                  </span>
                 </div>
               )}
             </div>
@@ -795,7 +850,7 @@ export default function ExecutorProfile({ openModal }) {
           <section className="ep-card" aria-labelledby="ep-about-title">
             <div className="ep-card__head">
               <span className="ep-card__icon" aria-hidden="true">
-                📝
+                <IconDoc />
               </span>
               <h2 id="ep-about-title" className="ep-card__title">
                 О мастере
@@ -817,7 +872,7 @@ export default function ExecutorProfile({ openModal }) {
           <section className="ep-card" aria-labelledby="ep-portfolio-title">
             <div className="ep-card__head">
               <span className="ep-card__icon" aria-hidden="true">
-                🖼️
+                <IconImage />
               </span>
               <h2 id="ep-portfolio-title" className="ep-card__title">
                 Портфолио работ
@@ -841,7 +896,9 @@ export default function ExecutorProfile({ openModal }) {
                 </div>
               ) : (
                 <div className="ep-empty-state">
-                  <span aria-hidden="true">🖼️</span>
+                  <span className="ep-empty-state__icon" aria-hidden="true">
+                    <IconImage width={28} height={28} />
+                  </span>
                   <p>Портфолио пока пусто</p>
                 </div>
               )}
@@ -851,36 +908,36 @@ export default function ExecutorProfile({ openModal }) {
           <section className="ep-card" aria-labelledby="ep-reviews-title">
             <div className="ep-card__head">
               <span className="ep-card__icon" aria-hidden="true">
-                ⭐
+                <IconStar />
               </span>
               <h2 id="ep-reviews-title" className="ep-card__title">
                 Отзывы клиентов
               </h2>
             </div>
             <div className="ep-card__body">
-              <div className="ep-reviews">
-                <Review
-                  name="Марина К."
-                  stars={5}
-                  text="Отличная работа! Алексей сделал ремонт ванной комнаты быстро и качественно. Очень аккуратный, все убрал за собой. Рекомендую!"
-                  date="2 недели назад"
-                  avatarVariant="violet"
-                />
-                <Review
-                  name="Сергей П."
-                  stars={5}
-                  text="Профессионал своего дела! Установил розетки и выключатели, все работает идеально. Цена адекватная, работа выполнена в срок."
-                  date="1 месяц назад"
-                  avatarVariant="green"
-                />
-                <Review
-                  name="Анна В."
-                  stars={4}
-                  text="Хорошо выполнил косметический ремонт в комнате. Единственный минус — немного задержался по срокам, но результат хороший."
-                  date="2 месяца назад"
-                  avatarVariant="rose"
-                />
-              </div>
+              {reviewsSummary.reviews.length > 0 ? (
+                <div className="ep-reviews">
+                  {reviewsSummary.reviews.map((item, index) => (
+                    <Review
+                      key={item.id}
+                      name={item.reviewer_name || "Заказчик"}
+                      stars={Number(item.rating) || 0}
+                      text={item.comment || "Без комментария"}
+                      date={formatReviewDate(item.created_at)}
+                      avatarVariant={
+                        REVIEW_AVATAR_VARIANTS[index % REVIEW_AVATAR_VARIANTS.length]
+                      }
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="ep-empty-state">
+                  <span className="ep-empty-state__icon" aria-hidden="true">
+                    <IconStar width={28} height={28} />
+                  </span>
+                  <p>Пока нет отзывов</p>
+                </div>
+              )}
             </div>
           </section>
         </main>
@@ -890,37 +947,17 @@ export default function ExecutorProfile({ openModal }) {
             <div className="ep-sidebar__section">
               <h3 className="ep-sidebar__title">Контакты</h3>
               <ul className="ep-info-list">
-                {profileMaster && (
-                  <>
-                    {profileMaster.country && (
-                      <li className="ep-info-item">
-                        <span className="ep-info-item__icon" aria-hidden="true">
-                          📍
-                        </span>
-                        <span>{profileMaster.country}</span>
-                      </li>
-                    )}
-                    {profileMaster.region && (
-                      <li className="ep-info-item">
-                        <span className="ep-info-item__icon" aria-hidden="true">
-                          🗺️
-                        </span>
-                        <span>{profileMaster.region}</span>
-                      </li>
-                    )}
-                    {profileMaster.town && (
-                      <li className="ep-info-item">
-                        <span className="ep-info-item__icon" aria-hidden="true">
-                          🏙️
-                        </span>
-                        <span>{profileMaster.town}</span>
-                      </li>
-                    )}
-                  </>
+                {profileMaster && addressLabel && (
+                  <li className="ep-info-item">
+                    <span className="ep-info-item__icon" aria-hidden="true">
+                      <IconPin />
+                    </span>
+                    <span>{addressLabel}</span>
+                  </li>
                 )}
                 <li className="ep-info-item">
                   <span className="ep-info-item__icon" aria-hidden="true">
-                    📅
+                    <IconCalendar />
                   </span>
                   <span>На сайте с 2020 г.</span>
                 </li>
@@ -930,7 +967,7 @@ export default function ExecutorProfile({ openModal }) {
                     className="ep-info-item"
                   >
                     <span className="ep-info-item__icon" aria-hidden="true">
-                      {contactIcon(contact.name_contact)}
+                      {contactTypeIcon(contact.name_contact)}
                     </span>
                     <span>
                       <strong>{contact.name_contact}</strong>

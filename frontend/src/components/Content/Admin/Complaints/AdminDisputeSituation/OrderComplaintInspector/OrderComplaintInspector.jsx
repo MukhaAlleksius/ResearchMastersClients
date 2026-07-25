@@ -278,7 +278,12 @@ export default function OrderComplaintInspector({ orderId }) {
         </div>
         <div className="flex items-center gap-6 text-sm text-gray-600 bg-gray-50 p-4 rounded-xl flex-wrap">
           <span>ID: {orderIdFinal}</span>
-          <span>Бюджет: {commonProps.order.budget?.toLocaleString()} ₽</span>
+          <span>
+            Бюджет:{" "}
+            {commonProps.order.budget != null
+              ? `${Number(commonProps.order.budget).toLocaleString()} ${commonProps.order.currency || "BYN"}`
+              : "—"}
+          </span>
           <span>Статус: В процессе</span>
           <span>Локация: {commonProps.order.location}</span>
           <span>Заказчик ID: {commonProps.order.customer_id}</span>

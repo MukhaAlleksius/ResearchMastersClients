@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiFetch, buildApiUrl } from "../../../utils/api.js";
+import { formatMoney } from "../../../utils/currency.js";
+import { getCustomerProfileLink } from "../../../utils/executorProfile.js";
 import OrderInfoAnswerExecutor from "../Profile/Services/CommonComponent/CustomerOrderInfo/OrderInfoAnswerExecutor";
+import { IconUser, IconPin, IconTag } from "../Profile/ProfileIcons.jsx";
 import "../Profile/Services/CommonComponent/CustomerOrderInfo/customer_order_info.css";
 import "./order_customer.css";
 function formatUserName(user) {
@@ -79,9 +83,17 @@ export default function OrderCustomer({ order, onBack, openModal }) {
     };
   }, [order?.customer_id]);
 
-  if (!order) return null;
-
   const customerLocation = formatUserLocation(customer);
+  const customerName = formatUserName(customer);
+  const customerProfileLink = useMemo(
+    () =>
+      order?.customer_id
+        ? getCustomerProfileLink(order.customer_id, customer || customerName)
+        : null,
+    [order?.customer_id, customer, customerName],
+  );
+
+  if (!order) return null;
 
   return (
     <div className="order-customer-wrapper">
@@ -92,9 +104,9 @@ export default function OrderCustomer({ order, onBack, openModal }) {
       <div className="order-customer-card">
         <div className="order-customer-header">
           <h2 className="order-customer-title">{order.title}</h2>
-          <span className="order-customer-id">№ {order.id}</span>
           <span className="order-customer-category">
-            🏷️ {order.category_work || "Без категории"}
+            <IconTag width={14} height={14} />
+            {order.category_work || "Без категории"}
           </span>
         </div>
 
@@ -121,17 +133,29 @@ export default function OrderCustomer({ order, onBack, openModal }) {
                     className="order-customer-user__avatar order-customer-user__avatar--placeholder"
                     aria-hidden="true"
                   >
-                    👤
+                    <IconUser width={28} height={28} />
                   </div>
                 )}
               </div>
               <div className="order-customer-user__info">
-                <p className="order-customer-user__name">
-                  {formatUserName(customer)}
-                </p>
+                {customerProfileLink ? (
+                  <Link
+                    to={{
+                      pathname: customerProfileLink.pathname,
+                      search: customerProfileLink.search,
+                    }}
+                    state={customerProfileLink.state}
+                    className="order-customer-user__name order-customer-user__name--link"
+                  >
+                    {customerName}
+                  </Link>
+                ) : (
+                  <p className="order-customer-user__name">{customerName}</p>
+                )}
                 {customerLocation ? (
                   <p className="order-customer-user__location">
-                    📍 {customerLocation}
+                    <IconPin width={14} height={14} />
+                    {customerLocation}
                   </p>
                 ) : null}
               </div>
@@ -145,8 +169,13 @@ export default function OrderCustomer({ order, onBack, openModal }) {
 
         <div className="order-customer-section">
           <h3>География</h3>
-          <p>
-            📍 {order.country}, {order.region}, {order.town}
+          <p className="order-customer-geo">
+            <IconPin width={14} height={14} />
+            <span>
+              {[order.country, order.region, order.town]
+                .filter(Boolean)
+                .join(", ") || "Не указана"}
+            </span>
           </p>
           {order.location && <p>Адрес / место выполнения: {order.location}</p>}
         </div>
@@ -158,7 +187,7 @@ export default function OrderCustomer({ order, onBack, openModal }) {
           <p>
             Примерная сумма:{" "}
             {order.budget
-              ? `${order.budget} ${order.currency || "BYN"}`
+              ? formatMoney(order.budget, order.currency || "BYN")
               : "Договорная"}
           </p>
           {order.insurance_required && <p>Требуется страховка исполнителя</p>}

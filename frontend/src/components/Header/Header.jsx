@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { isExecutorsNavActive, isOrdersNavActive } from "../../utils/navActive.js";
 import "./header.css";
 
 const navItems = [
@@ -9,14 +10,26 @@ const navItems = [
   { to: "/add_order", label: "Разместить заказ" },
 ];
 
+function isNavItemActive(to, pathname, defaultActive) {
+  if (to === "/catalog") return isExecutorsNavActive(pathname);
+  if (to === "/orders") return isOrdersNavActive(pathname);
+  return defaultActive;
+}
+
 function NavLinks({ className, onNavigate }) {
+  const { pathname } = useLocation();
+
   return navItems.map(({ to, label, end }) => (
     <NavLink
       key={to}
       to={to}
       end={end}
       className={({ isActive }) =>
-        `${className} ${isActive ? "site-header__link--active" : ""}`
+        `${className} ${
+          isNavItemActive(to, pathname, isActive)
+            ? "site-header__link--active"
+            : ""
+        }`
       }
       onClick={onNavigate}
     >

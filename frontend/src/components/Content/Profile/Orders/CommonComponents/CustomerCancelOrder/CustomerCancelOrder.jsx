@@ -196,7 +196,7 @@ export default function CustomerCancelOrder({
       <article className="cancel-tab__shell">
         <header className="cancel-tab__head">
           <span className="cancel-tab__badge">Отмена</span>
-          <h2 className="cancel-tab__title">Отмена заказа № {order.id}</h2>
+          <h2 className="cancel-tab__title">Отмена заказа</h2>
           <p className="cancel-tab__subtitle">
             Заполните форму — исполнитель получит уведомление и сможет согласиться
             или оспорить отмену
@@ -206,12 +206,11 @@ export default function CustomerCancelOrder({
         <div className="cancel-tab__body">
           <div className="cancel-tab__order">
             <p className="cancel-tab__order-title">
-              {order.title || `Заказ № ${order.id}`}
+              {order.title || "Заказ"}
             </p>
             <p className="cancel-tab__order-meta">
-              № {order.id}
               {order.budget != null &&
-                ` · ${Number(order.budget).toLocaleString()} ${order.currency || "BYN"}`}
+                `${Number(order.budget).toLocaleString()} ${order.currency || "BYN"}`}
             </p>
           </div>
 

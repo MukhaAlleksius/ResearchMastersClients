@@ -110,6 +110,15 @@
   background: #fff;
 }
 
+.order-form-wrapper .input--readonly {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  color: #334155;
+  background: #f1f5f9;
+  cursor: default;
+}
+
 .order-form-wrapper .grid-2cols {
   display: grid;
   gap: 1rem;

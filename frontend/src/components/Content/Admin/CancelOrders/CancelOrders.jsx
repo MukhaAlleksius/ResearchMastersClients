@@ -159,9 +159,11 @@ export default function AdminCancelOrdersList() {
                     </span>
                     <div>
                       <div className="cancel-card__id">Отказ #{cancelOrder.id}</div>
-                      <div className="cancel-card__order-id">
-                        Заказ #{cancelOrder.order_id}
-                      </div>
+                      {cancelOrder.order_name && (
+                        <div className="cancel-card__order-id">
+                          {cancelOrder.order_name}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <span className="cancel-card__status">
@@ -172,7 +174,7 @@ export default function AdminCancelOrdersList() {
                 </div>
 
                 <h3 className="cancel-card__title">
-                  {cancelOrder.order_name || `Заказ #${cancelOrder.order_id}`}
+                  {cancelOrder.order_name || "Заказ"}
                 </h3>
 
                 {(cancelOrder.reason_type || cancelOrder.reason_text) && (

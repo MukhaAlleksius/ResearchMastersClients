@@ -285,9 +285,11 @@
   height: 2.5rem;
   display: grid;
   place-items: center;
-  border-radius: 10px;
-  font-size: 1.125rem;
-  font-weight: 700;
+  border-radius: 8px;
+}
+
+.cancel-tab__status-icon svg {
+  display: block;
 }
 
 .cancel-tab__status-icon--pending {

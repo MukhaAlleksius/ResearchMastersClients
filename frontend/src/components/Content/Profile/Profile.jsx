@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import ProfileNavIcon from "./ProfileNavIcons";
-import { useStaffAccess } from "../../../utils/userAccess.js";
 import "./profile.css";
 
 const baseTabs = [
@@ -14,25 +13,20 @@ const baseTabs = [
   { id: "executor", label: "Профиль" },
   { id: "portfolio", label: "Портфолио" },
   { id: "analytics", label: "Аналитика" },
-  { id: "executor_bank_account", label: "Счёт" },
+  // { id: "executor_bank_account", label: "Счёт" },
+  { id: "administrator", label: "Администратор" },
 ];
-
-const administratorTab = { id: "administrator", label: "Администратор" };
 
 export default function ProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { isStaff } = useStaffAccess();
 
-  const tabs = useMemo(
-    () => (isStaff ? [...baseTabs, administratorTab] : baseTabs),
-    [isStaff],
-  );
+  const tabs = baseTabs;
 
   const profileSections = useMemo(
     () => new Set(tabs.map(({ id }) => id)),
-    [tabs],
+    [],
   );
 
   const activeTab = useMemo(() => {
@@ -42,12 +36,6 @@ export default function ProfilePage() {
     }
     return profileSections.has(section) ? section : "orders";
   }, [location.pathname, profileSections]);
-
-  useEffect(() => {
-    if (!isStaff && location.pathname.startsWith("/profile/administrator")) {
-      navigate("/profile", { replace: true });
-    }
-  }, [isStaff, location.pathname, navigate]);
 
   const handleMenuClick = (tabId) => {
     navigate(`/profile/${tabId}`);
@@ -66,7 +54,9 @@ export default function ProfilePage() {
         aria-label="Открыть меню профиля"
         aria-expanded={isMenuOpen}
       >
-        ☰
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
       </button>
 
       <nav
@@ -82,7 +72,9 @@ export default function ProfilePage() {
             onClick={closeMenu}
             aria-label="Закрыть меню"
           >
-            ✕
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
           </button>
         </div>
 

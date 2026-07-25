@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { API, apiFetch, buildApiUrl } from "../../../../../../../utils/api.js";
+import { IconCheck, IconAlert, IconClock } from "../../../../ProfileIcons.jsx";
 import "../cancel_order.css";
 const EXECUTOR_CANCEL_REASON_OPTIONS = [
   { value: "нет_времени", label: "Нет времени / занят" },
@@ -93,7 +94,13 @@ export default function ExecutorCancelOrderForCustomer({
     }
   };
 
-  const statusIcon = isCustomerAgreed ? "✓" : isCustomerDisagreed ? "!" : "…";
+  const statusIcon = isCustomerAgreed ? (
+    <IconCheck width={16} height={16} />
+  ) : isCustomerDisagreed ? (
+    <IconAlert width={16} height={16} />
+  ) : (
+    <IconClock width={16} height={16} />
+  );
   const statusIconClass = isCustomerAgreed
     ? "cancel-tab__status-icon--success"
     : isCustomerDisagreed
@@ -112,8 +119,7 @@ export default function ExecutorCancelOrderForCustomer({
                 ? "Вы не согласились с отменой"
                 : "Исполнитель запросил отмену"}
           </h2>
-          <p className="cancel-tab__subtitle">Заказ № {order.id}</p>
-        </header>
+                  </header>
 
         <div className="cancel-tab__status">
           <div className="cancel-tab__status-head">

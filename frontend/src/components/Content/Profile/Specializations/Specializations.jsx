@@ -246,7 +246,7 @@ export default function Specializations() {
           </h1>
           <p className="spec-page__subtitle">
             {subTab === "list"
-              ? "Выберите направление или добавьте новое"
+              ? "Направления работ, которые видят заказчики в вашем профиле"
               : "Укажите категорию, описание и ставку за час"}
           </p>
         </div>
@@ -269,6 +269,17 @@ export default function Specializations() {
           </button>
         )}
       </header>
+
+      {subTab === "list" && (
+        <div className="spec-hint" role="note">
+          <p className="spec-hint__text">
+            Здесь вы указываете, какие виды работ выполняете: добавляете
+            специализации, ставку за час, стаж и прайс. Эти данные показываются
+            в вашем профиле, помогают заказчикам найти вас и предложить заказ
+            по нужной услуге.
+          </p>
+        </div>
+      )}
 
       {subTab === "list" && (
         <>

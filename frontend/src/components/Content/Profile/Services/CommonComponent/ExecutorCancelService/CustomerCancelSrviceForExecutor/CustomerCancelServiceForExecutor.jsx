@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { API, apiFetch, buildApiUrl } from "../../../../../../../utils/api.js";
+import { IconCheck, IconAlert, IconClock } from "../../../../ProfileIcons.jsx";
 import "../../../../Orders/CommonComponents/CustomerCancelOrder/cancel_order.css";
 const CUSTOMER_CANCEL_REASON_OPTIONS = [
   { value: "слишком_дорого", label: "Слишком дорого" },
@@ -19,6 +20,7 @@ function getCustomerReasonLabel(value) {
 export default function CustomerCancelServiceForExecutor({
   order,
   customerCancel,
+  allowExecutorDecision = true,
   onRefresh,
   onDecisionApplied,
 }) {
@@ -32,6 +34,7 @@ export default function CustomerCancelServiceForExecutor({
   const isExecutorPending = customerCancel?.status === "pending_executor";
   const isExecutorAgreed = customerCancel?.status === "agree";
   const isExecutorDisagreed = customerCancel?.status === "disagree";
+  const showDecisionForm = allowExecutorDecision && isExecutorPending;
   const canSubmitDecision = decisionValue && !isSubmittingDecision;
 
   const handleExecutorDecision = async () => {
@@ -74,7 +77,13 @@ export default function CustomerCancelServiceForExecutor({
     }
   };
 
-  const statusIcon = isExecutorAgreed ? "✓" : isExecutorDisagreed ? "!" : "…";
+  const statusIcon = isExecutorAgreed ? (
+    <IconCheck width={16} height={16} />
+  ) : isExecutorDisagreed ? (
+    <IconAlert width={16} height={16} />
+  ) : (
+    <IconClock width={16} height={16} />
+  );
   const statusIconClass = isExecutorAgreed
     ? "cancel-tab__status-icon--success"
     : isExecutorDisagreed
@@ -91,10 +100,11 @@ export default function CustomerCancelServiceForExecutor({
               ? "Вы согласились с отменой"
               : isExecutorDisagreed
                 ? "Вы не согласились с отменой"
-                : "Заказчик запросил отмену"}
+                : allowExecutorDecision
+                  ? "Заказчик запросил отмену"
+                  : "Заказчик отказался от заказа"}
           </h2>
-          <p className="cancel-tab__subtitle">Заказ № {order.id}</p>
-        </header>
+                  </header>
 
         <div className="cancel-tab__status">
           <div className="cancel-tab__status-head">
@@ -110,7 +120,9 @@ export default function CustomerCancelServiceForExecutor({
                   ? "Заказ возвращён в поиск исполнителя"
                   : isExecutorDisagreed
                     ? "Спор передан администратору"
-                    : "Требуется ваше решение"}
+                    : allowExecutorDecision
+                      ? "Требуется ваше решение"
+                      : "Отмена на этапе «Ожидают выполнения»"}
               </p>
               <p className="cancel-tab__status-meta">Статус: {customerCancel.status}</p>
             </div>
@@ -126,7 +138,14 @@ export default function CustomerCancelServiceForExecutor({
             <p className="cancel-tab__reason-text">{customerCancel.reason_text}</p>
           </div>
 
-          {isExecutorPending && (
+          {!allowExecutorDecision && isExecutorPending && (
+            <div className="cancel-tab__notice cancel-tab__notice--info">
+              На этапе «Ожидают выполнения» решение исполнителя не требуется —
+              заказчик может отменить заказ в одностороннем порядке.
+            </div>
+          )}
+
+          {showDecisionForm && (
             <div className="cancel-tab__decision">
               <h4 className="cancel-tab__decision-title">Примите решение по отмене</h4>
               <p className="cancel-tab__decision-hint">

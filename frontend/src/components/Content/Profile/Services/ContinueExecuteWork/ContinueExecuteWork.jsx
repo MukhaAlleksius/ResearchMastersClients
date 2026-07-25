@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { API, apiFetch, buildApiUrl } from "../../../../../utils/api.js";
+import { apiFetch, buildApiUrl } from "../../../../../utils/api.js";
 import { useNavigate, useParams } from "react-router-dom";
 import Chat from "../CommonComponent/ChatOrderMaster/ChatOrderMaster";
-import ContractExecutor from "../CommonComponent/CustomerExecutorContractOrder/ContractOrderCustomerExecutor";
 import CustomerExecutorComplaints from "../../Orders/CommonComponents/CustomerExecutorComplaints/CustomerExecutorComplaints";
 import CustomerInfo from "../CommonComponent/InformationAboutCustomer/InformationAboutCustomer";
 import EstimateWorks from "../CommonComponent/EstimateWorksMaterials/EstimateWorks";
 import ExecutorCancelService from "../CommonComponent/ExecutorCancelService/ExecutorCancelService";
-import ExecutorPaymentStatus from "../CommonComponent/Payment/ExecutorPaumentStatus";
 import GraphicWorks from "../CommonComponent/GraphicWorks/GraphicWorks";
 import OrderInfoWithMyResponse from "../CommonComponent/CustomerOrderInfo/OrderInfoWithMyResponse";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
@@ -15,7 +13,6 @@ import {
   getWorkDetailTabs,
   useWorkDetailInitialTab,
 } from "../../Common/workDetailTabs";
-import { useContractStatus } from "../../Common/useContractStatus";
 
 const FALLBACK_ORDER = {
   id: 123,
@@ -66,20 +63,6 @@ export default function ContinueExecuteWorkServiceInfo({ orderId, onBack, userId
     fetchOrderInfo();
   }, [fetchOrderInfo]);
 
-  const { refetch: refetchContractStatus } = useContractStatus(orderIdFinal, {
-    pollWhileNotReady: true,
-  });
-
-  const handleContractUpdated = useCallback(() => {
-    refetchContractStatus({ silent: true });
-  }, [refetchContractStatus]);
-
-  useEffect(() => {
-    if (activeTab === "customerExecutorContract") {
-      refetchContractStatus({ silent: true });
-    }
-  }, [activeTab, refetchContractStatus]);
-
   const tabs = useMemo(
     () =>
       getWorkDetailTabs("executor_in_progress", {
@@ -91,7 +74,6 @@ export default function ContinueExecuteWorkServiceInfo({ orderId, onBack, userId
   return (
     <WorkDetailLayout
       title={currentOrder.title || "Выполнение работы"}
-      subtitle={orderIdFinal ? `Услуга № ${orderIdFinal}` : undefined}
       backLabel="Назад к услугам"
       onBack={onBack || (() => navigate(-1))}
       activityConfig={
@@ -134,25 +116,6 @@ export default function ContinueExecuteWorkServiceInfo({ orderId, onBack, userId
 
       {activeTab === "orderInfo" && (
         <OrderInfoWithMyResponse order={currentOrder} embedded />
-      )}
-
-      <div
-        style={{
-          display:
-            activeTab === "customerExecutorContract" ? "block" : "none",
-        }}
-      >
-        <ContractExecutor
-          order={currentOrder}
-          onContractUpdated={handleContractUpdated}
-        />
-      </div>
-
-      {activeTab === "payment" && (
-        <ExecutorPaymentStatus
-          orderId={orderIdFinal}
-          executorId={executorId}
-        />
       )}
 
       {activeTab === "executorCancelOrder" && (

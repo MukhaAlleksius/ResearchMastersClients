@@ -257,7 +257,6 @@ export default function ResearchExecutor({ order, onBack, onOrderUpdated, onOrde
     <WorkDetailLayout
       rootClassName="research-executor"
       title={currentOrder?.title || "Поиск исполнителя"}
-      subtitle={orderId ? `Заказ № ${orderId}` : undefined}
       backLabel="Назад к заказам"
       onBack={onBack || (() => navigate(-1))}
       activityConfig={

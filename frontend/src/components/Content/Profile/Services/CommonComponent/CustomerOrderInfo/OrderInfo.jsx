@@ -5,6 +5,7 @@ import {
   OrderInfoHighlights,
   formatDateTime,
 } from "./OrderInfoContent";
+import { StatusIcon } from "../../../ProfileIcons.jsx";
 import "./customer_order_info.css";
 
 function normalizeOrder(order) {
@@ -50,8 +51,6 @@ export default function OrderInfo({
     budget,
     currency,
     budget_type,
-    urgency_level,
-    deadline,
     status_order_customer,
     created_at,
   } = data;
@@ -83,13 +82,13 @@ export default function OrderInfo({
                 }}
               >
                 <span className="order-info__status-icon" aria-hidden="true">
-                  {statusStyle.icon}
+                  <StatusIcon name={statusStyle.icon} />
                 </span>
                 {status_order_customer}
               </span>
             )}
           </div>
-          <h2 className="order-info__title">{title || `Заказ #${id}`}</h2>
+          <h2 className="order-info__title">{title || "Заказ"}</h2>
           <p className="order-info__subtitle">
             <span className="order-info__order-id">№{id}</span>
             {created_at && (
@@ -102,8 +101,6 @@ export default function OrderInfo({
             budget={budget}
             currency={currency}
             budget_type={budget_type}
-            urgency_level={urgency_level}
-            deadline={deadline}
           />
         </header>
       )}

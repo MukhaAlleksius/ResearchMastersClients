@@ -96,12 +96,20 @@
 }
 
 .order-customer-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   padding: 0.35rem 0.75rem;
   font-size: 0.8125rem;
   font-weight: 600;
   color: #1d4ed8;
   background: #eff6ff;
   border-radius: 999px;
+}
+
+.order-customer-category svg {
+  display: block;
+  flex-shrink: 0;
 }
 
 .order-customer-description {
@@ -167,7 +175,11 @@
   align-items: center;
   justify-content: center;
   background: #e2e8f0;
-  font-size: 1.5rem;
+  color: #64748b;
+}
+
+.order-customer-user__avatar--placeholder svg {
+  display: block;
 }
 
 .order-customer-user__name {
@@ -177,9 +189,46 @@
   color: #0f172a;
 }
 
+.order-customer-user__name--link {
+  display: inline-block;
+  color: #1d4ed8;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.order-customer-user__name--link:hover {
+  color: #1e40af;
+  text-decoration: underline;
+}
+
 .order-customer-user__location {
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 0.875rem;
+  color: #64748b;
+}
+
+.order-customer-user__location svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.order-customer-geo {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  font-size: 0.9375rem;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.order-customer-geo svg {
+  display: block;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
   color: #64748b;
 }
 

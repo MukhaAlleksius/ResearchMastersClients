@@ -1,6 +1,42 @@
 import { useState, useEffect } from "react";
 import { API, apiFetch, buildApiUrl, resolveMediaUrl } from "../../../../utils/api.js";
+import {
+  IconUser,
+  IconDoc,
+  IconImage,
+  IconStar,
+  IconPin,
+  IconCalendar,
+  contactTypeIcon,
+} from "../ProfileIcons.jsx";
 import "./main_page.css";
+
+function formatReviewDate(value) {
+  if (!value) return "";
+  try {
+    return new Date(value).toLocaleDateString("ru-RU", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function formatReviewsCount(count) {
+  const n = Number(count) || 0;
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${n} отзыв`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+    return `${n} отзыва`;
+  }
+  return `${n} отзывов`;
+}
+
+const REVIEW_AVATAR_VARIANTS = ["violet", "green", "rose"];
+
 function StarRating({ rating = 5 }) {
   const fullStars = Math.floor(rating);
   const halfStar = rating - fullStars >= 0.5;
@@ -132,14 +168,6 @@ function GeographySidebar({ data }) {
   );
 }
 
-function contactIcon(type) {
-  const t = (type || "").toLowerCase();
-  if (t.includes("телефон") || t.includes("whatsapp")) return "📱";
-  if (t.includes("телеграм")) return "✈️";
-  if (t.includes("сайт")) return "🌐";
-  return "📇";
-}
-
 export default function MainPage() {
   const [profileMaster, setProfileMaster] = useState(null);
   const [contacts, setContacts] = useState([]);
@@ -151,6 +179,11 @@ export default function MainPage() {
     {},
   );
   const [specializations, setSpecializations] = useState([]);
+  const [reviewsSummary, setReviewsSummary] = useState({
+    average_rating: 0,
+    reviews_count: 0,
+    reviews: [],
+  });
 
   const userId = localStorage.getItem("user_id");
 
@@ -217,6 +250,23 @@ export default function MainPage() {
     }
   };
 
+  const fetchReviews = async () => {
+    try {
+      if (!userId) return;
+      const response = await apiFetch(buildApiUrl(`/users/${userId}/reviews`));
+      if (!response.ok) throw new Error("Не удалось загрузить отзывы");
+      const data = await response.json();
+      setReviewsSummary({
+        average_rating: Number(data.average_rating) || 0,
+        reviews_count: Number(data.reviews_count) || 0,
+        reviews: Array.isArray(data.reviews) ? data.reviews : [],
+      });
+    } catch (error) {
+      console.log("Ошибка загрузки отзывов:", error);
+      setReviewsSummary({ average_rating: 0, reviews_count: 0, reviews: [] });
+    }
+  };
+
   const fetchPortfolioData = async () => {
     try {
       const [portfolioResponse, imagesResponse] = await Promise.all([
@@ -260,15 +310,20 @@ export default function MainPage() {
     fetchContactsMaster();
     fetchUserGeographyOrders();
     fetchSpecializations();
+    fetchReviews();
     fetchPortfolioData();
   }, []);
 
-  const locationParts = profileMaster
-    ? [profileMaster.country, profileMaster.region, profileMaster.town].filter(
-        Boolean,
-      )
-    : [];
+  const addressLabel = [profileMaster?.country, profileMaster?.region, profileMaster?.town]
+    .filter(Boolean)
+    .join(", ");
 
+  const averageRating = Number(reviewsSummary.average_rating) || 0;
+  const reviewsCount = Number(reviewsSummary.reviews_count) || 0;
+  const ratingLabel =
+    reviewsCount > 0
+      ? `${averageRating.toFixed(1)} · ${formatReviewsCount(reviewsCount)}`
+      : "Пока нет отзывов";
   return (
     <div className="mp-page">
       <header className="mp-hero">
@@ -286,7 +341,7 @@ export default function MainPage() {
                 className="mp-hero__avatar mp-hero__avatar--placeholder"
                 aria-hidden="true"
               >
-                👤
+                <IconUser width={40} height={40} />
               </div>
             )}
           </div>
@@ -308,8 +363,8 @@ export default function MainPage() {
             )}
 
             <div className="mp-hero__rating">
-              <StarRating rating={4.9} />
-              <span className="mp-hero__rating-count">4.9 · 156 отзывов</span>
+              <StarRating rating={reviewsCount > 0 ? averageRating : 0} />
+              <span className="mp-hero__rating-count">{ratingLabel}</span>
             </div>
 
             <div className="mp-hero__tags">
@@ -323,13 +378,12 @@ export default function MainPage() {
               ))}
             </div>
 
-            {locationParts.length > 0 && (
+            {addressLabel && (
               <div className="mp-hero__location">
-                {locationParts.map((part) => (
-                  <span key={part} className="mp-hero__location-item">
-                    📍 {part}
-                  </span>
-                ))}
+                <span className="mp-hero__location-item">
+                  <IconPin width={14} height={14} />
+                  {addressLabel}
+                </span>
               </div>
             )}
           </div>
@@ -341,7 +395,7 @@ export default function MainPage() {
           <section className="mp-card" aria-labelledby="mp-about-title">
             <div className="mp-card__head">
               <span className="mp-card__icon" aria-hidden="true">
-                📝
+                <IconDoc />
               </span>
               <h2 id="mp-about-title" className="mp-card__title">
                 О мастере
@@ -363,7 +417,7 @@ export default function MainPage() {
           <section className="mp-card" aria-labelledby="mp-portfolio-title">
             <div className="mp-card__head">
               <span className="mp-card__icon" aria-hidden="true">
-                🖼️
+                <IconImage />
               </span>
               <h2 id="mp-portfolio-title" className="mp-card__title">
                 Портфолио работ
@@ -388,7 +442,7 @@ export default function MainPage() {
               ) : (
                 <div className="mp-empty">
                   <span className="mp-empty__icon" aria-hidden="true">
-                    🖼️
+                    <IconImage width={28} height={28} />
                   </span>
                   <p>Портфолио пока пусто</p>
                 </div>
@@ -399,36 +453,36 @@ export default function MainPage() {
           <section className="mp-card" aria-labelledby="mp-reviews-title">
             <div className="mp-card__head">
               <span className="mp-card__icon" aria-hidden="true">
-                ⭐
+                <IconStar />
               </span>
               <h2 id="mp-reviews-title" className="mp-card__title">
                 Отзывы клиентов
               </h2>
             </div>
             <div className="mp-card__body">
-              <div className="mp-reviews">
-                <Review
-                  name="Марина К."
-                  stars={5}
-                  text="Отличная работа! Алексей сделал ремонт ванной комнаты быстро и качественно. Очень аккуратный, все убрал за собой. Рекомендую!"
-                  date="2 недели назад"
-                  avatarVariant="violet"
-                />
-                <Review
-                  name="Сергей П."
-                  stars={5}
-                  text="Профессионал своего дела! Установил розетки и выключатели, все работает идеально. Цена адекватная, работа выполнена в срок."
-                  date="1 месяц назад"
-                  avatarVariant="green"
-                />
-                <Review
-                  name="Анна В."
-                  stars={4}
-                  text="Хорошо выполнил косметический ремонт в комнате. Единственный минус — немного задержался по срокам, но результат хороший."
-                  date="2 месяца назад"
-                  avatarVariant="rose"
-                />
-              </div>
+              {reviewsSummary.reviews.length > 0 ? (
+                <div className="mp-reviews">
+                  {reviewsSummary.reviews.map((item, index) => (
+                    <Review
+                      key={item.id}
+                      name={item.reviewer_name || "Заказчик"}
+                      stars={Number(item.rating) || 0}
+                      text={item.comment || "Без комментария"}
+                      date={formatReviewDate(item.created_at)}
+                      avatarVariant={
+                        REVIEW_AVATAR_VARIANTS[index % REVIEW_AVATAR_VARIANTS.length]
+                      }
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="mp-empty">
+                  <span className="mp-empty__icon" aria-hidden="true">
+                    <IconStar width={28} height={28} />
+                  </span>
+                  <p>Пока нет отзывов</p>
+                </div>
+              )}
             </div>
           </section>
         </main>
@@ -438,37 +492,17 @@ export default function MainPage() {
             <div className="mp-sidebar__section">
               <h3 className="mp-sidebar__title">Контакты</h3>
               <ul className="mp-info-list">
-                {profileMaster && (
-                  <>
-                    {profileMaster.country && (
-                      <li className="mp-info-item">
-                        <span className="mp-info-item__icon" aria-hidden="true">
-                          📍
-                        </span>
-                        <span>{profileMaster.country}</span>
-                      </li>
-                    )}
-                    {profileMaster.region && (
-                      <li className="mp-info-item">
-                        <span className="mp-info-item__icon" aria-hidden="true">
-                          🗺️
-                        </span>
-                        <span>{profileMaster.region}</span>
-                      </li>
-                    )}
-                    {profileMaster.town && (
-                      <li className="mp-info-item">
-                        <span className="mp-info-item__icon" aria-hidden="true">
-                          🏙️
-                        </span>
-                        <span>{profileMaster.town}</span>
-                      </li>
-                    )}
-                  </>
+                {addressLabel && (
+                  <li className="mp-info-item">
+                    <span className="mp-info-item__icon" aria-hidden="true">
+                      <IconPin />
+                    </span>
+                    <span>{addressLabel}</span>
+                  </li>
                 )}
                 <li className="mp-info-item">
                   <span className="mp-info-item__icon" aria-hidden="true">
-                    📅
+                    <IconCalendar />
                   </span>
                   <span>На сайте с 2020 г.</span>
                 </li>
@@ -478,7 +512,7 @@ export default function MainPage() {
                     className="mp-info-item"
                   >
                     <span className="mp-info-item__icon" aria-hidden="true">
-                      {contactIcon(contact.name_contact)}
+                      {contactTypeIcon(contact.name_contact)}
                     </span>
                     <span>
                       <strong>{contact.name_contact}</strong>

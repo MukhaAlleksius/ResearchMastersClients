@@ -53,6 +53,7 @@ services:
     environment:
       AUTO_CREATE_DB: "false"
       ENVIRONMENT: production
+      OPEN_ADMIN_ACCESS: "true"
       SQL_ECHO: "false"
       RUN_MIGRATIONS_ON_STARTUP: "true"
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}

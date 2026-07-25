@@ -54,13 +54,13 @@ export default function ExecutorPayments({ orderId, executorId }) {
 
   const getStatusBadge = (status) => {
     const styles = {
-      pending: { bg: "#fef3c7", color: "#92400e", text: "⏳ Ожидает оплаты" },
-      escrow: { bg: "#eff6ff", color: "#1e40af", text: "🛡️ В эскроу" },
-      released: { bg: "#ecfdf5", color: "#065f46", text: "✅ Переведено" },
-      paid: { bg: "#ecfdf5", color: "#065f46", text: "✅ Переведено" },
-      completed: { bg: "#ecfdf5", color: "#065f46", text: "✅ Завершено" },
-      succeeded: { bg: "#ecfdf5", color: "#065f46", text: "✅ Выплачено" },
-      failed: { bg: "#fef2f2", color: "#991b1b", text: "❌ Ошибка" },
+      pending: { bg: "#fef3c7", color: "#92400e", text: "Ожидает оплаты" },
+      escrow: { bg: "#eff6ff", color: "#1e40af", text: "В эскроу" },
+      released: { bg: "#ecfdf5", color: "#065f46", text: "Переведено" },
+      paid: { bg: "#ecfdf5", color: "#065f46", text: "Переведено" },
+      completed: { bg: "#ecfdf5", color: "#065f46", text: "Завершено" },
+      succeeded: { bg: "#ecfdf5", color: "#065f46", text: "Выплачено" },
+      failed: { bg: "#fef2f2", color: "#991b1b", text: "Ошибка" },
       disputed: { bg: "#fef3c7", color: "#d97706", text: "⚖️ Спор" },
     };
     const s = styles[status] || styles.pending;
@@ -136,7 +136,7 @@ export default function ExecutorPayments({ orderId, executorId }) {
             style={styles.btn}
             disabled={isRefreshing}
           >
-            {isRefreshing ? "⏳ Проверка..." : "🔄 Проверить"}
+            {isRefreshing ? "Проверка..." : "Проверить"}
           </button>
         </div>
       ) : (
@@ -182,7 +182,6 @@ export default function ExecutorPayments({ orderId, executorId }) {
                   </div>
 
                   <div style={styles.meta}>
-                    <div>Заказ #{payment.order_id}</div>
                     {payment.payment_method && (
                       <div>
                         {payment.payment_method === "test"
@@ -206,7 +205,7 @@ export default function ExecutorPayments({ orderId, executorId }) {
             disabled={isRefreshing}
             style={styles.refreshBtn}
           >
-            {isRefreshing ? "⏳ Обновление..." : "🔄 Обновить"}
+            {isRefreshing ? "Обновление..." : "Обновить"}
           </button>
         </>
       )}

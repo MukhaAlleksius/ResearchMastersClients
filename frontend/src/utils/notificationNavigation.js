@@ -14,6 +14,7 @@ const NOTIFICATION_TAB_FALLBACK = {
   complaint_message: "complaints",
   payment_updated: "payment",
   work_started: "schedule",
+  order_completed: "orderInfo",
   start_date_updated: "orderInfo",
   executor_assigned: "orderInfo",
   customer_status_changed: "orderInfo",

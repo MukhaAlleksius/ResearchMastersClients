@@ -46,6 +46,7 @@ EXECUTOR_ASSIGNED_NOTIFICATION_TYPE = "executor_assigned"
 CUSTOMER_STATUS_CHANGED_NOTIFICATION_TYPE = "customer_status_changed"
 EXECUTOR_STATUS_CHANGED_NOTIFICATION_TYPE = "executor_status_changed"
 WORK_STARTED_NOTIFICATION_TYPE = "work_started"
+ORDER_COMPLETED_NOTIFICATION_TYPE = "order_completed"
 START_DATE_UPDATED_NOTIFICATION_TYPE = "start_date_updated"
 COUNTERPARTY_INFO_UPDATED_NOTIFICATION_TYPE = "counterparty_info_updated"
 COMPLAINT_MESSAGE_NOTIFICATION_TYPE = "complaint_message"
@@ -153,6 +154,15 @@ _NOTIFICATION_COPY = {
             "Исполнитель {actor} приступил к выполнению заказа «{order}»."
         ),
     },
+    ORDER_COMPLETED_NOTIFICATION_TYPE: {
+        "title": "Заказ выполнен",
+        "actor_executor": (
+            "Исполнитель {actor} отметил заказ «{order}» выполненным."
+        ),
+        "actor_customer": (
+            "Заказчик {actor} отметил заказ «{order}» выполненным."
+        ),
+    },
     START_DATE_UPDATED_NOTIFICATION_TYPE: {
         "title": "Дата начала работ",
         "actor_executor": (
@@ -226,6 +236,7 @@ def _resolve_notification_tab(
         COMPLAINT_MESSAGE_NOTIFICATION_TYPE: "complaints",
         PAYMENT_UPDATED_NOTIFICATION_TYPE: "payment",
         WORK_STARTED_NOTIFICATION_TYPE: "schedule",
+        ORDER_COMPLETED_NOTIFICATION_TYPE: "orderInfo",
         START_DATE_UPDATED_NOTIFICATION_TYPE: "orderInfo",
         EXECUTOR_ASSIGNED_NOTIFICATION_TYPE: "orderInfo",
         CUSTOMER_STATUS_CHANGED_NOTIFICATION_TYPE: "orderInfo",
@@ -384,6 +395,10 @@ def is_in_progress_status(status: Optional[str]) -> bool:
 
 def _is_in_progress_status(status: Optional[str]) -> bool:
     return is_in_progress_status(status)
+
+
+def _is_completed_status(status: Optional[str]) -> bool:
+    return "Выполнен" in (status or "")
 
 
 def _is_cancel_refusal_executor_status(status: Optional[str]) -> bool:
@@ -746,6 +761,22 @@ async def notify_customer_executor_response(
     )
 
 
+async def notify_executor_order_completed(
+    db: AsyncSession,
+    *,
+    executor_id: int,
+    order_id: int,
+    actor_user_id: int,
+) -> None:
+    await notify_order_event_safe(
+        db,
+        order_id=order_id,
+        actor_user_id=actor_user_id,
+        notification_type=ORDER_COMPLETED_NOTIFICATION_TYPE,
+        recipient_id=executor_id,
+    )
+
+
 async def notify_executor_on_status_change(
     db: AsyncSession,
     *,
@@ -793,6 +824,11 @@ async def notify_executor_on_status_change(
         )
         return
 
+    if _is_completed_status(new_status):
+        # Заказчик не получает уведомление; исполнитель уже уведомлён
+        # при смене статуса заказчика на «Выполнен».
+        return
+
     await notify_customer_on_executor_status_change(
         db=db,
         executor_id=executor_id,
@@ -820,6 +856,9 @@ async def notify_customer_on_executor_status_change(
         return
 
     if _is_cancel_refusal_executor_status(new_status):
+        return
+
+    if _is_completed_status(new_status):
         return
 
     await notify_order_event_safe(
@@ -860,10 +899,21 @@ async def notify_customer_on_customer_status_change(
     if previous_status == new_status:
         return
 
-    if _is_wait_execute_status(new_status):
+    executor_id = await _resolve_executor_id_for_order(db, order_id)
+
+    if _is_completed_status(new_status):
+        # Уведомляем только исполнителя; заказчику не шлём.
+        if executor_id:
+            await notify_executor_order_completed(
+                db=db,
+                executor_id=executor_id,
+                order_id=order_id,
+                actor_user_id=customer_id,
+            )
         return
 
-    executor_id = await _resolve_executor_id_for_order(db, order_id)
+    if _is_wait_execute_status(new_status):
+        return
 
     if _is_in_progress_status(new_status):
         if executor_id:

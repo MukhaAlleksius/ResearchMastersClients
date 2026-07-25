@@ -43,6 +43,7 @@ export default function ExecutorCancelService({
   order,
   executorId,
   status = "pending_customer",
+  allowExecutorDecision = true,
   onCancelSuccess,
   onCustomerCancelAgreed,
 }) {
@@ -180,6 +181,7 @@ export default function ExecutorCancelService({
       <CustomerCancelServiceForExecutor
         order={order}
         customerCancel={customerCancel}
+        allowExecutorDecision={allowExecutorDecision}
         onRefresh={loadCancellationState}
         onDecisionApplied={onCustomerCancelAgreed}
       />
@@ -202,7 +204,7 @@ export default function ExecutorCancelService({
       <article className="cancel-tab__shell">
         <header className="cancel-tab__head">
           <span className="cancel-tab__badge">Отказ</span>
-          <h2 className="cancel-tab__title">Отказ от заказа № {order.id}</h2>
+          <h2 className="cancel-tab__title">Отказ от заказа</h2>
           <p className="cancel-tab__subtitle">
             Опишите причину — заказчик получит уведомление и сможет принять решение
           </p>
@@ -211,12 +213,11 @@ export default function ExecutorCancelService({
         <div className="cancel-tab__body">
           <div className="cancel-tab__order">
             <p className="cancel-tab__order-title">
-              {order.title || `Заказ № ${order.id}`}
+              {order.title || "Заказ"}
             </p>
             <p className="cancel-tab__order-meta">
-              № {order.id}
               {order.budget != null &&
-                ` · ${Number(order.budget).toLocaleString()} ${order.currency || "BYN"}`}
+                `${Number(order.budget).toLocaleString()} ${order.currency || "BYN"}`}
             </p>
           </div>
 

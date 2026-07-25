@@ -32,6 +32,7 @@ from cruds.orders.read_orders import (
     get_executor_customers_list,
     get_order,
     get_order_profile_for_admin,
+    get_order_review,
     can_view_order_executor_response,
     get_order_response_executor,
     get_order_responses_executors,
@@ -65,6 +66,7 @@ from schemas.orders_schemas import (
     OrderReadSchema,
     OrderResponseExecutorReadSchema,
     OrderUserSchema,
+    ReviewReadSchema,
     ServiceProfileForAdmin,
     ServiceUserSchema,
 )
@@ -222,6 +224,28 @@ async def get_order_activity_api(
         raise HTTPException(status_code=500, detail=f"Ошибка сервера: {e}")
 
 
+@router.get("/order/{order_id}/review", response_model=Optional[ReviewReadSchema])
+async def get_order_review_api(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_user),
+):
+    try:
+        return await get_order_review(
+            db=db,
+            order_id=order_id,
+            viewer_id=current_user.user_id,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"API error for get_order_review order_id={order_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+
+
 # предоставления информации заказчику об ответе на заказ всех исполнителей
 @router.get(
     "/order_responses_executors/{order_id}",
@@ -286,12 +310,11 @@ async def get_orders_customers_api(
     page: int = Query(1, ge=1, description="Номер страницы"),
     page_size: int = Query(12, ge=1, le=100, description="Размер страницы"),
     db: AsyncSession = Depends(get_db),
-    current_user: UserCommonSchema | None = Depends(get_optional_current_user),
 ):
     """
     Каталог заказов клиентов.
     Всегда возвращает список (даже если он пустой), без 409 ошибки.
-    Свои заказы у текущего пользователя в каталоге не показываются.
+    Свои заказы тоже видны владельцу; кнопка «Предложить услугу» скрывается на фронте.
     """
     try:
         orders_customers, total = await get_orders_customers(
@@ -302,7 +325,6 @@ async def get_orders_customers_api(
             town=town,
             page=page,
             page_size=page_size,
-            exclude_customer_id=current_user.user_id if current_user else None,
         )
         return PaginatedResponse.create(
             orders_customers, total, page, page_size
@@ -436,6 +458,13 @@ async def get_order_profile_for_admin_api(
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
 
 
+def _ensure_cancel_participant(
+    current_user: UserCommonSchema, customer_id: int, executor_id: int
+) -> None:
+    if current_user.user_id not in (customer_id, executor_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+
 # получить информацию из базы данных об отмене заказа зазказчиком
 @router.get(
     "/order/{order_id}/customer_order_cancel",
@@ -443,15 +472,17 @@ async def get_order_profile_for_admin_api(
 )
 async def get_customer_order_cancel_api(
     order_id: int,
+    customer_id: int = Query(...),
     executor_id: int = Query(...),
     db: AsyncSession = Depends(get_db),
     current_user: UserCommonSchema = Depends(get_current_user),
 ):
+    _ensure_cancel_participant(current_user, customer_id, executor_id)
     try:
         customer_order_cancel = await get_customer_order_cancel(
             db=db,
             order_id=order_id,
-            customer_id=current_user.user_id,
+            customer_id=customer_id,
             executor_id=executor_id,
         )
         if not customer_order_cancel:
@@ -463,7 +494,8 @@ async def get_customer_order_cancel_api(
         raise
     except Exception as e:
         logger.error(
-            f"API error for service {customer_order_cancel}: {e}", exc_info=True
+            f"API error for customer_order_cancel order_id={order_id}: {e}",
+            exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
 
@@ -476,26 +508,29 @@ async def get_customer_order_cancel_api(
 async def get_executor_order_cancel_api(
     order_id: int,
     customer_id: int = Query(...),
+    executor_id: int = Query(...),
     db: AsyncSession = Depends(get_db),
     current_user: UserCommonSchema = Depends(get_current_user),
 ):
+    _ensure_cancel_participant(current_user, customer_id, executor_id)
     try:
         executor_order_cancel = await get_executor_order_cancel(
             db=db,
             order_id=order_id,
             customer_id=customer_id,
-            executor_id=current_user.user_id,
+            executor_id=executor_id,
         )
         if not executor_order_cancel:
             raise HTTPException(
-                status_code=404, detail="Заявка на отмену заказчиком не найдена"
+                status_code=404, detail="Заявка на отмену исполнителем не найдена"
             )
         return executor_order_cancel
     except HTTPException:
         raise
     except Exception as e:
         logger.error(
-            f"API error for service {executor_order_cancel}: {e}", exc_info=True
+            f"API error for executor_order_cancel order_id={order_id}: {e}",
+            exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
 

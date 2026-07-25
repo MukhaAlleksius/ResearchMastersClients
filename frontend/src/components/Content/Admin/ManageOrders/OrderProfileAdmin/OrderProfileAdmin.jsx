@@ -58,8 +58,7 @@ export default function OrderProfileAdmin() {
       backLabel="← К списку заказов"
       breadcrumb={
         <>
-          Админ · <Link to="/admin/manage_orders">Заказы</Link> ·{" "}
-          <strong>№ {orderId}</strong>
+          Админ · <Link to="/admin/manage_orders">Заказы</Link>
         </>
       }
       onRetry={fetchOrderProfileForAdmin}

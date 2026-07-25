@@ -112,7 +112,7 @@ export default function ContractExecutor({
           </p>
         )}
         <p className="contract-doc__empty-meta">
-          Заказ #{order?.id || "не указан"}
+          {order?.title || "Заказ"}
         </p>
       </div>
     );
@@ -312,7 +312,7 @@ export default function ContractExecutor({
                     : "contract-doc__sign-btn--waiting"
                 }`}
               >
-                {contract.customerSigned ? "✓ Подписано" : "Ожидает подписи"}
+                {contract.customerSigned ? "Подписано" : "Ожидает подписи"}
               </button>
             </div>
 
@@ -338,7 +338,7 @@ export default function ContractExecutor({
                 {isSaving
                   ? "Сохранение…"
                   : contract.contractorSigned
-                    ? "✓ Подписано"
+                    ? "Подписано"
                     : "Подтвердить подпись"}
               </button>
             </div>

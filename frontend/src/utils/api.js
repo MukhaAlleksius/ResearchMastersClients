@@ -89,6 +89,7 @@ export function isPublicRequest(url, method = "GET") {
   if (/^\/verify-email$/.test(path)) return true;
   if (/^\/information_about_user\/\d+$/.test(path)) return true;
   if (/^\/users\/\d+\/contacts$/.test(path)) return true;
+  if (/^\/users\/\d+\/reviews$/.test(path)) return true;
   if (/^\/users\/\d+\/geography_execute_orders$/.test(path)) return true;
   if (/^\/countries\/\d+\/regions$/.test(path)) return true;
   if (/^\/regions\/\d+\/towns$/.test(path)) return true;

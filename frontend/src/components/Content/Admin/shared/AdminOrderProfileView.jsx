@@ -147,7 +147,7 @@ function OrderProfileContent({ order, variant = "order" }) {
           <div>
             <div className="admin-order-profile__badge-row">
               <span className="admin-order-profile__pill admin-order-profile__pill--muted">
-                {entityLabel} № {order.id}
+                {entityLabel}
               </span>
               {order.category_work && (
                 <span className="admin-order-profile__pill admin-order-profile__pill--category">

@@ -58,40 +58,40 @@ export const getStatusColor = (status) => {
   const normalizedStatus = status?.toLowerCase() || "";
 
   if (normalizedStatus.includes("выполнен")) {
-    return { bg: "#dcfce7", text: "#166534", border: "#22c55e", icon: "✓" };
+    return { bg: "#dcfce7", text: "#166534", border: "#22c55e", icon: "check" };
   }
   if (normalizedStatus.includes("процесс")) {
-    return { bg: "#fef3c7", text: "#92400e", border: "#f59e0b", icon: "⏳" };
+    return { bg: "#fef3c7", text: "#92400e", border: "#f59e0b", icon: "progress" };
   }
   if (
     normalizedStatus.includes("ожидают") ||
     normalizedStatus.includes("ожидает")
   ) {
-    return { bg: "#dbeafe", text: "#1e40af", border: "#3b82f6", icon: "⏱" };
+    return { bg: "#dbeafe", text: "#1e40af", border: "#3b82f6", icon: "clock" };
   }
   if (normalizedStatus.includes("рассмотрен")) {
-    return { bg: "#e0e7ff", text: "#3730a3", border: "#6366f1", icon: "👀" };
+    return { bg: "#e0e7ff", text: "#3730a3", border: "#6366f1", icon: "eye" };
   }
   if (
     normalizedStatus.includes("поиск") ||
     normalizedStatus.includes("предложен")
   ) {
-    return { bg: "#f3e8ff", text: "#6b21a8", border: "#a855f7", icon: "⌕" };
+    return { bg: "#f3e8ff", text: "#6b21a8", border: "#a855f7", icon: "search" };
   }
   if (
     normalizedStatus.includes("не предложен") ||
     normalizedStatus.includes("чернов")
   ) {
-    return { bg: "#f1f5f9", text: "#475569", border: "#94a3b8", icon: "✎" };
+    return { bg: "#f1f5f9", text: "#475569", border: "#94a3b8", icon: "edit" };
   }
   if (normalizedStatus.includes("самостоятель")) {
-    return { bg: "#ecfeff", text: "#0e7490", border: "#06b6d4", icon: "⚙" };
+    return { bg: "#ecfeff", text: "#0e7490", border: "#06b6d4", icon: "settings" };
   }
   if (normalizedStatus.includes("график")) {
-    return { bg: "#f0fdfa", text: "#0f766e", border: "#14b8a6", icon: "▦" };
+    return { bg: "#f0fdfa", text: "#0f766e", border: "#14b8a6", icon: "grid" };
   }
 
-  return { bg: "#f3f4f6", text: "#4b5563", border: "#d1d5db", icon: "○" };
+  return { bg: "#f3f4f6", text: "#4b5563", border: "#d1d5db", icon: "circle" };
 };
 
 export const cardStyles = {

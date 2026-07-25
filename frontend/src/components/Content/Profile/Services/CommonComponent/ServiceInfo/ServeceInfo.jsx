@@ -7,7 +7,6 @@ import EstimateTabs from "../EstimateWorks/EstimateCustomerExecutor";
 import Chat from "../ChatOrderMaster/ChatOrderMaster";
 import CustomerInfo from "../InformationAboutCustomer/InformationAboutCustomer";
 import OrderInfo from "../CustomerOrderInfo/OrderInfo";
-import ContractAgreement from "../../../Orders/CustomerExecutorContractOrder/CustomerExecutorContract";
 
 const exampleOrder = {
   category: "Ремонт",
@@ -42,10 +41,6 @@ const allTabs = [
   { id: "chat", label: "Чат с заказчиком" },
   { id: "customerInfo", label: "Информация о заказчике" },
   { id: "orderInfo", label: "Информация о заказе" },
-  {
-    id: "customerExecutorContract",
-    label: "Договор между клиентом и исполнителем",
-  },
 ];
 
 export default function ServiceInfo({ setSelectedService }) {
@@ -120,41 +115,6 @@ export default function ServiceInfo({ setSelectedService }) {
             <h3 className="font-semibold mb-2">Информация о заказе</h3>
             <p>Детальная информация по заказу и смета.</p>
             <OrderInfo order={exampleOrder} />
-          </div>
-        )}
-        {activeTab === "customerExecutorContract" && (
-          <div>
-            <ContractAgreement
-              city="Минск"
-              date="15 сентября 2025"
-              customer={{
-                name: "Иванов Иван Иванович",
-                address: "г. Минск, ул. Ленина, д.1",
-              }}
-              contractor={{
-                name: "Петров Петр Петрович",
-                address: "г. Минск, ул. Советская, д.2",
-              }}
-              subject="ремонт и отделка квартиры"
-              price="45000"
-              paymentTerms="единовременно в течение 10 дней после подписания акта"
-              workPeriod={{
-                from: "20 сентября 2025",
-                to: "30 октября 2025",
-              }}
-              responsibilities={{
-                contractor: [
-                  "Выполнить работы качественно и в срок",
-                  "Соблюдать требования техники безопасности",
-                  "Предоставить документацию по выполненным работам",
-                ],
-                customer: [
-                  "Обеспечить доступ к объекту",
-                  "Своевременно оплатить работы",
-                  "Предоставить необходимую информацию и материалы",
-                ],
-              }}
-            />
           </div>
         )}
       </div>

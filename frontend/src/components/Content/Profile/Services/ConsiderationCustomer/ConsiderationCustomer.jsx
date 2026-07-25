@@ -126,7 +126,6 @@ export default function ConsiderationCustomer({ orderId, onBack, userId, listAct
   return (
     <WorkDetailLayout
       title={order?.title || "Услуга"}
-      subtitle={orderIdFinal ? `Услуга № ${orderIdFinal}` : undefined}
       backLabel="Назад к услугам"
       onBack={onBack || (() => navigate(-1))}
       activityConfig={

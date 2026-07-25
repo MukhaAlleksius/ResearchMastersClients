@@ -98,6 +98,11 @@ REQUIRE_EMAIL_VERIFICATION = _env_bool(
     "REQUIRE_EMAIL_VERIFICATION", "false" if not IS_PRODUCTION else "true"
 )
 
+# Любой вошедший пользователь может пользоваться админ-API (удобно для Docker/тестов).
+OPEN_ADMIN_ACCESS = _env_bool(
+    "OPEN_ADMIN_ACCESS", "true" if not IS_PRODUCTION else "false"
+)
+
 UPTIME_ALERT_WEBHOOK_URL = (os.getenv("UPTIME_ALERT_WEBHOOK_URL") or "").strip()
 HEALTH_ALERT_COOLDOWN_SECONDS = int(os.getenv("HEALTH_ALERT_COOLDOWN_SECONDS", "300"))
 

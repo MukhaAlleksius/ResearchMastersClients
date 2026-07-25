@@ -15,6 +15,7 @@ from cruds.orders.create_orders import (
     add_order_customer_cancel,
     add_order_executor_cancel,
     add_order_response_executor,
+    add_order_review,
     add_order_user,
     add_status_order_customer,
     add_status_order_executor,
@@ -31,6 +32,8 @@ from schemas.orders_schemas import (
     InformationAboutExecutorSchema,
     OrderCreateSchema,
     OrderResponseExecutorSchema,
+    ReviewCreateSchema,
+    ReviewReadSchema,
     StatusOrderCustomerSchema,
     StatusOrderExecutorSchema,
 )
@@ -311,5 +314,30 @@ async def add_information_about_executor_api(
     except Exception as e:
         logger.error(
             f"API error for add_information_about_executor_api : {e}", exc_info=True
+        )
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+
+
+@router.post("/order/{order_id}/review", response_model=ReviewReadSchema)
+async def add_order_review_api(
+    order_id: int,
+    schema: ReviewCreateSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_user),
+):
+    try:
+        review = await add_order_review(
+            db=db,
+            order_id=order_id,
+            reviewer_id=current_user.user_id,
+            schema=schema,
+        )
+        return review
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"API error for add_order_review order_id={order_id}: {e}",
+            exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")

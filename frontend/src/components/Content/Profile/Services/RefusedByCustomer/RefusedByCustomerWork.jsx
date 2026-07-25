@@ -65,7 +65,6 @@ export default function RefusedByCustomerWork({
   return (
     <WorkDetailLayout
       title={currentOrder.title || statusLabel}
-      subtitle={orderIdFinal ? `Услуга № ${orderIdFinal}` : undefined}
       backLabel="Назад к услугам"
       onBack={onBack}
       loading={loading}
@@ -89,11 +88,17 @@ export default function RefusedByCustomerWork({
       )}
 
       {activeTab === "estimateWorks" && (
-        <EstimateWorks orderId={orderIdFinal} />
+        <EstimateWorks
+          order_id={orderIdFinal}
+          category_work_id={order?.category_work_id}
+        />
       )}
 
       {activeTab === "schedule" && (
-        <GraphicWorks orderId={orderIdFinal} />
+        <GraphicWorks
+          orderId={orderIdFinal}
+          categoryWorkId={order?.category_work_id}
+        />
       )}
     </WorkDetailLayout>
   );

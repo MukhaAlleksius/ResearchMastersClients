@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import and_, or_, select, func
 from models.contracts_models import Contract
-from models.users_models import User
+from models.users_models import User, UserBusiness
 from models.works_materials_models import CategoryWork, CategoryWorkMaster
 from models.orders_models import (
     CustomerOrderCancellation,
@@ -16,6 +16,7 @@ from models.orders_models import (
     InformationAboutExecutor,
     Order,
     OrderResponseExecutor,
+    Review,
     StatusOrderCustomer,
     StatusOrderExecutor,
 )
@@ -60,12 +61,31 @@ def _format_user_name(user: User | None) -> str:
     return name or "—"
 
 
-def _format_user_address(user: User | None) -> str:
+def _format_user_address(
+    user: User | None, location: str | None = None
+) -> str:
+    """Адрес для карточки: country, region, town пользователя."""
     if not user:
         return "—"
     parts = [user.country, user.region, user.town]
-    return " ".join(part for part in parts if part).strip() or "—"
+    return ", ".join(part for part in parts if part).strip() or "—"
 
+async def _get_user_business_locations(
+    db: AsyncSession, user_ids: list[int]
+) -> dict[int, str]:
+    ids = [uid for uid in user_ids if uid is not None]
+    if not ids:
+        return {}
+    result = await db.execute(
+        select(UserBusiness.user_id, UserBusiness.location).where(
+            UserBusiness.user_id.in_(ids)
+        )
+    )
+    return {
+        user_id: location.strip()
+        for user_id, location in result.all()
+        if location and str(location).strip()
+    }
 
 # метод для предоставления информации о своих заказах пользователю в карточках
 async def get_orders_customer(
@@ -103,6 +123,7 @@ async def get_orders_customer(
                     category_work_id=category.id,
                     title=order.title,
                     budget=str(order.budget) if order.budget is not None else None,
+                    currency=order.currency or "BYN",
                     created_at=order.created_at,
                     executor_name=user.first_name if user else None,
                     executor_id=(
@@ -296,6 +317,7 @@ async def get_services_executor(
                     category_work=category.name if category else None,
                     title=order.title,
                     budget=order.budget,
+                    currency=order.currency or "BYN",
                     created_at=order.created_at,
                     customer_name=(
                         f"{customer.first_name or ''} {customer.last_name or ''}".strip()
@@ -1341,9 +1363,12 @@ async def get_information_about_customer(
         if is_hidden_customer_executor_phone(information_about_customer_result.phone):
             return None
 
+        locations = await _get_user_business_locations(db, [user_result.id])
         information_about_customer = InformationAboutCustomerRead(
             name_customer=f"{user_result.first_name} {user_result.last_name}",
-            address=f"{user_result.country} {user_result.region} {user_result.town}",  # запятая!
+            address=_format_user_address(
+                user_result, locations.get(user_result.id)
+            ),
             phone=information_about_customer_result.phone,
             notification=information_about_customer_result.notification,
         )
@@ -1385,10 +1410,13 @@ async def get_information_about_executor(
         if saved_info and is_hidden_customer_executor_phone(saved_info.phone):
             saved_info = None
 
+        locations = await _get_user_business_locations(db, [executor_id])
         return InformationAboutExecutorRead(
             executor_id=executor_id,
             name_executor=_format_user_name(executor_user),
-            address=_format_user_address(executor_user),
+            address=_format_user_address(
+                executor_user, locations.get(executor_id)
+            ),
             phone=saved_info.phone if saved_info else None,
             notification=saved_info.notification if saved_info else None,
         )
@@ -1455,6 +1483,7 @@ async def get_customer_executors_list(
             select(User).where(User.id.in_(executor_ids))
         )
         users = {user.id: user for user in users_result.scalars().all()}
+        locations = await _get_user_business_locations(db, list(users.keys()))
 
         items: list[CustomerExecutorListItemSchema] = []
         for executor_id in sorted(executor_ids):
@@ -1464,7 +1493,7 @@ async def get_customer_executors_list(
                 CustomerExecutorListItemSchema(
                     executor_id=executor_id,
                     name_executor=_format_user_name(user),
-                    address=_format_user_address(user),
+                    address=_format_user_address(user, locations.get(executor_id)),
                     phone=saved.phone if saved else None,
                     notification=saved.notification if saved else None,
                     has_saved_info=saved is not None,
@@ -1534,6 +1563,7 @@ async def get_executor_customers_list(
             select(User).where(User.id.in_(customer_ids))
         )
         users = {user.id: user for user in users_result.scalars().all()}
+        locations = await _get_user_business_locations(db, list(users.keys()))
 
         items: list[ExecutorCustomerListItemSchema] = []
         for customer_id in sorted(customer_ids):
@@ -1543,7 +1573,7 @@ async def get_executor_customers_list(
                 ExecutorCustomerListItemSchema(
                     customer_id=customer_id,
                     name_customer=_format_user_name(user),
-                    address=_format_user_address(user),
+                    address=_format_user_address(user, locations.get(customer_id)),
                     phone=saved.phone if saved else None,
                     notification=saved.notification if saved else None,
                     has_saved_info=saved is not None,
@@ -1669,3 +1699,97 @@ async def get_information_about_execute_order(
             status_code=500,
             detail="Ошибка получения информации о заказе",
         )
+
+
+async def get_order_review(
+    db: AsyncSession,
+    *,
+    order_id: int,
+    viewer_id: int,
+) -> Optional[Review]:
+    """Отзыв по заказу: доступен заказчику или исполнителю этого заказа."""
+    order = await db.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+
+    is_customer = order.customer_id == viewer_id
+    is_executor = False
+    if not is_customer:
+        executor_row = (
+            await db.execute(
+                select(StatusOrderExecutor.id).where(
+                    StatusOrderExecutor.order_id == order_id,
+                    StatusOrderExecutor.executor_id == viewer_id,
+                )
+            )
+        ).scalar_one_or_none()
+        is_executor = executor_row is not None
+
+    if not is_customer and not is_executor:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    review = (
+        await db.execute(select(Review).where(Review.order_id == order_id))
+    ).scalar_one_or_none()
+    return review
+
+
+def _format_reviewer_display_name(
+    first_name: Optional[str], last_name: Optional[str]
+) -> str:
+    first = (first_name or "").strip()
+    last = (last_name or "").strip()
+    if first and last:
+        return f"{first} {last[0]}."
+    if first:
+        return first
+    if last:
+        return last
+    return "Заказчик"
+
+
+async def get_reviews_for_executor(
+    db: AsyncSession,
+    *,
+    reviewee_id: int,
+) -> dict:
+    """Средний рейтинг и список отзывов об исполнителе."""
+    stats = (
+        await db.execute(
+            select(
+                func.coalesce(func.avg(Review.rating), 0),
+                func.count(Review.id),
+            ).where(Review.reviewee_id == reviewee_id)
+        )
+    ).one()
+    avg_rating = float(stats[0] or 0)
+    reviews_count = int(stats[1] or 0)
+
+    rows = (
+        await db.execute(
+            select(Review, User.first_name, User.last_name)
+            .outerjoin(User, User.id == Review.reviewer_id)
+            .where(Review.reviewee_id == reviewee_id)
+            .order_by(Review.created_at.desc(), Review.id.desc())
+        )
+    ).all()
+
+    reviews = []
+    for review, first_name, last_name in rows:
+        reviews.append(
+            {
+                "id": review.id,
+                "order_id": review.order_id,
+                "rating": review.rating,
+                "comment": review.comment,
+                "created_at": review.created_at,
+                "reviewer_id": review.reviewer_id,
+                "reviewer_name": _format_reviewer_display_name(first_name, last_name),
+            }
+        )
+
+    return {
+        "average_rating": round(avg_rating, 1) if reviews_count else 0.0,
+        "reviews_count": reviews_count,
+        "reviews": reviews,
+    }

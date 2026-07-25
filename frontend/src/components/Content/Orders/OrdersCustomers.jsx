@@ -7,6 +7,7 @@ import { CATALOG_PAGE_SIZE, getCatalogPageFromSearch } from "../../../utils/pagi
 import { buildOrderSlug } from "../../../utils/orderSlug.js";
 import { dedupeOrdersById } from "../../../utils/orders.js";
 import { formatMoney } from "../../../utils/currency.js";
+import { IconClipboard, IconPin } from "../Profile/ProfileIcons.jsx";
 import "../shared/public_content_layout.css";
 import "./orders_customers.css";
 function CatalogOrdersCustomers() {
@@ -410,7 +411,6 @@ function OrderCatalogCard({ order, returnTo }) {
           <span className="order-card__category">
             {order.category_work || "Без категории"}
           </span>
-          <span className="order-card__id">№ {order.id}</span>
         </div>
 
         <h3 className="order-card__title">{order.title}</h3>
@@ -420,7 +420,10 @@ function OrderCatalogCard({ order, returnTo }) {
         )}
 
         {locationLabel && (
-          <p className="order-card__location">{locationLabel}</p>
+          <p className="order-card__location">
+            <IconPin width={14} height={14} />
+            <span>{locationLabel}</span>
+          </p>
         )}
 
         <div className="order-card__chips">
@@ -554,7 +557,7 @@ function OrdersGrid({ onTotalPagesChange }) {
       {orders.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state__icon" aria-hidden="true">
-            📋
+            <IconClipboard width={28} height={28} />
           </div>
           <p className="empty-state__title">Заказы не найдены</p>
           <p className="empty-state__text">

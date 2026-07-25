@@ -6,6 +6,7 @@ import OrderServiceCard from "../Common/OrderServiceCard";
 import StatusFilterTabs from "../Common/StatusFilterTabs";
 import { dedupeOrdersById } from "../../../../utils/orders.js";
 import { getCustomerOrderPresetKey } from "../Common/workDetailTabs";
+import { IconInbox } from "../ProfileIcons.jsx";
 import "../Services/services.css";
 import {
   enrichListItemWithUpdates,
@@ -290,7 +291,7 @@ export default function Orders() {
         </div>
         <button
           type="button"
-          className="btn-list-primary"
+          className="btn-list-primary btn-list-header"
           onClick={() => setAddOrder(true)}
         >
           + Добавить заказ в черновик
@@ -335,7 +336,7 @@ export default function Orders() {
             {currentOrders.length === 0 ? (
               <div className="list-empty">
                 <div className="list-empty__icon" aria-hidden="true">
-                  📭
+                  <IconInbox width={28} height={28} />
                 </div>
                 <h3 className="list-empty__title">
                   {activeStatusTab === "all"

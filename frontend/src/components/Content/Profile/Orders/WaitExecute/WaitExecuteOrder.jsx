@@ -1,18 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { API, apiFetch, buildApiUrl } from "../../../../../utils/api.js";
+import { apiFetch, buildApiUrl } from "../../../../../utils/api.js";
 import { useNavigate, useParams } from "react-router-dom";
 import Chat from "../../Services/CommonComponent/ChatOrderMaster/ChatOrderMaster";
-import ContractAgreement from "../CommonComponents/CustomerExecutorContractOrder/CustomerExecutorContract";
 import CustomerCancelOrder from "../CommonComponents/CustomerCancelOrder/CustomerCancelOrder";
 import CustomerEstimateWorks from "../CommonComponents/CustomerEstimateWorksMaterials/CustomerEstimateWorks";
-import CustomerInfo from "../../Services/CommonComponent/InformationAboutCustomer/InformationAboutCustomer";
 import OrderInfoWithExecutorResponse from "../../Services/CommonComponent/CustomerOrderInfo/OrderInfoWithExecutorResponse";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
 import {
   getWorkDetailTabs,
   useWorkDetailInitialTab,
 } from "../../Common/workDetailTabs";
-import { useContractStatus } from "../../Common/useContractStatus";
 import { OrderDeleteFooterActions } from "../CommonComponents/DeleteOrder/DeleteOrderButton";
 import ExecutorInfo from "../CommonComponents/CustomerOrderInfo/ExecutorInfo";
 
@@ -22,11 +19,6 @@ const FALLBACK_ORDER = {
   customer_id: 456,
   budget: 15000,
   location: "Москва, ул. Ленина, д.10",
-};
-
-const FALLBACK_CUSTOMER = {
-  name: "Иван Иванов",
-  company: "ООО Ромашка",
 };
 
 export default function WaitExecuteOrder({
@@ -39,7 +31,6 @@ export default function WaitExecuteOrder({
 }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("customer_wait_execute");
   const [orderData, setOrderData] = useState(null);
-  const [customer, setCustomer] = useState(null);
   const [executorId, setExecutorId] = useState(null);
   const [orderResponseExecutor, setOrderResponseExecutor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,7 +41,6 @@ export default function WaitExecuteOrder({
   const orderId = order?.id || slug;
 
   const currentOrder = orderData || order || FALLBACK_ORDER;
-  const currentCustomer = customer || FALLBACK_CUSTOMER;
 
   const fetchOrderInfo = useCallback(async () => {
     if (!orderId) {
@@ -72,19 +62,9 @@ export default function WaitExecuteOrder({
       if (loaded.executor_id) {
         setExecutorId(loaded.executor_id);
       }
-
-      if (loaded.customer_id) {
-        const customerRes = await apiFetch(
-          buildApiUrl(`/profile/?user_id=${loaded.customer_id}`),
-        );
-        if (customerRes.ok) {
-          setCustomer(await customerRes.json());
-        }
-      }
     } catch (err) {
       setError(err.message);
       setOrderData(FALLBACK_ORDER);
-      setCustomer(FALLBACK_CUSTOMER);
     } finally {
       setLoading(false);
     }
@@ -159,54 +139,17 @@ export default function WaitExecuteOrder({
     order?.executor_id,
   ]);
 
-  const contractStatus = useContractStatus(orderId, {
-    pollWhileNotReady: true,
-  });
-  const {
-    isReady: isContractReady,
-    loading: contractLoading,
-    refetch: refetchContractStatus,
-  } = contractStatus;
-
-  const handleContractUpdated = useCallback(() => {
-    refetchContractStatus({ silent: true });
-  }, [refetchContractStatus]);
-
-  useEffect(() => {
-    if (activeTab === "customerExecutorContract") {
-      refetchContractStatus({ silent: true });
-    }
-  }, [activeTab, refetchContractStatus]);
-
   const tabs = useMemo(
     () =>
       getWorkDetailTabs("customer_wait_execute", {
         chatLabel: "Чат с исполнителем",
-        badges: {
-          customerExecutorContract:
-            !contractLoading && !isContractReady ? "!" : undefined,
-        },
       }),
-    [contractLoading, isContractReady],
+    [],
   );
-
-  const contractNotice =
-    !contractLoading && !isContractReady
-      ? {
-          variant: "warning",
-          title: "Договор нужен до начала работ",
-          text: contractStatus.exists
-            ? "Подпишите договор во вкладке «Договор» и дождитесь подписи исполнителя. После этого исполнитель сможет начать работу."
-            : "Составьте и сохраните договор во вкладке «Договор», затем подпишите его. Исполнитель также должен подписать договор — только после этого он сможет начать работу.",
-          actionLabel: "Перейти к договору",
-          onAction: () => setActiveTab("customerExecutorContract"),
-        }
-      : null;
 
   return (
     <WorkDetailLayout
       title={currentOrder.title || "Ожидание выполнения"}
-      subtitle={orderId ? `Заказ № ${orderId}` : undefined}
       backLabel="Назад к заказам"
       onBack={onBack || (() => navigate(-1))}
       activityConfig={
@@ -219,11 +162,15 @@ export default function WaitExecuteOrder({
             }
           : undefined
       }
-      notice={contractNotice}
       meta={
         <>
           <span>
-            Бюджет: <strong>{currentOrder.budget || 0} ₽</strong>
+            Бюджет:{" "}
+            <strong>
+              {currentOrder?.budget != null
+                ? `${Number(currentOrder.budget).toLocaleString()} ${currentOrder.currency || "BYN"}`
+                : "—"}
+            </strong>
           </span>
           <span>
             Локация: <strong>{currentOrder.location || "Не указана"}</strong>
@@ -275,16 +222,6 @@ export default function WaitExecuteOrder({
               onDeleted={onOrderDeleted || onBack}
             />
           }
-        />
-      )}
-
-      {activeTab === "customerExecutorContract" && (
-        <ContractAgreement
-          order={currentOrder}
-          order_response_executor={orderResponseExecutor}
-          customer={currentCustomer}
-          executor_id={resolvedExecutorId}
-          onContractUpdated={handleContractUpdated}
         />
       )}
 
