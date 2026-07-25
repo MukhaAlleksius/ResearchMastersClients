@@ -10,6 +10,7 @@ import CustomerReportWorks from "../CommonComponents/CustomerReportWorks/Custome
 import ExecutorInfo from "../CommonComponents/CustomerOrderInfo/ExecutorInfo";
 import OrderInfoWithExecutorResponse from "../../Services/CommonComponent/CustomerOrderInfo/OrderInfoWithExecutorResponse";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
+import CompleteOrderModal from "./CompleteOrderModal";
 import {
   getWorkDetailTabs,
   useWorkDetailInitialTab,
@@ -32,7 +33,9 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
   const [orderResponseExecutor, setOrderResponseExecutor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [error, setError] = useState(null);
+  const [modalError, setModalError] = useState(null);
 
   const navigate = useNavigate();
   const { slug } = useParams();
@@ -149,15 +152,23 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
     fetchOrderResponseExecutor();
   }, [fetchOrderResponseExecutor]);
 
+  const openCompleteModal = useCallback(() => {
+    if (isCompleting || !orderId || !resolvedCustomerId) return;
+    setModalError(null);
+    setShowCompleteModal(true);
+  }, [isCompleting, orderId, resolvedCustomerId]);
+
+  const closeCompleteModal = useCallback(() => {
+    if (isCompleting) return;
+    setShowCompleteModal(false);
+    setModalError(null);
+  }, [isCompleting]);
+
   const handleCompleteOrder = useCallback(async () => {
     if (isCompleting || !orderId || !resolvedCustomerId) return;
 
-    const confirmed = window.confirm(
-      "Внимание! Подтвердить выполнение заказа?\n\nСтатус изменится на «Выполнен». Отменить это действие будет нельзя.",
-    );
-    if (!confirmed) return;
-
     setIsCompleting(true);
+    setModalError(null);
     setError(null);
 
     try {
@@ -203,6 +214,8 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
         throw new Error(message);
       }
 
+      setShowCompleteModal(false);
+
       if (onOrderStatusChanged) {
         onOrderStatusChanged(parsedOrderId, COMPLETED_STATUS);
       } else {
@@ -211,7 +224,7 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
         });
       }
     } catch (err) {
-      setError(err.message || "Не удалось отметить заказ выполненным");
+      setModalError(err.message || "Не удалось отметить заказ выполненным");
     } finally {
       setIsCompleting(false);
     }
@@ -237,108 +250,120 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
   );
 
   return (
-    <WorkDetailLayout
-      title={currentOrder.title || "Заказ"}
-      backLabel="Назад к заказам"
-      onBack={onBack || (() => navigate(-1))}
-      activityConfig={
-        userId && orderId
-          ? {
-              userId,
-              orderId,
-              presetKey: "customer_in_progress",
-              activity: listActivity ?? order?.activity,
-            }
-          : undefined
-      }
-      headerExtra={
-        <div className="work-detail__header-action">
-          <button
-            type="button"
-            onClick={handleCompleteOrder}
-            disabled={isCompleting || loading || !orderId || !resolvedCustomerId}
-            className="work-detail__btn-primary"
-          >
-            {isCompleting ? "Сохранение…" : "Заказ выполнен"}
-          </button>
-        </div>
-      }
-      meta={
-        <>
-          <span>
-            Бюджет:{" "}
-            <strong>
-              {currentOrder?.budget != null
-                ? `${Number(currentOrder.budget).toLocaleString()} ${currentOrder.currency || "BYN"}`
-                : "—"}
-            </strong>
-          </span>
-          <span>
-            Статус: <strong>В процессе выполнения</strong>
-          </span>
-        </>
-      }
-      tabs={tabs}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-      loading={loading}
-      loadingText="Загрузка заказа..."
-      error={layoutError}
-      onDismissError={() => setError(null)}
-    >
-      {activeTab === "estimateWorks" && (
-        <CustomerEstimateWorks
-          order_id={orderId}
-          category_work_id={currentOrder.category_work_id}
-          executor_id={resolvedExecutorId}
+    <>
+      <WorkDetailLayout
+        title={currentOrder.title || "Заказ"}
+        backLabel="Назад к заказам"
+        onBack={onBack || (() => navigate(-1))}
+        activityConfig={
+          userId && orderId
+            ? {
+                userId,
+                orderId,
+                presetKey: "customer_in_progress",
+                activity: listActivity ?? order?.activity,
+              }
+            : undefined
+        }
+        headerExtra={
+          <div className="work-detail__header-action">
+            <button
+              type="button"
+              onClick={openCompleteModal}
+              disabled={isCompleting || loading || !orderId || !resolvedCustomerId}
+              className="work-detail__btn-primary"
+            >
+              {isCompleting ? "Сохранение…" : "Заказ выполнен"}
+            </button>
+          </div>
+        }
+        meta={
+          <>
+            <span>
+              Бюджет:{" "}
+              <strong>
+                {currentOrder?.budget != null
+                  ? `${Number(currentOrder.budget).toLocaleString()} ${currentOrder.currency || "BYN"}`
+                  : "—"}
+              </strong>
+            </span>
+            <span>
+              Статус: <strong>В процессе выполнения</strong>
+            </span>
+          </>
+        }
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        loading={loading}
+        loadingText="Загрузка заказа..."
+        error={layoutError}
+        onDismissError={() => setError(null)}
+      >
+        {activeTab === "estimateWorks" && (
+          <CustomerEstimateWorks
+            order_id={orderId}
+            category_work_id={currentOrder.category_work_id}
+            executor_id={resolvedExecutorId}
+          />
+        )}
+
+        {activeTab === "schedule" && (
+          <CustomerReportWorks order={currentOrder} />
+        )}
+
+        {activeTab === "chat" && <Chat order_id={orderId} />}
+
+        {activeTab === "executorInfo" && (
+          <ExecutorInfo
+            executorId={resolvedExecutorId}
+            customerId={userId}
+          />
+        )}
+
+        {activeTab === "orderInfo" && (
+          <OrderInfoWithExecutorResponse
+            order={currentOrder}
+            executorId={resolvedExecutorId}
+            executorResponse={orderResponseExecutor}
+            showExecutorResponseTab
+            embedded
+          />
+        )}
+
+        {activeTab === "customerCancelOrder" && (
+          <CustomerCancelOrder
+            order={currentOrder}
+            executorId={resolvedExecutorId}
+            status="pending_executor"
+            onCancelSuccess={() => {
+              alert("Заявка отправлена! Ожидайте решения исполнителя.");
+            }}
+            onCancelResolved={onOrderStatusChanged}
+          />
+        )}
+
+        {activeTab === "commentsRating" && (
+          <CommentsRating orderId={orderId} executorId={resolvedExecutorId} />
+        )}
+
+        {activeTab === "complaints" && (
+          <CustomerExecutorComplaints
+            orderId={orderId}
+            userType="customer"
+          />
+        )}
+      </WorkDetailLayout>
+
+      {showCompleteModal && (
+        <CompleteOrderModal
+          orderTitle={currentOrder?.title}
+          onClose={closeCompleteModal}
+          onConfirm={handleCompleteOrder}
+          loading={isCompleting}
+          error={modalError}
         />
       )}
-
-      {activeTab === "schedule" && (
-        <CustomerReportWorks order={currentOrder} />
-      )}
-
-      {activeTab === "chat" && <Chat order_id={orderId} />}
-
-      {activeTab === "executorInfo" && (
-        <ExecutorInfo
-          executorId={resolvedExecutorId}
-          customerId={userId}
-        />
-      )}
-
-      {activeTab === "orderInfo" && (
-        <OrderInfoWithExecutorResponse
-          order={currentOrder}
-          executorId={resolvedExecutorId}
-          executorResponse={orderResponseExecutor}
-          showExecutorResponseTab
-          embedded
-        />
-      )}
-
-      {activeTab === "customerCancelOrder" && (
-        <CustomerCancelOrder
-          order={currentOrder}
-          executorId={resolvedExecutorId}
-          status="pending_executor"
-          onCancelSuccess={() => {
-            alert("Заявка отправлена! Ожидайте решения исполнителя.");
-          }}
-          onCancelResolved={onOrderStatusChanged}
-        />
-      )}
-
-      {activeTab === "commentsRating" && (
-        <CommentsRating orderId={orderId} executorId={resolvedExecutorId} />
-      )}
-
-      {activeTab === "complaints" && (
-        <CustomerExecutorComplaints
-          orderId={orderId}
-          userType="customer"
-        />
-      )}
-    </WorkDetailLayout>
+    </>
   );
 }

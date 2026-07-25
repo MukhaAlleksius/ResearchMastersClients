@@ -7,6 +7,7 @@ import EstimateWorks from "../CommonComponent/EstimateWorksMaterials/EstimateWor
 import ExecutorCancelService from "../CommonComponent/ExecutorCancelService/ExecutorCancelService";
 import OrderInfoWithMyResponse from "../CommonComponent/CustomerOrderInfo/OrderInfoWithMyResponse";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
+import StartWorkModal from "./StartWorkModal";
 import "./WaitExecuteWork.css";
 import {
   getWorkDetailTabs,
@@ -24,7 +25,9 @@ export default function WaitExecuteWorkServiceInfo({
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [showStartModal, setShowStartModal] = useState(false);
   const [error, setError] = useState(null);
+  const [modalError, setModalError] = useState(null);
 
   const navigate = useNavigate();
   const { slug } = useParams();
@@ -57,15 +60,23 @@ export default function WaitExecuteWorkServiceInfo({
     fetchOrderInfo();
   }, [fetchOrderInfo]);
 
+  const openStartModal = useCallback(() => {
+    if (isStarting || !orderIdFinal) return;
+    setModalError(null);
+    setShowStartModal(true);
+  }, [isStarting, orderIdFinal]);
+
+  const closeStartModal = useCallback(() => {
+    if (isStarting) return;
+    setShowStartModal(false);
+    setModalError(null);
+  }, [isStarting]);
+
   const handleStartExecuteWork = useCallback(async () => {
     if (isStarting || !orderIdFinal) return;
 
-    const confirmed = window.confirm(
-      "Начать выполнение работы? Статус изменится на «В процессе выполнения».",
-    );
-    if (!confirmed) return;
-
     setIsStarting(true);
+    setModalError(null);
     setError(null);
 
     try {
@@ -99,6 +110,7 @@ export default function WaitExecuteWorkServiceInfo({
       }
 
       const newStatus = "В процессе выполнения";
+      setShowStartModal(false);
 
       if (onServiceStatusChanged) {
         onServiceStatusChanged(parsedOrderId, newStatus);
@@ -108,7 +120,7 @@ export default function WaitExecuteWorkServiceInfo({
         });
       }
     } catch (err) {
-      setError(err.message || "Ошибка при начале работы");
+      setModalError(err.message || "Ошибка при начале работы");
     } finally {
       setIsStarting(false);
     }
@@ -123,87 +135,99 @@ export default function WaitExecuteWorkServiceInfo({
   );
 
   return (
-    <WorkDetailLayout
-      title={order?.title || "Ожидание выполнения"}
-      backLabel="Назад к услугам"
-      onBack={onBack || (() => navigate(-1))}
-      activityConfig={
-        userId && orderIdFinal
-          ? {
-              userId,
-              orderId: orderIdFinal,
-              presetKey: "executor_wait_execute",
-              activity: listActivity,
-            }
-          : undefined
-      }
-      headerExtra={
-        <div className="work-detail__header-action">
-          <button
-            type="button"
-            onClick={handleStartExecuteWork}
-            disabled={isStarting || !orderIdFinal}
-            className="work-detail__btn-primary"
-          >
-            {isStarting ? "Обновление..." : "Начать работу"}
-          </button>
-        </div>
-      }
-      meta={
-        <>
-          <span>
-            Бюджет:{" "}
-            <strong>
-              {order?.budget != null
-                ? `${Number(order.budget).toLocaleString()} ${order.currency || "BYN"}`
-                : "—"}
-            </strong>
-          </span>
-          <span>
-            Локация: <strong>{order?.location || "Не указана"}</strong>
-          </span>
-          <span>
-            Статус: <strong>Ожидает выполнения</strong>
-          </span>
-        </>
-      }
-      tabs={tabs}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-      loading={loading}
-      loadingText="Загрузка информации о заказе..."
-      error={error}
-      onDismissError={() => setError(null)}
-    >
-      {activeTab === "estimateWorks" && (
-        <EstimateWorks
-          order_id={orderIdFinal}
-          category_work_id={order?.category_work_id}
+    <>
+      <WorkDetailLayout
+        title={order?.title || "Ожидание выполнения"}
+        backLabel="Назад к услугам"
+        onBack={onBack || (() => navigate(-1))}
+        activityConfig={
+          userId && orderIdFinal
+            ? {
+                userId,
+                orderId: orderIdFinal,
+                presetKey: "executor_wait_execute",
+                activity: listActivity,
+              }
+            : undefined
+        }
+        headerExtra={
+          <div className="work-detail__header-action">
+            <button
+              type="button"
+              onClick={openStartModal}
+              disabled={isStarting || !orderIdFinal}
+              className="work-detail__btn-primary"
+            >
+              {isStarting ? "Обновление..." : "Начать работу"}
+            </button>
+          </div>
+        }
+        meta={
+          <>
+            <span>
+              Бюджет:{" "}
+              <strong>
+                {order?.budget != null
+                  ? `${Number(order.budget).toLocaleString()} ${order.currency || "BYN"}`
+                  : "—"}
+              </strong>
+            </span>
+            <span>
+              Локация: <strong>{order?.location || "Не указана"}</strong>
+            </span>
+            <span>
+              Статус: <strong>Ожидает выполнения</strong>
+            </span>
+          </>
+        }
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        loading={loading}
+        loadingText="Загрузка информации о заказе..."
+        error={error}
+        onDismissError={() => setError(null)}
+      >
+        {activeTab === "estimateWorks" && (
+          <EstimateWorks
+            order_id={orderIdFinal}
+            category_work_id={order?.category_work_id}
+          />
+        )}
+
+        {activeTab === "chat" && <Chat order_id={orderIdFinal} />}
+
+        {activeTab === "customerInfo" && (
+          <CustomerInfo customerId={order?.customer_id} />
+        )}
+
+        {activeTab === "orderInfo" && (
+          <OrderInfoWithMyResponse order={order} embedded />
+        )}
+
+        {activeTab === "executorCancelOrder" && (
+          <ExecutorCancelService
+            order={order}
+            executorId={userId}
+            status="pending_customer"
+            allowExecutorDecision={false}
+            onCancelSuccess={() => {
+              alert("Заявка отправлена! Ожидайте решения заказчика.");
+            }}
+            onCustomerCancelAgreed={onBack}
+          />
+        )}
+      </WorkDetailLayout>
+
+      {showStartModal && (
+        <StartWorkModal
+          orderTitle={order?.title}
+          onClose={closeStartModal}
+          onConfirm={handleStartExecuteWork}
+          loading={isStarting}
+          error={modalError}
         />
       )}
-
-      {activeTab === "chat" && <Chat order_id={orderIdFinal} />}
-
-      {activeTab === "customerInfo" && (
-        <CustomerInfo customerId={order?.customer_id} />
-      )}
-
-      {activeTab === "orderInfo" && (
-        <OrderInfoWithMyResponse order={order} embedded />
-      )}
-
-      {activeTab === "executorCancelOrder" && (
-        <ExecutorCancelService
-          order={order}
-          executorId={userId}
-          status="pending_customer"
-          allowExecutorDecision={false}
-          onCancelSuccess={() => {
-            alert("Заявка отправлена! Ожидайте решения заказчика.");
-          }}
-          onCustomerCancelAgreed={onBack}
-        />
-      )}
-    </WorkDetailLayout>
+    </>
   );
 }

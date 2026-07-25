@@ -2,10 +2,11 @@ from typing import Annotated, Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.access import assert_user_not_blocked, is_user_blocked
-from core.config import TOKEN_TYPE_ACCESS, get_db
+from core.config import OPEN_ADMIN_ACCESS, TOKEN_TYPE_ACCESS, get_db
 from core.tokens import decode_token
 from core.public_reads import is_public_get
 from cruds.users_crud import get_user
@@ -99,12 +100,32 @@ async def get_current_admin_user(
     db: AsyncSession = Depends(get_db),
 ) -> UserCommonSchema:
     user_orm = await db.get(User, current_user.user_id)
-    if not user_orm or user_orm.role not in {"admin", "moderator"}:
+    if not user_orm:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Требуются права администратора или модератора",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
         )
-    return current_user
+
+    if user_orm.role in {"admin", "moderator"}:
+        return current_user
+
+    # Тестирование / пустая БД: любой вошедший пользователь получает доступ
+    # к админ-API, пока нет ни одного admin/moderator либо включён OPEN_ADMIN_ACCESS.
+    if OPEN_ADMIN_ACCESS:
+        return current_user
+
+    staff_count = await db.scalar(
+        select(func.count())
+        .select_from(User)
+        .where(User.role.in_(["admin", "moderator"]))
+    )
+    if not staff_count:
+        return current_user
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Требуются права администратора или модератора",
+    )
 
 
 def ensure_same_user(current_user: UserCommonSchema, user_id: int) -> None:

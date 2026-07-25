@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import ProfileNavIcon from "./ProfileNavIcons";
-import { useStaffAccess } from "../../../utils/userAccess.js";
 import "./profile.css";
 
 const baseTabs = [
@@ -15,24 +14,19 @@ const baseTabs = [
   { id: "portfolio", label: "Портфолио" },
   { id: "analytics", label: "Аналитика" },
   // { id: "executor_bank_account", label: "Счёт" },
+  { id: "administrator", label: "Администратор" },
 ];
-
-const administratorTab = { id: "administrator", label: "Администратор" };
 
 export default function ProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { isStaff } = useStaffAccess();
 
-  const tabs = useMemo(
-    () => (isStaff ? [...baseTabs, administratorTab] : baseTabs),
-    [isStaff],
-  );
+  const tabs = baseTabs;
 
   const profileSections = useMemo(
     () => new Set(tabs.map(({ id }) => id)),
-    [tabs],
+    [],
   );
 
   const activeTab = useMemo(() => {
@@ -42,12 +36,6 @@ export default function ProfilePage() {
     }
     return profileSections.has(section) ? section : "orders";
   }, [location.pathname, profileSections]);
-
-  useEffect(() => {
-    if (!isStaff && location.pathname.startsWith("/profile/administrator")) {
-      navigate("/profile", { replace: true });
-    }
-  }, [isStaff, location.pathname, navigate]);
 
   const handleMenuClick = (tabId) => {
     navigate(`/profile/${tabId}`);
