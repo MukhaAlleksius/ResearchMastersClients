@@ -4,6 +4,9 @@ import CreatableSelect from "react-select/creatable";
 import Select from "react-select";
 import DeleteOrderButton from "../DeleteOrder/DeleteOrderButton";
 import { formatDateTime } from "../../../Services/CommonComponent/CustomerOrderInfo/OrderInfoContent";
+import DeadlineField, {
+  isValidDeadline,
+} from "../../../../Common/DeadlineField.jsx";
 import "../AddOrder/add_order_for_draft.css";
 const ORDER_STATUS = {
   DRAFT: "Не предложенные исполнителям",
@@ -13,7 +16,6 @@ const ORDER_STATUS = {
 
 const budgetTypes = ["Фиксированная цена", "Почасовая оплата", "Договорная цена"];
 const urgencyLevels = ["Низкий", "Средний", "Высокий"];
-const currencies = ["BYN", "Dollar USA", "Euro"];
 
 const customStyles = {
   control: (base, state) => ({
@@ -130,7 +132,7 @@ function CustomerOrderEditForm({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [budget, setBudget] = useState("");
-  const [currency, setCurrency] = useState("BYN");
+  const currency = "BYN";
   const [budgetType, setBudgetType] = useState("");
   const [urgencyLevel, setUrgencyLevel] = useState("");
   const [location, setLocation] = useState("");
@@ -247,7 +249,6 @@ function CustomerOrderEditForm({
     setBudget(
       order.budget != null && order.budget !== "" ? String(order.budget) : "",
     );
-    setCurrency(order.currency || "BYN");
     setBudgetType(order.budget_type || "");
     setUrgencyLevel(order.urgency_level || "");
     setLocation(order.location || "");
@@ -361,6 +362,9 @@ function CustomerOrderEditForm({
     if (!geoCountry) return "Укажите страну";
     if (!geoRegion) return "Укажите область";
     if (!geoTown) return "Укажите населённый пункт";
+    if (!isValidDeadline(deadline)) {
+      return "Выберите точную дату выполнения";
+    }
     return "";
   };
 
@@ -502,7 +506,7 @@ function CustomerOrderEditForm({
         <p className="aod-hero__subtitle">
           {order?.id ? (
             <>
-              Заказ №{order.id}
+              Заказ
               {order.created_at
                 ? ` · создан ${formatDateTime(order.created_at)}`
                 : ""}
@@ -602,21 +606,8 @@ function CustomerOrderEditForm({
               />
             </div>
             <div className="aod-field">
-              <label htmlFor="coi-currency" className="aod-label">
-                Валюта
-              </label>
-              <select
-                id="coi-currency"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="aod-select"
-              >
-                {currencies.map((cur) => (
-                  <option key={cur} value={cur}>
-                    {cur}
-                  </option>
-                ))}
-              </select>
+              <label className="aod-label">Валюта</label>
+              <p className="aod-input aod-input--readonly">BYN</p>
             </div>
           </div>
 
@@ -751,22 +742,15 @@ function CustomerOrderEditForm({
             </h2>
           </div>
 
-          <div className="aod-field">
-            <label htmlFor="coi-deadline" className="aod-label">
-              Когда нужно выполнить
-            </label>
-            <select
-              id="coi-deadline"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-              className="aod-select"
-            >
-              <option>Как можно скорее</option>
-              <option>В течение недели</option>
-              <option>В течение месяца</option>
-              <option>Точная дата</option>
-            </select>
-          </div>
+          <DeadlineField
+            id="coi-deadline"
+            value={deadline}
+            onChange={setDeadline}
+            labelClassName="aod-label"
+            selectClassName="aod-select"
+            inputClassName="aod-input"
+            fieldClassName="aod-field"
+          />
 
           <label className="aod-checkbox" htmlFor="coi-insurance">
             <input

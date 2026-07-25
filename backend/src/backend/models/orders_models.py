@@ -137,11 +137,6 @@ class Review(Base):
     reviewee_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     rating = Column(Integer)
     comment = Column(Text)
-    criteria_quality = Column(Integer)
-    criteria_timeliness = Column(Integer)
-    criteria_communication = Column(Integer)
-    criteria_price = Column(Integer)
-    is_verified = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     order = relationship("Order")

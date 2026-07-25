@@ -64,7 +64,6 @@ function NotificationItem({ item, userId, onUpdated, onClose }) {
       {item.order_title && (
         <p className="notif-item__meta">
           Заказ: <strong>{item.order_title}</strong>
-          {item.order_id ? ` (№ ${item.order_id})` : ""}
         </p>
       )}
 

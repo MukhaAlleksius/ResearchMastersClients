@@ -410,7 +410,6 @@ function OrderCatalogCard({ order, returnTo }) {
           <span className="order-card__category">
             {order.category_work || "Без категории"}
           </span>
-          <span className="order-card__id">№ {order.id}</span>
         </div>
 
         <h3 className="order-card__title">{order.title}</h3>

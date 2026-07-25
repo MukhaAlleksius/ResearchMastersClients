@@ -62,8 +62,6 @@ export default function UserServiceProfileAdmin() {
           <Link to={`/admin/manage_users/${userId}`}>Пользователь #{userId}</Link>
           {" · "}
           <Link to={`/admin/manage_users/${userId}/services`}>Услуги</Link>
-          {" · "}
-          <strong>№ {serviceId}</strong>
         </>
       }
       onRetry={fetchServiceProfileForAdmin}

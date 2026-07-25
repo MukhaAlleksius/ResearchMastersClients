@@ -66,7 +66,6 @@ export default function ExecuteWorkServiceInfo({ service, onBack, userId, listAc
   return (
     <WorkDetailLayout
       title={order.title}
-      subtitle={orderId ? `Услуга № ${orderId}` : undefined}
       backLabel="Назад к услугам"
       onBack={onBack || (() => navigate(-1))}
       activityConfig={
@@ -100,12 +99,6 @@ export default function ExecuteWorkServiceInfo({ service, onBack, userId, listAc
 
       {activeTab === "orderInfo" && (
         <OrderInfoWithMyResponse order={order} embedded />
-      )}
-
-      {activeTab === "customerExecutorContract" && (
-        <p style={{ color: "#64748b" }}>
-          Раздел договора будет доступен в следующих обновлениях.
-        </p>
       )}
     </WorkDetailLayout>
   );

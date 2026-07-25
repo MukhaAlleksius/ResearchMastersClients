@@ -181,7 +181,7 @@ export default function CancelOrderVerdictAdmin() {
             Решение по отказу #{data?.id}
           </h1>
           <p className="cancel-verdict-hero__subtitle">
-            Заказ #{data?.order_id} — распределите возврат между заказчиком и исполнителем
+            Распределите возврат между заказчиком и исполнителем
           </p>
         </div>
       </header>
@@ -191,7 +191,7 @@ export default function CancelOrderVerdictAdmin() {
         <div className="info-grid">
           <div className="info-item">
             <span className="info-label">Заказ</span>
-            <span className="info-value">#{data?.order_id}</span>
+            <span className="info-value">{data?.order_name || "—"}</span>
           </div>
           {totalAmount > 0 && (
             <div className="info-item">

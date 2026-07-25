@@ -250,11 +250,13 @@ async def get_profile_user(db: AsyncSession, user_id: int):
                 User.country,
                 User.region,
                 User.town,
+                UserBusiness.location,
                 UserProfile.bio,
                 UserProfile.short_review_master,
                 UserProfile.operating_mode,
             )
             .outerjoin(UserProfile, User.id == UserProfile.user_id)
+            .outerjoin(UserBusiness, User.id == UserBusiness.user_id)
             .where(User.id == user_id)
         )
         row = result.first()
@@ -268,6 +270,7 @@ async def get_profile_user(db: AsyncSession, user_id: int):
             country=row.country or "",
             region=row.region or "",
             town=row.town or "",
+            location=row.location,
             bio=row.bio,
             short_review_master=row.short_review_master,
             operating_mode=row.operating_mode,
@@ -289,8 +292,10 @@ async def get_information_about_user(db: AsyncSession, user_id: int):
                 User.country,
                 User.region,
                 User.town,
+                UserBusiness.location,
             )
             .outerjoin(UserProfile, User.id == UserProfile.user_id)
+            .outerjoin(UserBusiness, User.id == UserBusiness.user_id)
             .where(User.id == user_id)
         )
         row = result.first()
@@ -304,6 +309,7 @@ async def get_information_about_user(db: AsyncSession, user_id: int):
             country=row.country or "",
             region=row.region or "",
             town=row.town or "",
+            location=row.location,
         )
         return information_about_user
 

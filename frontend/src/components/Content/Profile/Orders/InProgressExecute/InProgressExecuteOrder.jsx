@@ -1,21 +1,21 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { API, apiFetch, buildApiUrl, fetchOrderExecutorResponse } from "../../../../../utils/api.js";
+import { apiFetch, buildApiUrl, fetchOrderExecutorResponse } from "../../../../../utils/api.js";
 import { useNavigate, useParams } from "react-router-dom";
 import Chat from "../../Services/CommonComponent/ChatOrderMaster/ChatOrderMaster";
 import CommentsRating from "../CommonComponents/CommentsRating/CommentsRating";
-import ContractAgreement from "../CommonComponents/CustomerExecutorContractOrder/CustomerExecutorContract";
 import CustomerCancelOrder from "../CommonComponents/CustomerCancelOrder/CustomerCancelOrder";
 import CustomerEstimateWorks from "../CommonComponents/CustomerEstimateWorksMaterials/CustomerEstimateWorks";
 import CustomerExecutorComplaints from "../CommonComponents/CustomerExecutorComplaints/CustomerExecutorComplaints";
 import CustomerReportWorks from "../CommonComponents/CustomerReportWorks/CustomerReportWorks";
 import ExecutorInfo from "../CommonComponents/CustomerOrderInfo/ExecutorInfo";
 import OrderInfoWithExecutorResponse from "../../Services/CommonComponent/CustomerOrderInfo/OrderInfoWithExecutorResponse";
-import Payment from "../CommonComponents/Payment/Payment";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
 import {
   getWorkDetailTabs,
   useWorkDetailInitialTab,
 } from "../../Common/workDetailTabs";
+
+const COMPLETED_STATUS = "Выполнен";
 
 const FALLBACK_ORDER = {
   id: 123,
@@ -25,19 +25,13 @@ const FALLBACK_ORDER = {
   location: "Москва, ул. Ленина, д.10",
 };
 
-const FALLBACK_CUSTOMER = {
-  name: "Иван Иванов",
-  company: "ООО Ромашка",
-};
-
 export default function InProgressExecuteOrder({ order, onBack, userId, listActivity, onOrderStatusChanged }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("customer_in_progress");
   const [orderData, setOrderData] = useState(null);
-  const [customer, setCustomer] = useState(null);
   const [executorOrder, setExecutorOrder] = useState(null);
   const [orderResponseExecutor, setOrderResponseExecutor] = useState(null);
-  const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isCompleting, setIsCompleting] = useState(false);
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
@@ -45,7 +39,6 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
   const orderId = order?.id || slug;
 
   const currentOrder = orderData || FALLBACK_ORDER;
-  const currentCustomer = customer || FALLBACK_CUSTOMER;
 
   const resolvedExecutorId = useMemo(() => {
     const candidates = [
@@ -68,6 +61,27 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
     orderResponseExecutor?.executor_id,
     orderData?.executor_id,
     order?.executor_id,
+  ]);
+
+  const resolvedCustomerId = useMemo(() => {
+    const candidates = [
+      currentOrder?.customer_id,
+      orderData?.customer_id,
+      order?.customer_id,
+      userId,
+    ];
+    for (const value of candidates) {
+      const id = Number(value);
+      if (Number.isFinite(id) && id > 0) {
+        return id;
+      }
+    }
+    return null;
+  }, [
+    currentOrder?.customer_id,
+    orderData?.customer_id,
+    order?.customer_id,
+    userId,
   ]);
 
   const fetchOrderInfo = useCallback(async () => {
@@ -94,23 +108,9 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
           executor_id: loadedOrder.executor_id,
         });
       }
-
-      if (loadedOrder.customer_id) {
-        try {
-          const customerRes = await apiFetch(
-            buildApiUrl("/profile", { user_id: loadedOrder.customer_id }),
-          );
-          if (customerRes.ok) {
-            setCustomer(await customerRes.json());
-          }
-        } catch {
-          setCustomer(FALLBACK_CUSTOMER);
-        }
-      }
     } catch (err) {
       setError(err.message);
       setOrderData(FALLBACK_ORDER);
-      setCustomer(FALLBACK_CUSTOMER);
     } finally {
       setLoading(false);
     }
@@ -140,18 +140,6 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
     }
   }, [resolvedExecutorId, orderId]);
 
-  const fetchPayment = useCallback(async () => {
-    if (!orderData?.id || !customer?.id) return;
-    try {
-      const res = await apiFetch(
-        buildApiUrl(`/payment_for_order/${orderData.id}/${customer.id}`),
-      );
-      setPayment(res.ok ? await res.json() : null);
-    } catch {
-      setPayment(null);
-    }
-  }, [orderData, customer]);
-
   useEffect(() => {
     fetchOrderInfo();
     fetchExecutorOrder();
@@ -161,11 +149,80 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
     fetchOrderResponseExecutor();
   }, [fetchOrderResponseExecutor]);
 
-  useEffect(() => {
-    if (orderData && customer) {
-      fetchPayment();
+  const handleCompleteOrder = useCallback(async () => {
+    if (isCompleting || !orderId || !resolvedCustomerId) return;
+
+    const confirmed = window.confirm(
+      "Внимание! Подтвердить выполнение заказа?\n\nСтатус изменится на «Выполнен». Отменить это действие будет нельзя.",
+    );
+    if (!confirmed) return;
+
+    setIsCompleting(true);
+    setError(null);
+
+    try {
+      const parsedOrderId = Number(orderId);
+      if (!Number.isFinite(parsedOrderId)) {
+        throw new Error("Некорректный ID заказа");
+      }
+
+      const requests = [
+        apiFetch(buildApiUrl("/add_status_order_customer"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            order_id: parsedOrderId,
+            customer_id: resolvedCustomerId,
+            status: COMPLETED_STATUS,
+          }),
+        }),
+      ];
+
+      if (resolvedExecutorId) {
+        requests.push(
+          apiFetch(buildApiUrl("/add_status_order_executor"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              order_id: parsedOrderId,
+              executor_id: resolvedExecutorId,
+              status: COMPLETED_STATUS,
+            }),
+          }),
+        );
+      }
+
+      const responses = await Promise.all(requests);
+      const failed = responses.find((res) => !res.ok);
+      if (failed) {
+        const errBody = await failed.json().catch(() => ({}));
+        const detail = errBody.detail;
+        const message = Array.isArray(detail)
+          ? detail.map((item) => item.msg || item).join(", ")
+          : detail || `Ошибка сервера: ${failed.status}`;
+        throw new Error(message);
+      }
+
+      if (onOrderStatusChanged) {
+        onOrderStatusChanged(parsedOrderId, COMPLETED_STATUS);
+      } else {
+        navigate("/profile/orders", {
+          state: { activeStatusTab: "Выполнен" },
+        });
+      }
+    } catch (err) {
+      setError(err.message || "Не удалось отметить заказ выполненным");
+    } finally {
+      setIsCompleting(false);
     }
-  }, [orderData, customer, fetchPayment]);
+  }, [
+    isCompleting,
+    orderId,
+    resolvedCustomerId,
+    resolvedExecutorId,
+    onOrderStatusChanged,
+    navigate,
+  ]);
 
   const layoutError =
     error ||
@@ -175,17 +232,13 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
     () =>
       getWorkDetailTabs("customer_in_progress", {
         chatLabel: "Чат с исполнителем",
-        badges: {
-          payment: payment ? undefined : "!",
-        },
       }),
-    [payment],
+    [],
   );
 
   return (
     <WorkDetailLayout
       title={currentOrder.title || "Заказ"}
-      subtitle={orderId ? `Заказ № ${orderId}` : undefined}
       backLabel="Назад к заказам"
       onBack={onBack || (() => navigate(-1))}
       activityConfig={
@@ -197,6 +250,33 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
               activity: listActivity ?? order?.activity,
             }
           : undefined
+      }
+      headerExtra={
+        <div className="work-detail__header-action">
+          <button
+            type="button"
+            onClick={handleCompleteOrder}
+            disabled={isCompleting || loading || !orderId || !resolvedCustomerId}
+            className="work-detail__btn-primary"
+          >
+            {isCompleting ? "Сохранение…" : "Заказ выполнен"}
+          </button>
+        </div>
+      }
+      meta={
+        <>
+          <span>
+            Бюджет:{" "}
+            <strong>
+              {currentOrder?.budget != null
+                ? `${Number(currentOrder.budget).toLocaleString()} ${currentOrder.currency || "BYN"}`
+                : "—"}
+            </strong>
+          </span>
+          <span>
+            Статус: <strong>В процессе выполнения</strong>
+          </span>
+        </>
       }
       tabs={tabs}
       activeTab={activeTab}
@@ -234,25 +314,6 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
           executorResponse={orderResponseExecutor}
           showExecutorResponseTab
           embedded
-        />
-      )}
-
-      {activeTab === "customerExecutorContract" && (
-        <ContractAgreement
-          order={currentOrder}
-          order_response_executor={orderResponseExecutor}
-          customer={currentCustomer}
-          executor_id={resolvedExecutorId}
-        />
-      )}
-
-      {activeTab === "payment" && (
-        <Payment
-          order={currentOrder}
-          customerId={currentOrder.customer_id}
-          executorId={resolvedExecutorId}
-          existingPayment={payment}
-          onSuccess={(paid) => setPayment(paid)}
         />
       )}
 

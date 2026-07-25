@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { getStatusColor } from "../styles/theme";
+import { formatMoney } from "../../../../utils/currency.js";
 
 export default function OrderServiceCard({
   item,
@@ -27,7 +28,6 @@ export default function OrderServiceCard({
         >
           {statusColor.icon} {statusLabel || "Без статуса"}
         </span>
-        <span className="service-card__id">№ {item.id}</span>
       </div>
 
       <h3 className="service-card__title">{item.title}</h3>
@@ -41,7 +41,9 @@ export default function OrderServiceCard({
           {partyName || partyLabel}
         </span>
         <span className="service-card__budget">
-          {item.budget ? `${item.budget} ₽` : "Договорная"}
+          {item.budget != null && item.budget !== ""
+            ? formatMoney(item.budget, item.currency || "BYN")
+            : "Договорная"}
         </span>
       </div>
     </>

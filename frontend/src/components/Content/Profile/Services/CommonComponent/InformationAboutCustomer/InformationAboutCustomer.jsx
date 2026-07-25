@@ -19,7 +19,9 @@ function buildProfileName(profile) {
 
 function buildProfileAddress(profile) {
   if (!profile) return "";
-  return [profile.country, profile.region, profile.town].filter(Boolean).join(" ");
+  return [profile.country, profile.region, profile.town]
+    .filter(Boolean)
+    .join(", ");
 }
 
 function CustomerFormModal({
@@ -146,11 +148,8 @@ export default function CustomerInfo({
   }, [savedContacts, customerProfile]);
 
   const displayAddress = useMemo(() => {
-    if (savedContacts?.address) {
-      return savedContacts.address;
-    }
     return buildProfileAddress(customerProfile) || "—";
-  }, [savedContacts, customerProfile]);
+  }, [customerProfile]);
 
   const profileLink = useMemo(
     () =>

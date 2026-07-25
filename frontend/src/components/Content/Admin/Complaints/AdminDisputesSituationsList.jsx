@@ -200,9 +200,11 @@ export default function AdminDisputesSituationsList() {
                     <FaGavel size={14} />
                   </span>
                   <div>
-                    <div className="complaint-card__order-id">
-                      Заказ #{dispute.order_id}
-                    </div>
+                    {dispute.order_title && (
+                      <div className="complaint-card__order-id">
+                        {dispute.order_title}
+                      </div>
+                    )}
                     <div className="complaint-card__order-meta">
                       Жалоба #{dispute.id}
                     </div>
@@ -216,7 +218,7 @@ export default function AdminDisputesSituationsList() {
               </div>
 
               <h3 className="complaint-card__title">
-                {dispute.order_title || `Спор по заказу #${dispute.order_id}`}
+                {dispute.order_title || "Спор по заказу"}
               </h3>
 
               <div className="complaint-card__participants">

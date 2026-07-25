@@ -37,6 +37,7 @@ from models.orders_models import (
     InformationAboutExecutor,
     Order,
     OrderResponseExecutor,
+    Review,
     StatusOrderCustomer,
     StatusOrderExecutor,
 )
@@ -63,6 +64,7 @@ from schemas.orders_schemas import (
     OrderResponseExecutorReadSchema,
     OrderResponseExecutorSchema,
     OrderUserSchema,
+    ReviewCreateSchema,
     ServiceProfileForAdmin,
     ServiceUserSchema,
     StatusOrderCustomerSchema,
@@ -679,150 +681,161 @@ async def add_status_order_executor(
 async def add_executor_order(
     db: AsyncSession, executor_order_schema: ExecutorOrderSchema
 ):
-    async with db.begin():
-        try:
-            return await ensure_executor_order_assignment(
-                db,
-                order_id=executor_order_schema.order_id,
-                executor_id=executor_order_schema.executor_id,
-            )
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Ошибка назначения исполнителя: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Ошибка назначения исполнителя: {str(e)}"
-            )
+    try:
+        result = await ensure_executor_order_assignment(
+            db,
+            order_id=executor_order_schema.order_id,
+            executor_id=executor_order_schema.executor_id,
+        )
+        await db.commit()
+        return result
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Ошибка назначения исполнителя: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка назначения исполнителя: {str(e)}"
+        )
 
 
 async def add_order_customer_cancel(
     db: AsyncSession,
     customer_order_cancel_schema: CustomerOrderCancellationCreateSchema,
 ):
-    async with db.begin():  # ✅ Автоматический commit/rollback
-        try:
-
-            # 1. Проверка существования
-            result = await db.execute(
-                select(CustomerOrderCancellation.id).where(
-                    and_(
-                        CustomerOrderCancellation.order_id
-                        == customer_order_cancel_schema.order_id,
-                        CustomerOrderCancellation.customer_id
-                        == customer_order_cancel_schema.customer_id,
-                        CustomerOrderCancellation.executor_id
-                        == customer_order_cancel_schema.executor_id,
-                    )
+    try:
+        # 1. Проверка существования
+        result = await db.execute(
+            select(CustomerOrderCancellation.id).where(
+                and_(
+                    CustomerOrderCancellation.order_id
+                    == customer_order_cancel_schema.order_id,
+                    CustomerOrderCancellation.customer_id
+                    == customer_order_cancel_schema.customer_id,
+                    CustomerOrderCancellation.executor_id
+                    == customer_order_cancel_schema.executor_id,
                 )
             )
+        )
 
-            existing_id = result.scalar_one_or_none()
-            if existing_id:
-                logger.info(
-                    f"Этот заказ у исполнитиеля уже существует: id={existing_id}"
-                )
-                return existing_id
-
-            customer_order_cancel = CustomerOrderCancellation(
-                order_id=customer_order_cancel_schema.order_id,
-                customer_id=customer_order_cancel_schema.customer_id,
-                executor_id=customer_order_cancel_schema.executor_id,
-                status=customer_order_cancel_schema.status,
-                executor_comment=customer_order_cancel_schema.executor_comment,
-                reason_type=customer_order_cancel_schema.reason_type,
-                reason_text=customer_order_cancel_schema.reason_text,
+        existing_id = result.scalar_one_or_none()
+        if existing_id:
+            logger.info(
+                f"Этот заказ у исполнитиеля уже существует: id={existing_id}"
             )
+            return existing_id
 
-            db.add(customer_order_cancel)
-            await db.flush()  # Генерируем ID
+        customer_order_cancel = CustomerOrderCancellation(
+            order_id=customer_order_cancel_schema.order_id,
+            customer_id=customer_order_cancel_schema.customer_id,
+            executor_id=customer_order_cancel_schema.executor_id,
+            status=customer_order_cancel_schema.status,
+            executor_comment=customer_order_cancel_schema.executor_comment,
+            reason_type=customer_order_cancel_schema.reason_type,
+            reason_text=customer_order_cancel_schema.reason_text,
+        )
 
-            notification_type = await _resolve_cancel_notification_type(
-                db,
-                order_id=customer_order_cancel_schema.order_id,
-                customer_id=customer_order_cancel_schema.customer_id,
-                executor_id=customer_order_cancel_schema.executor_id,
-            )
-            await notify_order_event_safe(
-                db,
-                order_id=customer_order_cancel_schema.order_id,
-                actor_user_id=customer_order_cancel_schema.customer_id,
-                notification_type=notification_type,
-                recipient_id=customer_order_cancel_schema.executor_id,
-            )
+        db.add(customer_order_cancel)
+        await db.flush()
 
-            logger.info(f"Статус создан: id={customer_order_cancel.id}")
-            return customer_order_cancel
+        notification_type = await _resolve_cancel_notification_type(
+            db,
+            order_id=customer_order_cancel_schema.order_id,
+            customer_id=customer_order_cancel_schema.customer_id,
+            executor_id=customer_order_cancel_schema.executor_id,
+        )
+        await notify_order_event_safe(
+            db,
+            order_id=customer_order_cancel_schema.order_id,
+            actor_user_id=customer_order_cancel_schema.customer_id,
+            notification_type=notification_type,
+            recipient_id=customer_order_cancel_schema.executor_id,
+        )
 
-        except Exception as e:
-            logger.error(f"Ошибка создания статуса: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Ошибка создания статуса: {str(e)}"
-            )
+        await db.commit()
+        await db.refresh(customer_order_cancel)
+        logger.info(f"Статус создан: id={customer_order_cancel.id}")
+        return customer_order_cancel
+
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Ошибка создания статуса: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка создания статуса: {str(e)}"
+        )
 
 
 async def add_order_executor_cancel(
     db: AsyncSession,
     executor_order_cancel_schema: ExecutorOrderCancellationCreateSchema,
 ):
-    async with db.begin():  # ✅ Автоматический commit/rollback
-        try:
-
-            # 1. Проверка существования
-            result = await db.execute(
-                select(ExecutorOrderCancellation.id).where(
-                    and_(
-                        ExecutorOrderCancellation.order_id
-                        == executor_order_cancel_schema.order_id,
-                        ExecutorOrderCancellation.customer_id
-                        == executor_order_cancel_schema.customer_id,
-                        ExecutorOrderCancellation.executor_id
-                        == executor_order_cancel_schema.executor_id,
-                    )
+    try:
+        # 1. Проверка существования
+        result = await db.execute(
+            select(ExecutorOrderCancellation.id).where(
+                and_(
+                    ExecutorOrderCancellation.order_id
+                    == executor_order_cancel_schema.order_id,
+                    ExecutorOrderCancellation.customer_id
+                    == executor_order_cancel_schema.customer_id,
+                    ExecutorOrderCancellation.executor_id
+                    == executor_order_cancel_schema.executor_id,
                 )
             )
+        )
 
-            existing_id = result.scalar_one_or_none()
-            if existing_id:
-                logger.info(
-                    f"Этот заказ у исполнитиеля уже существует: id={existing_id}"
-                )
-                return existing_id
-
-            executor_order_cancel = ExecutorOrderCancellation(
-                order_id=executor_order_cancel_schema.order_id,
-                customer_id=executor_order_cancel_schema.customer_id,
-                executor_id=executor_order_cancel_schema.executor_id,
-                status=executor_order_cancel_schema.status,
-                customer_comment=executor_order_cancel_schema.customer_comment,
-                reason_type=executor_order_cancel_schema.reason_type,
-                reason_text=executor_order_cancel_schema.reason_text,
+        existing_id = result.scalar_one_or_none()
+        if existing_id:
+            logger.info(
+                f"Этот заказ у исполнитиеля уже существует: id={existing_id}"
             )
+            return existing_id
 
-            db.add(executor_order_cancel)
-            await db.flush()  # Генерируем ID
+        executor_order_cancel = ExecutorOrderCancellation(
+            order_id=executor_order_cancel_schema.order_id,
+            customer_id=executor_order_cancel_schema.customer_id,
+            executor_id=executor_order_cancel_schema.executor_id,
+            status=executor_order_cancel_schema.status,
+            customer_comment=executor_order_cancel_schema.customer_comment,
+            reason_type=executor_order_cancel_schema.reason_type,
+            reason_text=executor_order_cancel_schema.reason_text,
+        )
 
-            notification_type = await _resolve_cancel_notification_type(
-                db,
-                order_id=executor_order_cancel_schema.order_id,
-                customer_id=executor_order_cancel_schema.customer_id,
-                executor_id=executor_order_cancel_schema.executor_id,
-            )
-            await notify_order_event_safe(
-                db,
-                order_id=executor_order_cancel_schema.order_id,
-                actor_user_id=executor_order_cancel_schema.executor_id,
-                notification_type=notification_type,
-                recipient_id=executor_order_cancel_schema.customer_id,
-            )
+        db.add(executor_order_cancel)
+        await db.flush()
 
-            logger.info(f"Статус создан: id={executor_order_cancel.id}")
-            return executor_order_cancel
+        notification_type = await _resolve_cancel_notification_type(
+            db,
+            order_id=executor_order_cancel_schema.order_id,
+            customer_id=executor_order_cancel_schema.customer_id,
+            executor_id=executor_order_cancel_schema.executor_id,
+        )
+        await notify_order_event_safe(
+            db,
+            order_id=executor_order_cancel_schema.order_id,
+            actor_user_id=executor_order_cancel_schema.executor_id,
+            notification_type=notification_type,
+            recipient_id=executor_order_cancel_schema.customer_id,
+        )
 
-        except Exception as e:
-            logger.error(f"Ошибка создания статуса: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Ошибка создания статуса: {str(e)}"
-            )
+        await db.commit()
+        await db.refresh(executor_order_cancel)
+        logger.info(f"Статус создан: id={executor_order_cancel.id}")
+        return executor_order_cancel
+
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Ошибка создания статуса: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка создания статуса: {str(e)}"
+        )
 
 
 def _order_response_to_read_schema(
@@ -1171,4 +1184,161 @@ async def add_information_about_executor(
     except Exception as e:
         await db.rollback()
         logger.error(f"❌ Ошибка: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def add_order_review(
+    db: AsyncSession,
+    *,
+    order_id: int,
+    reviewer_id: int,
+    schema: ReviewCreateSchema,
+) -> Review:
+    """Заказчик сохраняет отзыв об исполнителе по завершённому заказу."""
+    try:
+        order = await db.get(Order, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Заказ не найден")
+        if order.customer_id != reviewer_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Только заказчик может оставить отзыв по этому заказу",
+            )
+
+        assert_customer_and_executor_are_different(reviewer_id, schema.executor_id)
+
+        status_customer = (
+            await db.execute(
+                select(StatusOrderCustomer).where(
+                    StatusOrderCustomer.order_id == order_id,
+                    StatusOrderCustomer.customer_id == reviewer_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if not status_customer or COMPLETED_EXECUTOR_STATUS not in (
+            status_customer.status or ""
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Отзыв можно оставить только после завершения заказа",
+            )
+
+        status_executor = (
+            await db.execute(
+                select(StatusOrderExecutor).where(
+                    StatusOrderExecutor.order_id == order_id,
+                    StatusOrderExecutor.executor_id == schema.executor_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if not status_executor:
+            raise HTTPException(
+                status_code=400,
+                detail="Указанный исполнитель не связан с этим заказом",
+            )
+
+        existing = (
+            await db.execute(
+                select(Review).where(
+                    Review.order_id == order_id,
+                    Review.reviewer_id == reviewer_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail="Отзыв по этому заказу уже оставлен",
+            )
+
+        comment = (schema.comment or "").strip() or None
+        review = Review(
+            order_id=order_id,
+            reviewer_id=reviewer_id,
+            reviewee_id=schema.executor_id,
+            rating=schema.rating,
+            comment=comment,
+        )
+        db.add(review)
+        await db.flush()
+        await db.commit()
+        await db.refresh(review)
+        logger.info(
+            f"✅ Отзыв {review.id} по заказу {order_id} от заказчика {reviewer_id}"
+        )
+        return review
+
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"❌ Ошибка сохранения отзыва: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def update_order_review(
+    db: AsyncSession,
+    *,
+    order_id: int,
+    reviewer_id: int,
+    schema: ReviewCreateSchema,
+) -> Review:
+    """Заказчик обновляет свой отзыв об исполнителе."""
+    try:
+        order = await db.get(Order, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Заказ не найден")
+        if order.customer_id != reviewer_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Только заказчик может изменить отзыв по этому заказу",
+            )
+
+        assert_customer_and_executor_are_different(reviewer_id, schema.executor_id)
+
+        review = (
+            await db.execute(
+                select(Review).where(
+                    Review.order_id == order_id,
+                    Review.reviewer_id == reviewer_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if not review:
+            raise HTTPException(status_code=404, detail="Отзыв не найден")
+
+        if review.reviewee_id != schema.executor_id:
+            status_executor = (
+                await db.execute(
+                    select(StatusOrderExecutor).where(
+                        StatusOrderExecutor.order_id == order_id,
+                        StatusOrderExecutor.executor_id == schema.executor_id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if not status_executor:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Указанный исполнитель не связан с этим заказом",
+                )
+            review.reviewee_id = schema.executor_id
+
+        review.rating = schema.rating
+        review.comment = (schema.comment or "").strip() or None
+
+        await db.flush()
+        await db.commit()
+        await db.refresh(review)
+        logger.info(
+            f"✅ Обновлён отзыв {review.id} по заказу {order_id} от заказчика {reviewer_id}"
+        )
+        return review
+
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"❌ Ошибка обновления отзыва: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

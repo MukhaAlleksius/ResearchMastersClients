@@ -65,8 +65,6 @@ export default function UserOrderProfileAdmin() {
           <Link to={`/admin/manage_users/${userId}`}>Пользователь #{userId}</Link>
           {" · "}
           <Link to={`/admin/manage_users/${userId}/orders`}>Заказы</Link>
-          {" · "}
-          <strong>№ {orderId}</strong>
         </>
       }
       onRetry={fetchOrderProfileForAdmin}

@@ -112,7 +112,7 @@ export default function ContractExecutor({
           </p>
         )}
         <p className="contract-doc__empty-meta">
-          Заказ #{order?.id || "не указан"}
+          {order?.title || "Заказ"}
         </p>
       </div>
     );

@@ -167,7 +167,7 @@ export default function AdminDisputeSituation() {
         {activeTab === "chat" && (
           <>
             <div className="disputes-header">
-              <div className="disputes-title">Спор по заказу #{order_id}</div>
+              <div className="disputes-title">Спор по заказу</div>
               <div className="disputes-subtitle">
                 Общение с заказчиком, исполнителем и администратором
               </div>

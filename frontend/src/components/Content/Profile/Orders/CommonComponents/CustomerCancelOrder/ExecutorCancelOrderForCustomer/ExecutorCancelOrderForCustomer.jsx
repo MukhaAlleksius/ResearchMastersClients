@@ -112,8 +112,7 @@ export default function ExecutorCancelOrderForCustomer({
                 ? "Вы не согласились с отменой"
                 : "Исполнитель запросил отмену"}
           </h2>
-          <p className="cancel-tab__subtitle">Заказ № {order.id}</p>
-        </header>
+                  </header>
 
         <div className="cancel-tab__status">
           <div className="cancel-tab__status-head">

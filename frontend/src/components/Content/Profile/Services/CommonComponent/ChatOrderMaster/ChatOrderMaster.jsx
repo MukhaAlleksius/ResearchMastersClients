@@ -144,8 +144,7 @@ export default function ChatOrderMaster({ order_id }) {
         <div className="order-chat__header-text">
           <h2 className="order-chat__title">Чат по заказу</h2>
           <p className="order-chat__subtitle">
-            Заказ #{order_id}
-            {participantName !== "Собеседник" && ` · ${participantName}`}
+            {participantName !== "Собеседник" ? participantName : "Переписка по заказу"}
           </p>
         </div>
         <span className="order-chat__count" title="Сообщений в переписке">

@@ -218,11 +218,8 @@ export default function AdminFinances() {
                       to={`/admin/manage_orders/${p.order_id}`}
                       className="finances-table__order-link"
                     >
-                      #{p.order_id}
+                      {p.order_title || "Заказ"}
                     </Link>
-                    {p.order_title && (
-                      <span className="finances-table__muted">{p.order_title}</span>
-                    )}
                   </td>
                   <td>{p.customer_name}</td>
                   <td>{p.executor_name}</td>

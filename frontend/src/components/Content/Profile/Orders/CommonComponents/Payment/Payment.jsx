@@ -240,7 +240,7 @@ export default function Payment({ order, customerId, executorId, onSuccess }) {
             color: "#1e293b",
           }}
         >
-          Оплата заказа #{order.id}
+          Оплата заказа
         </div>
         <button
           type="button"

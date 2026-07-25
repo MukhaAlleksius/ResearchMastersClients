@@ -65,7 +65,6 @@ export default function RefusedByCustomerWork({
   return (
     <WorkDetailLayout
       title={currentOrder.title || statusLabel}
-      subtitle={orderIdFinal ? `Услуга № ${orderIdFinal}` : undefined}
       backLabel="Назад к услугам"
       onBack={onBack}
       loading={loading}

@@ -14,7 +14,7 @@ const baseTabs = [
   { id: "executor", label: "Профиль" },
   { id: "portfolio", label: "Портфолио" },
   { id: "analytics", label: "Аналитика" },
-  { id: "executor_bank_account", label: "Счёт" },
+  // { id: "executor_bank_account", label: "Счёт" },
 ];
 
 const administratorTab = { id: "administrator", label: "Администратор" };

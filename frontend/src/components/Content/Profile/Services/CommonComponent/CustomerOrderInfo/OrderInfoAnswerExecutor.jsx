@@ -592,7 +592,7 @@ export default function OrderInfoAnswerExecutor({
           <header className="order-info__hero">
             <span className="order-info__badge">Заказ</span>
 
-            <h2 className="order-info__title">{title || `Заказ #${id}`}</h2>
+            <h2 className="order-info__title">{title || "Заказ"}</h2>
 
             <p className="order-info__subtitle">
               {category_work ? `${category_work} · ` : ""}№{id}

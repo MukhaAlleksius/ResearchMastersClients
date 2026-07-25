@@ -7,7 +7,7 @@ export const formatDateTime = (value) =>
 export const formatBudget = (budget, currency, budgetType) => {
   if (budget == null || budget === "") return "Не указан";
   const amount = Number(budget).toLocaleString("ru-RU");
-  const parts = [amount, currency || "₽"].filter(Boolean).join(" ");
+  const parts = [amount, currency || "BYN"].filter(Boolean).join(" ");
   return budgetType ? `${parts} · ${budgetType}` : parts;
 };
 

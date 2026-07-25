@@ -1,0 +1,237 @@
+/* ─── Вкладка «Отзыв» (заказчик → исполнитель) ─── */
+.review-tab {
+  --rt-border: #e2e8f0;
+  --rt-bg: #f8fafc;
+  --rt-surface: #ffffff;
+  --rt-text: #0f172a;
+  --rt-muted: #64748b;
+  --rt-accent: #2563eb;
+  --rt-star: #eab308;
+  --rt-danger: #dc2626;
+  --rt-success: #059669;
+  --rt-radius: 14px;
+  --rt-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  width: 100%;
+  max-width: 520px;
+  font-family: var(--rt-font);
+  color: var(--rt-text);
+  line-height: 1.55;
+}
+
+.review-tab--loading,
+.review-tab--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  background: var(--rt-surface);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  color: var(--rt-muted);
+}
+
+.review-tab__card {
+  background: var(--rt-surface);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  padding: 1.5rem 1.35rem;
+}
+
+.review-tab__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.review-tab__subtitle {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  color: var(--rt-muted);
+}
+
+.review-tab__stars {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-bottom: 1.25rem;
+}
+
+.review-tab__star {
+  border: none;
+  background: transparent;
+  padding: 0.1rem 0.15rem;
+  font-size: 1.75rem;
+  line-height: 1;
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+
+.review-tab__star:hover:not(:disabled) {
+  transform: scale(1.08);
+  color: var(--rt-star);
+}
+
+.review-tab__star--on {
+  color: var(--rt-star);
+}
+
+.review-tab__star:disabled {
+  cursor: default;
+}
+
+.review-tab__star-label {
+  margin-left: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--rt-muted);
+}
+
+.review-tab__criteria {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.review-tab__criteria-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.review-tab__criteria-label {
+  font-size: 0.875rem;
+  color: var(--rt-muted);
+}
+
+.review-tab__criteria-stars {
+  display: flex;
+  gap: 0.1rem;
+}
+
+.review-tab__criteria-stars .review-tab__star {
+  font-size: 1.25rem;
+}
+
+.review-tab__field {
+  margin-bottom: 1rem;
+}
+
+.review-tab__label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+
+.review-tab__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--rt-border);
+  border-radius: 10px;
+  background: var(--rt-bg);
+  color: var(--rt-text);
+  font: inherit;
+  resize: vertical;
+  min-height: 110px;
+}
+
+.review-tab__textarea:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.25);
+  border-color: var(--rt-accent);
+  background: var(--rt-surface);
+}
+
+.review-tab__textarea:disabled {
+  opacity: 0.85;
+}
+
+.review-tab__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--rt-muted);
+}
+
+.review-tab__alert {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+}
+
+.review-tab__alert--error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: var(--rt-danger);
+}
+
+.review-tab__alert--success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: var(--rt-success);
+}
+
+.review-tab__submit {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--rt-accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.review-tab__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.review-tab__actions .review-tab__submit {
+  flex: 1 1 140px;
+}
+
+.review-tab__submit--secondary {
+  background: var(--rt-surface);
+  color: var(--rt-text);
+  border: 1px solid var(--rt-border);
+}
+
+.review-tab__submit:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.review-tab__submit--secondary:hover:not(:disabled) {
+  background: var(--rt-bg);
+}
+
+.review-tab__submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.review-tab__saved-meta {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  color: var(--rt-muted);
+}
+
+.review-tab__comment-text {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  background: var(--rt-bg);
+  border-radius: 10px;
+  border: 1px solid var(--rt-border);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

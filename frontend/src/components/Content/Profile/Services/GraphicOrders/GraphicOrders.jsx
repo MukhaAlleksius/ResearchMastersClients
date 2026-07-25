@@ -408,7 +408,7 @@ export default function ExecutorOrdersSchedule() {
                     <option value="">Выберите заказ</option>
                     {orders.map((order) => (
                       <option key={order.id} value={order.id}>
-                        #{order.id} — {order.title}
+                        {order.title}
                         {order.budget ? ` (${order.budget} BYN)` : ""}
                       </option>
                     ))}

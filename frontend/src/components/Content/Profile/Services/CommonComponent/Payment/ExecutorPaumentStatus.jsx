@@ -182,7 +182,6 @@ export default function ExecutorPayments({ orderId, executorId }) {
                   </div>
 
                   <div style={styles.meta}>
-                    <div>Заказ #{payment.order_id}</div>
                     {payment.payment_method && (
                       <div>
                         {payment.payment_method === "test"

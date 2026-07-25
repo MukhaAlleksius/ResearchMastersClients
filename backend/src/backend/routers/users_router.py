@@ -60,7 +60,9 @@ from cruds.users_crud import (
     get_user_profile_for_admin,
     get_users_for_admin,
 )
+from cruds.orders.read_orders import get_reviews_for_executor
 from schemas.pagination_schemas import PaginatedResponse
+from schemas.orders_schemas import ExecutorReviewsSummarySchema
 from schemas.users_schemas import (
     BusinessFormSchema,
     GeographyExecuteOrderSchema,
@@ -478,6 +480,30 @@ async def get_user_contacts_public_api(
         raise
     except Exception as e:
         raise HTTPException(status_code=403, detail=f"Ошибка {e}")
+
+
+@router.get(
+    "/users/{user_id}/reviews",
+    response_model=ExecutorReviewsSummarySchema,
+)
+async def get_user_reviews_api(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema | None = Depends(get_optional_current_user),
+):
+    await assert_can_view_executor_profile(
+        db, user_id=user_id, current_user=current_user
+    )
+    try:
+        return await get_reviews_for_executor(db=db, reviewee_id=user_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"API error for get_user_reviews user_id={user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
 
 
 @router.delete("/delete_contact/{contact_id}")

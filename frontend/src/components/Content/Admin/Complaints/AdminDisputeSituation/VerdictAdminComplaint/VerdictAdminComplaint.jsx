@@ -171,7 +171,7 @@ export default function VerdictAdminComplaint({
   return (
     <div className="verdict-admin-complaint">
       <h2 className="verdict-title">
-        Вердикт по жалобе #{complaintId} (Заказ {orderId})
+        Вердикт по жалобе #{complaintId}
       </h2>
 
       {/* Выбор пользователя */}

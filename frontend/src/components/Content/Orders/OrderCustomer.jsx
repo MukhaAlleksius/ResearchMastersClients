@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiFetch, buildApiUrl } from "../../../utils/api.js";
+import { formatMoney } from "../../../utils/currency.js";
 import OrderInfoAnswerExecutor from "../Profile/Services/CommonComponent/CustomerOrderInfo/OrderInfoAnswerExecutor";
 import "../Profile/Services/CommonComponent/CustomerOrderInfo/customer_order_info.css";
 import "./order_customer.css";
@@ -92,7 +93,6 @@ export default function OrderCustomer({ order, onBack, openModal }) {
       <div className="order-customer-card">
         <div className="order-customer-header">
           <h2 className="order-customer-title">{order.title}</h2>
-          <span className="order-customer-id">№ {order.id}</span>
           <span className="order-customer-category">
             🏷️ {order.category_work || "Без категории"}
           </span>
@@ -158,7 +158,7 @@ export default function OrderCustomer({ order, onBack, openModal }) {
           <p>
             Примерная сумма:{" "}
             {order.budget
-              ? `${order.budget} ${order.currency || "BYN"}`
+              ? formatMoney(order.budget, order.currency || "BYN")
               : "Договорная"}
           </p>
           {order.insurance_required && <p>Требуется страховка исполнителя</p>}

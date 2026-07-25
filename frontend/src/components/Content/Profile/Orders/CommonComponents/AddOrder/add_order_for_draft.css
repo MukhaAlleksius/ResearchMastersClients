@@ -134,6 +134,15 @@
   background: #fff;
 }
 
+.aod-input--readonly {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  color: #334155;
+  background: #f1f5f9;
+  cursor: default;
+}
+
 .aod-grid-2 {
   display: grid;
   gap: 1rem;

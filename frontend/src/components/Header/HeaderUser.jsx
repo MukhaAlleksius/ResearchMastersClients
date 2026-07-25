@@ -1,8 +1,13 @@
 import { useState, useMemo, useEffect } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import NotificationsBell from "./NotificationsBell";
 import { apiFetch, buildApiUrl } from "../../utils/api.js";
 import { useStaffAccess } from "../../utils/userAccess.js";
+import {
+  isExecutorsNavActive,
+  isOrdersNavActive,
+  isProfileCabinetPath,
+} from "../../utils/navActive.js";
 import "./header.css";
 
 const baseNavItems = [
@@ -15,14 +20,28 @@ const baseNavItems = [
 
 const adminNavItem = { to: "/admin", label: "Администратор" };
 
+function isNavItemActive(to, pathname, defaultActive) {
+  if (to === "/catalog") return isExecutorsNavActive(pathname);
+  if (to === "/orders") return isOrdersNavActive(pathname);
+  if (to === "/profile") return isProfileCabinetPath(pathname);
+  if (to === "/admin") return pathname.startsWith("/admin");
+  return defaultActive;
+}
+
 function NavLinks({ className, onNavigate, items }) {
+  const { pathname } = useLocation();
+
   return items.map(({ to, label, end }) => (
     <NavLink
       key={to}
       to={to}
       end={end}
       className={({ isActive }) =>
-        `${className} ${isActive ? "site-header__link--active" : ""}`
+        `${className} ${
+          isNavItemActive(to, pathname, isActive)
+            ? "site-header__link--active"
+            : ""
+        }`
       }
       onClick={onNavigate}
     >

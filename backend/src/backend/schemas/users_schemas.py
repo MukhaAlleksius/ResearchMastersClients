@@ -41,6 +41,7 @@ class UserCommonReadSchema(BaseModel):
     country: Optional[str] = Field(None, max_length=100)
     region: Optional[str] = Field(None, max_length=100)
     town: Optional[str] = Field(None, max_length=100)
+    location: Optional[str] = Field(None, max_length=100)
 
 
 class UserCommonSchema(UserCommonReadSchema):
@@ -161,6 +162,7 @@ class UserProfileReadSchema(BaseModel):
     country: Optional[str] = Field("", max_length=100)
     region: Optional[str] = Field("", max_length=100)
     town: Optional[str] = Field("", max_length=100)
+    location: Optional[str] = Field(None, max_length=100)
     bio: Optional[str] = Field(None)
     short_review_master: Optional[str] = Field(None)
     operating_mode: Optional[str] = Field(None, max_length=100)

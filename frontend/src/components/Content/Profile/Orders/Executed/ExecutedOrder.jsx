@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { API, apiFetch, buildApiUrl } from "../../../../../utils/api.js";
+import { apiFetch, buildApiUrl } from "../../../../../utils/api.js";
 import { useNavigate, useParams } from "react-router-dom";
 import CommentsRating from "../CommonComponents/CommentsRating/CommentsRating";
-import ContractAgreement from "../CommonComponents/CustomerExecutorContractOrder/CustomerExecutorContract";
 import CustomerEstimateWorks from "../CommonComponents/CustomerEstimateWorksMaterials/CustomerEstimateWorks";
 import CustomerReportWorks from "../CommonComponents/CustomerReportWorks/CustomerReportWorks";
 import ExecutorInfo from "../CommonComponents/CustomerOrderInfo/ExecutorInfo";
 import OrderInfoWithExecutorResponse from "../../Services/CommonComponent/CustomerOrderInfo/OrderInfoWithExecutorResponse";
-import Payment from "../CommonComponents/Payment/Payment";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
 import {
   getWorkDetailTabs,
@@ -22,18 +20,11 @@ const FALLBACK_ORDER = {
   location: "Москва",
 };
 
-const FALLBACK_CUSTOMER = {
-  name: "Иван Иванов",
-  company: "ООО Ромашка",
-};
-
 export default function ExecutedOrder({ order, onBack, userId, listActivity }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("customer_completed");
   const [orderData, setOrderData] = useState(null);
-  const [customer, setCustomer] = useState(null);
   const [executorOrder, setExecutorOrder] = useState(null);
   const [orderResponseExecutor, setOrderResponseExecutor] = useState(null);
-  const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -42,7 +33,6 @@ export default function ExecutedOrder({ order, onBack, userId, listActivity }) {
   const orderId = order?.id || slug;
 
   const currentOrder = orderData || order || FALLBACK_ORDER;
-  const currentCustomer = customer || FALLBACK_CUSTOMER;
 
   const resolvedExecutorId = useMemo(() => {
     const candidates = [
@@ -91,23 +81,9 @@ export default function ExecutedOrder({ order, onBack, userId, listActivity }) {
           executor_id: loadedOrder.executor_id,
         });
       }
-
-      if (loadedOrder.customer_id) {
-        try {
-          const customerRes = await apiFetch(
-            buildApiUrl(`/profile/?user_id=${loadedOrder.customer_id}`),
-          );
-          if (customerRes.ok) {
-            setCustomer(await customerRes.json());
-          }
-        } catch {
-          setCustomer(FALLBACK_CUSTOMER);
-        }
-      }
     } catch (err) {
       setError(err.message);
       setOrderData(order || FALLBACK_ORDER);
-      setCustomer(FALLBACK_CUSTOMER);
     } finally {
       setLoading(false);
     }
@@ -141,18 +117,6 @@ export default function ExecutedOrder({ order, onBack, userId, listActivity }) {
     }
   }, [resolvedExecutorId, orderId]);
 
-  const fetchPayment = useCallback(async () => {
-    if (!orderData?.id || !customer?.id) return;
-    try {
-      const res = await apiFetch(
-        buildApiUrl(`/payment_for_order/${orderData.id}/${customer.id}`),
-      );
-      setPayment(res.ok ? await res.json() : null);
-    } catch {
-      setPayment(null);
-    }
-  }, [orderData, customer]);
-
   useEffect(() => {
     fetchOrderInfo();
     fetchExecutorOrder();
@@ -161,12 +125,6 @@ export default function ExecutedOrder({ order, onBack, userId, listActivity }) {
   useEffect(() => {
     fetchOrderResponseExecutor();
   }, [fetchOrderResponseExecutor]);
-
-  useEffect(() => {
-    if (orderData && customer) {
-      fetchPayment();
-    }
-  }, [orderData, customer, fetchPayment]);
 
   const tabs = useMemo(() => getWorkDetailTabs("customer_completed"), []);
 
@@ -177,7 +135,6 @@ export default function ExecutedOrder({ order, onBack, userId, listActivity }) {
   return (
     <WorkDetailLayout
       title={currentOrder.title || "Выполненный заказ"}
-      subtitle={orderId ? `Заказ № ${orderId}` : undefined}
       backLabel="Назад к заказам"
       onBack={onBack || (() => navigate(-1))}
       activityConfig={
@@ -193,7 +150,12 @@ export default function ExecutedOrder({ order, onBack, userId, listActivity }) {
       meta={
         <>
           <span>
-            Бюджет: <strong>{currentOrder.budget || 0} ₽</strong>
+            Бюджет:{" "}
+            <strong>
+              {currentOrder?.budget != null
+                ? `${Number(currentOrder.budget).toLocaleString()} ${currentOrder.currency || "BYN"}`
+                : "—"}
+            </strong>
           </span>
           <span>
             Локация: <strong>{currentOrder.location || "Не указана"}</strong>
@@ -236,25 +198,6 @@ export default function ExecutedOrder({ order, onBack, userId, listActivity }) {
         <ExecutorInfo
           executorId={resolvedExecutorId}
           customerId={userId}
-        />
-      )}
-
-      {activeTab === "customerExecutorContract" && (
-        <ContractAgreement
-          order={currentOrder}
-          order_response_executor={orderResponseExecutor}
-          customer={currentCustomer}
-          executor_id={resolvedExecutorId}
-        />
-      )}
-
-      {activeTab === "payment" && (
-        <Payment
-          order={currentOrder}
-          customerId={currentOrder.customer_id}
-          executorId={resolvedExecutorId}
-          existingPayment={payment}
-          onSuccess={(paid) => setPayment(paid)}
         />
       )}
 

@@ -222,7 +222,6 @@ export function AupOrderCard({ order, onClick }) {
         <span className="aup-list-card__category">
           {order.category_work || "Без категории"}
         </span>
-        <span className="aup-list-card__id">№ {order.id}</span>
       </div>
 
       <h3 className="aup-list-card__title">{order.title || "Без названия"}</h3>
@@ -288,7 +287,6 @@ export function AupServiceCard({ service, onClick }) {
         <span className="aup-list-card__category aup-list-card__category--service">
           Услуга исполнителя
         </span>
-        <span className="aup-list-card__id">№ {service.id}</span>
       </div>
 
       <h3 className="aup-list-card__title">
