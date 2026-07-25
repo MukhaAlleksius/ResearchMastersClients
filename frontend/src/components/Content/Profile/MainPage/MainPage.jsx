@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
 import { API, apiFetch, buildApiUrl, resolveMediaUrl } from "../../../../utils/api.js";
+import {
+  IconUser,
+  IconDoc,
+  IconImage,
+  IconStar,
+  IconPin,
+  IconCalendar,
+  contactTypeIcon,
+} from "../ProfileIcons.jsx";
 import "./main_page.css";
 
 function formatReviewDate(value) {
@@ -157,14 +166,6 @@ function GeographySidebar({ data }) {
       ))}
     </div>
   );
-}
-
-function contactIcon(type) {
-  const t = (type || "").toLowerCase();
-  if (t.includes("телефон") || t.includes("whatsapp")) return "📱";
-  if (t.includes("телеграм")) return "✈️";
-  if (t.includes("сайт")) return "🌐";
-  return "📇";
 }
 
 export default function MainPage() {
@@ -340,7 +341,7 @@ export default function MainPage() {
                 className="mp-hero__avatar mp-hero__avatar--placeholder"
                 aria-hidden="true"
               >
-                👤
+                <IconUser width={40} height={40} />
               </div>
             )}
           </div>
@@ -379,7 +380,10 @@ export default function MainPage() {
 
             {addressLabel && (
               <div className="mp-hero__location">
-                <span className="mp-hero__location-item">📍 {addressLabel}</span>
+                <span className="mp-hero__location-item">
+                  <IconPin width={14} height={14} />
+                  {addressLabel}
+                </span>
               </div>
             )}
           </div>
@@ -391,7 +395,7 @@ export default function MainPage() {
           <section className="mp-card" aria-labelledby="mp-about-title">
             <div className="mp-card__head">
               <span className="mp-card__icon" aria-hidden="true">
-                📝
+                <IconDoc />
               </span>
               <h2 id="mp-about-title" className="mp-card__title">
                 О мастере
@@ -413,7 +417,7 @@ export default function MainPage() {
           <section className="mp-card" aria-labelledby="mp-portfolio-title">
             <div className="mp-card__head">
               <span className="mp-card__icon" aria-hidden="true">
-                🖼️
+                <IconImage />
               </span>
               <h2 id="mp-portfolio-title" className="mp-card__title">
                 Портфолио работ
@@ -438,7 +442,7 @@ export default function MainPage() {
               ) : (
                 <div className="mp-empty">
                   <span className="mp-empty__icon" aria-hidden="true">
-                    🖼️
+                    <IconImage width={28} height={28} />
                   </span>
                   <p>Портфолио пока пусто</p>
                 </div>
@@ -449,7 +453,7 @@ export default function MainPage() {
           <section className="mp-card" aria-labelledby="mp-reviews-title">
             <div className="mp-card__head">
               <span className="mp-card__icon" aria-hidden="true">
-                ⭐
+                <IconStar />
               </span>
               <h2 id="mp-reviews-title" className="mp-card__title">
                 Отзывы клиентов
@@ -474,7 +478,7 @@ export default function MainPage() {
               ) : (
                 <div className="mp-empty">
                   <span className="mp-empty__icon" aria-hidden="true">
-                    ⭐
+                    <IconStar width={28} height={28} />
                   </span>
                   <p>Пока нет отзывов</p>
                 </div>
@@ -488,37 +492,17 @@ export default function MainPage() {
             <div className="mp-sidebar__section">
               <h3 className="mp-sidebar__title">Контакты</h3>
               <ul className="mp-info-list">
-                {profileMaster && (
-                  <>
-                    {profileMaster.country && (
-                      <li className="mp-info-item">
-                        <span className="mp-info-item__icon" aria-hidden="true">
-                          📍
-                        </span>
-                        <span>{profileMaster.country}</span>
-                      </li>
-                    )}
-                    {profileMaster.region && (
-                      <li className="mp-info-item">
-                        <span className="mp-info-item__icon" aria-hidden="true">
-                          🗺️
-                        </span>
-                        <span>{profileMaster.region}</span>
-                      </li>
-                    )}
-                    {profileMaster.town && (
-                      <li className="mp-info-item">
-                        <span className="mp-info-item__icon" aria-hidden="true">
-                          🏙️
-                        </span>
-                        <span>{profileMaster.town}</span>
-                      </li>
-                    )}
-                  </>
+                {addressLabel && (
+                  <li className="mp-info-item">
+                    <span className="mp-info-item__icon" aria-hidden="true">
+                      <IconPin />
+                    </span>
+                    <span>{addressLabel}</span>
+                  </li>
                 )}
                 <li className="mp-info-item">
                   <span className="mp-info-item__icon" aria-hidden="true">
-                    📅
+                    <IconCalendar />
                   </span>
                   <span>На сайте с 2020 г.</span>
                 </li>
@@ -528,7 +512,7 @@ export default function MainPage() {
                     className="mp-info-item"
                   >
                     <span className="mp-info-item__icon" aria-hidden="true">
-                      {contactIcon(contact.name_contact)}
+                      {contactTypeIcon(contact.name_contact)}
                     </span>
                     <span>
                       <strong>{contact.name_contact}</strong>

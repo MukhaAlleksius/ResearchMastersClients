@@ -11,6 +11,7 @@ import RefusedByCustomerWork from "./RefusedByCustomer/RefusedByCustomerWork";
 import StatusFilterTabs from "../Common/StatusFilterTabs";
 import WaitExecuteWorkServiceInfo from "./WaitExecuteWork/WaitExecuteWork";
 import { getExecutorServicePresetKey } from "../Common/workDetailTabs";
+import { IconInbox, IconCalendar } from "../ProfileIcons.jsx";
 import "./services.css";
 import {
   enrichListItemWithUpdates,
@@ -70,14 +71,10 @@ const statusTabs = [
     statusKey: "Отказ от заказа",
     hint: "Заказы, от которых вы отказались. Здесь хранится история таких отказов.",
   },
-  {
-    id: "graphicOrders",
-    label: "График заказов",
-    shortLabel: "График",
-    statusKey: "График работ",
-    hint: "Общий график ваших заказов: сроки, этапы и загрузка по работам в одном месте.",
-  },
 ];
+
+const graphicTabHint =
+  "Общий график ваших заказов: сроки, этапы и загрузка по работам в одном месте.";
 
 const allTabHint =
   "Все ваши услуги в одном списке. Выберите статус слева, чтобы отфильтровать заказы по этапу.";
@@ -93,7 +90,9 @@ export default function Services() {
   const [selectedService, setSelectedService] = useState(null);
   const [activeStatusTab, setActiveStatusTab] = useState(() => {
     const tabId = location.state?.activeStatusTab ?? "all";
-    return tabId === "myselfExecutor" ? "all" : tabId;
+    if (tabId === "myselfExecutor") return "all";
+    if (tabId === "graphicOrders") return "graphicOrders";
+    return tabId;
   });
   const servicesExecutorRef = useRef(servicesExecutor);
   const [loading, setLoading] = useState(true);
@@ -268,7 +267,6 @@ export default function Services() {
 
   const handleServiceStatusChanged = useCallback(
     (orderId, newStatus = "В процессе выполнения") => {
-      setSelectedService(null);
       setActiveStatusTab("inProgress");
 
       const updated = servicesExecutorRef.current.map((service) =>
@@ -277,6 +275,19 @@ export default function Services() {
           : service,
       );
       applyServicesData(updated);
+
+      const fromList = updated.find(
+        (service) => String(service.id) === String(orderId),
+      );
+
+      setSelectedService((prev) => {
+        if (fromList) return fromList;
+        if (prev && String(prev.id) === String(orderId)) {
+          return { ...prev, status_service_executor: newStatus };
+        }
+        return prev;
+      });
+
       void fetchServicesExecutor({ silent: true });
     },
     [applyServicesData, fetchServicesExecutor],
@@ -290,6 +301,11 @@ export default function Services() {
   const handleStatusChange = (tabId) => {
     setActiveStatusTab(tabId);
     setSelectedService(null);
+  };
+
+  const openWorksCalendar = () => {
+    setSelectedService(null);
+    setActiveStatusTab("graphicOrders");
   };
 
   const isGraphicTab = activeStatusTab === "graphicOrders";
@@ -386,6 +402,16 @@ export default function Services() {
                 : "У вас пока нет услуг"}
           </p>
         </div>
+        {!isGraphicTab && (
+          <button
+            type="button"
+            className="btn-list-primary btn-list-header"
+            onClick={openWorksCalendar}
+          >
+            <IconCalendar width={18} height={18} />
+            Календарь работ
+          </button>
+        )}
       </header>
 
       {error && (
@@ -422,13 +448,18 @@ export default function Services() {
 
         <div className="list-page__content">
           {isGraphicTab && (
-            <button
-              type="button"
-              className="btn-list-back"
-              onClick={() => handleStatusChange("all")}
-            >
-              ← Назад к услугам
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn-list-back"
+                onClick={() => handleStatusChange("all")}
+              >
+                ← Назад к услугам
+              </button>
+              <div className="list-hint" role="note">
+                <p className="list-hint__text">{graphicTabHint}</p>
+              </div>
+            </>
           )}
           {activeTabMeta?.hint && !isGraphicTab && (
             <div className="list-hint" role="note">
@@ -442,7 +473,7 @@ export default function Services() {
               {currentServices.length === 0 ? (
                 <div className="list-empty">
                   <div className="list-empty__icon" aria-hidden="true">
-                    📭
+                    <IconInbox width={28} height={28} />
                   </div>
                   <h3 className="list-empty__title">
                     {activeStatusTab === "all"

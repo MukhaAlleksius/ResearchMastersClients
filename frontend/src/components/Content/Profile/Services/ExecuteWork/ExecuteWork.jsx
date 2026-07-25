@@ -22,16 +22,18 @@ const FALLBACK_ORDER = {
 export default function ExecuteWorkServiceInfo({ service, onBack, userId, listActivity }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("executor_execute");
   const [customerId, setCustomerId] = useState(service?.customer_id ?? null);
+  const [orderDetails, setOrderDetails] = useState(null);
   const navigate = useNavigate();
   const { slug } = useParams();
 
   const orderId = service?.id || slug;
-  const order = service || FALLBACK_ORDER;
+  const order = orderDetails || service || FALLBACK_ORDER;
+  const categoryWorkId =
+    orderDetails?.category_work_id || service?.category_work_id || null;
 
   useEffect(() => {
     if (service?.customer_id) {
       setCustomerId(service.customer_id);
-      return;
     }
 
     if (!orderId) return;
@@ -42,11 +44,13 @@ export default function ExecuteWorkServiceInfo({ service, onBack, userId, listAc
         const response = await apiFetch(buildApiUrl(`/order/${orderId}`));
         if (!response.ok || cancelled) return;
         const data = await response.json();
-        if (!cancelled && data?.customer_id) {
+        if (cancelled) return;
+        setOrderDetails(data);
+        if (data?.customer_id) {
           setCustomerId(data.customer_id);
         }
       } catch (err) {
-        console.error("Не удалось загрузить заказчика:", err);
+        console.error("Не удалось загрузить заказ:", err);
       }
     })();
 
@@ -85,7 +89,7 @@ export default function ExecuteWorkServiceInfo({ service, onBack, userId, listAc
       {activeTab === "estimateWorks" && (
         <EstimateWorks
           order_id={orderId}
-          category_work_id={service?.category_work_id}
+          category_work_id={categoryWorkId}
         />
       )}
 

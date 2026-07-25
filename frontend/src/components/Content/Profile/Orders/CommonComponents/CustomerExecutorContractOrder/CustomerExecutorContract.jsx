@@ -775,7 +775,7 @@ export default function ContractAgreement({
                 {isSaving
                   ? "Сохранение…"
                   : contract.customerSigned
-                    ? "✓ Подписано"
+                    ? "Подписано"
                     : "Подтвердить подпись"}
               </button>
             </div>
@@ -798,7 +798,7 @@ export default function ContractAgreement({
                     : "contract-doc__sign-btn--waiting"
                 }`}
               >
-                {contract.contractorSigned ? "✓ Подписано" : "Ожидает подписи"}
+                {contract.contractorSigned ? "Подписано" : "Ожидает подписи"}
               </button>
             </div>
           </div>

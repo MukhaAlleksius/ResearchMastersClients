@@ -115,7 +115,8 @@ export default function WaitExecuteWorkServiceInfo({
       if (onServiceStatusChanged) {
         onServiceStatusChanged(parsedOrderId, newStatus);
       } else {
-        navigate("/profile/services", {
+        navigate(`/profile/services/continue_execute_work/${parsedOrderId}`, {
+          replace: true,
           state: { activeStatusTab: "inProgress" },
         });
       }

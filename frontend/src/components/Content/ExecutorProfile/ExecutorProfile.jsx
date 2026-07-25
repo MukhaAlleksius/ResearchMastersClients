@@ -4,6 +4,15 @@ import { useLocation } from "react-router-dom";
 import MakeOrderExecutorModal from "./MakeOrderExecutor/MakeOrderExecutorModal";
 import { dedupeOrdersById } from "../../../utils/orders.js";
 import { formatMoney } from "../../../utils/currency";
+import {
+  IconUser,
+  IconDoc,
+  IconImage,
+  IconStar,
+  IconPin,
+  IconCalendar,
+  contactTypeIcon,
+} from "../Profile/ProfileIcons.jsx";
 import "./executor_profile.css";
 const STATUS_SEARCHING_EXECUTOR = "в поиске исполнителя";
 
@@ -273,14 +282,6 @@ function GeographySidebar({ data }) {
       ))}
     </div>
   );
-}
-
-function contactIcon(type) {
-  const t = (type || "").toLowerCase();
-  if (t.includes("телефон") || t.includes("whatsapp")) return "📱";
-  if (t.includes("телеграм")) return "✈️";
-  if (t.includes("сайт")) return "🌐";
-  return "📇";
 }
 
 function getCategoryLabel(category) {
@@ -729,7 +730,7 @@ export default function ExecutorProfile({ openModal }) {
                   className="ep-hero__avatar ep-hero__avatar--placeholder"
                   aria-hidden="true"
                 >
-                  👤
+                  <IconUser width={40} height={40} />
                 </div>
               )}
             </div>
@@ -768,7 +769,8 @@ export default function ExecutorProfile({ openModal }) {
               {addressLabel && (
                 <div className="ep-hero__location">
                   <span className="ep-hero__location-item">
-                    📍 {addressLabel}
+                    <IconPin width={14} height={14} />
+                    {addressLabel}
                   </span>
                 </div>
               )}
@@ -848,7 +850,7 @@ export default function ExecutorProfile({ openModal }) {
           <section className="ep-card" aria-labelledby="ep-about-title">
             <div className="ep-card__head">
               <span className="ep-card__icon" aria-hidden="true">
-                📝
+                <IconDoc />
               </span>
               <h2 id="ep-about-title" className="ep-card__title">
                 О мастере
@@ -870,7 +872,7 @@ export default function ExecutorProfile({ openModal }) {
           <section className="ep-card" aria-labelledby="ep-portfolio-title">
             <div className="ep-card__head">
               <span className="ep-card__icon" aria-hidden="true">
-                🖼️
+                <IconImage />
               </span>
               <h2 id="ep-portfolio-title" className="ep-card__title">
                 Портфолио работ
@@ -894,7 +896,9 @@ export default function ExecutorProfile({ openModal }) {
                 </div>
               ) : (
                 <div className="ep-empty-state">
-                  <span aria-hidden="true">🖼️</span>
+                  <span className="ep-empty-state__icon" aria-hidden="true">
+                    <IconImage width={28} height={28} />
+                  </span>
                   <p>Портфолио пока пусто</p>
                 </div>
               )}
@@ -904,7 +908,7 @@ export default function ExecutorProfile({ openModal }) {
           <section className="ep-card" aria-labelledby="ep-reviews-title">
             <div className="ep-card__head">
               <span className="ep-card__icon" aria-hidden="true">
-                ⭐
+                <IconStar />
               </span>
               <h2 id="ep-reviews-title" className="ep-card__title">
                 Отзывы клиентов
@@ -928,7 +932,9 @@ export default function ExecutorProfile({ openModal }) {
                 </div>
               ) : (
                 <div className="ep-empty-state">
-                  <span aria-hidden="true">⭐</span>
+                  <span className="ep-empty-state__icon" aria-hidden="true">
+                    <IconStar width={28} height={28} />
+                  </span>
                   <p>Пока нет отзывов</p>
                 </div>
               )}
@@ -944,14 +950,14 @@ export default function ExecutorProfile({ openModal }) {
                 {profileMaster && addressLabel && (
                   <li className="ep-info-item">
                     <span className="ep-info-item__icon" aria-hidden="true">
-                      📍
+                      <IconPin />
                     </span>
                     <span>{addressLabel}</span>
                   </li>
                 )}
                 <li className="ep-info-item">
                   <span className="ep-info-item__icon" aria-hidden="true">
-                    📅
+                    <IconCalendar />
                   </span>
                   <span>На сайте с 2020 г.</span>
                 </li>
@@ -961,7 +967,7 @@ export default function ExecutorProfile({ openModal }) {
                     className="ep-info-item"
                   >
                     <span className="ep-info-item__icon" aria-hidden="true">
-                      {contactIcon(contact.name_contact)}
+                      {contactTypeIcon(contact.name_contact)}
                     </span>
                     <span>
                       <strong>{contact.name_contact}</strong>

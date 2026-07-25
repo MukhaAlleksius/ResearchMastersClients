@@ -24,38 +24,18 @@ export function OrderInfoHighlights({
   budget,
   currency,
   budget_type,
-  urgency_level,
-  deadline,
 }) {
   const hasBudget = budget != null && budget !== "";
-  const items = [
-    hasBudget && {
-      key: "budget",
-      label: "Примерная сумма",
-      value: formatBudget(budget, currency, budget_type),
-    },
-    urgency_level && {
-      key: "urgency",
-      label: "Срочность",
-      value: urgency_level,
-    },
-    deadline && {
-      key: "deadline",
-      label: "Срок",
-      value: deadline,
-    },
-  ].filter(Boolean);
-
-  if (!items.length) return null;
+  if (!hasBudget) return null;
 
   return (
     <div className="order-info__highlights order-info__highlights--strip" aria-label="Ключевые параметры">
-      {items.map((item) => (
-        <div key={item.key} className="order-info__highlight">
-          <span className="order-info__highlight-label">{item.label}</span>
-          <span className="order-info__highlight-value">{item.value}</span>
-        </div>
-      ))}
+      <div className="order-info__highlight">
+        <span className="order-info__highlight-label">Примерная сумма</span>
+        <span className="order-info__highlight-value">
+          {formatBudget(budget, currency, budget_type)}
+        </span>
+      </div>
     </div>
   );
 }
@@ -104,8 +84,7 @@ export function OrderDetailsGrid({ order, embedded = false }) {
 
   const place = formatLocation(country, region, town);
   const hasPlace = place !== "Не указано" || location;
-  const hasHighlights =
-    (budget != null && budget !== "") || urgency_level || deadline;
+  const hasBudgetHighlight = budget != null && budget !== "";
 
   return (
     <div
@@ -117,8 +96,6 @@ export function OrderDetailsGrid({ order, embedded = false }) {
             budget={budget}
             currency={currency}
             budget_type={budget_type}
-            urgency_level={urgency_level}
-            deadline={deadline}
           />
         </section>
       )}
@@ -131,21 +108,13 @@ export function OrderDetailsGrid({ order, embedded = false }) {
       )}
 
       <DetailSection title="Условия и сроки" variant="conditions">
-        {!hasHighlights && (
-          <>
-            <DetailRow label="Примерная сумма">
-              {formatBudget(budget, currency, budget_type)}
-            </DetailRow>
-            <DetailRow label="Срочность">{urgency_level}</DetailRow>
-            <DetailRow label="Срок выполнения">{deadline}</DetailRow>
-          </>
+        {!hasBudgetHighlight && (
+          <DetailRow label="Примерная сумма">
+            {formatBudget(budget, currency, budget_type)}
+          </DetailRow>
         )}
-        {hasHighlights && urgency_level && (
-          <DetailRow label="Срочность">{urgency_level}</DetailRow>
-        )}
-        {hasHighlights && deadline && (
-          <DetailRow label="Срок выполнения">{deadline}</DetailRow>
-        )}
+        <DetailRow label="Срочность">{urgency_level}</DetailRow>
+        <DetailRow label="Срок выполнения">{deadline}</DetailRow>
         <DetailRow label="Страхование">
           {insurance_required ? "Требуется" : "Не требуется"}
         </DetailRow>

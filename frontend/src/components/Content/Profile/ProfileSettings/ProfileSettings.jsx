@@ -4,6 +4,13 @@ import CreatableSelect from "react-select/creatable";
 import Select from "react-select";
 import ModalShowContacts from "./ModalShowContacts";
 import ModalShowGeography from "./ModalShowGeography";
+import {
+  IconUser,
+  IconBriefcase,
+  IconPhone,
+  IconMap,
+  IconDoc,
+} from "../ProfileIcons.jsx";
 import "./profile_settings.css";
 const selectMenuProps = {
   menuPortalTarget: document.body,
@@ -554,7 +561,7 @@ export default function ProfileSettings() {
         <section className="ps-section" aria-labelledby="ps-general">
           <div className="ps-section__head">
             <span className="ps-section__icon" aria-hidden="true">
-              👤
+              <IconUser />
             </span>
             <div>
               <h2 id="ps-general" className="ps-section__title">
@@ -649,7 +656,7 @@ export default function ProfileSettings() {
         <section className="ps-section" aria-labelledby="ps-business">
           <div className="ps-section__head">
             <span className="ps-section__icon" aria-hidden="true">
-              🏢
+              <IconBriefcase />
             </span>
             <div>
               <h2 id="ps-business" className="ps-section__title">
@@ -746,7 +753,7 @@ export default function ProfileSettings() {
         <section className="ps-section" aria-labelledby="ps-contacts">
           <div className="ps-section__head">
             <span className="ps-section__icon" aria-hidden="true">
-              📞
+              <IconPhone />
             </span>
             <div>
               <h2 id="ps-contacts" className="ps-section__title">
@@ -799,7 +806,7 @@ export default function ProfileSettings() {
         <section className="ps-section" aria-labelledby="ps-geo">
           <div className="ps-section__head">
             <span className="ps-section__icon" aria-hidden="true">
-              🗺️
+              <IconMap />
             </span>
             <div>
               <h2 id="ps-geo" className="ps-section__title">
@@ -884,7 +891,7 @@ export default function ProfileSettings() {
         <section className="ps-section" aria-labelledby="ps-about">
           <div className="ps-section__head">
             <span className="ps-section__icon" aria-hidden="true">
-              ✨
+              <IconDoc />
             </span>
             <div>
               <h2 id="ps-about" className="ps-section__title">
@@ -938,7 +945,7 @@ export default function ProfileSettings() {
                     className="ps-avatar-preview ps-avatar-preview--empty"
                     aria-hidden="true"
                   >
-                    👤
+                    <IconUser width={28} height={28} />
                   </div>
                 )}
                 <div className="ps-file-wrap">

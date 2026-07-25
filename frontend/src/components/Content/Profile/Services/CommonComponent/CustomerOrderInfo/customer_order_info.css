@@ -144,8 +144,14 @@
 }
 
 .order-info__status-icon {
-  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
+}
+
+.order-info__status-icon svg {
+  display: block;
 }
 
 .order-info__title {

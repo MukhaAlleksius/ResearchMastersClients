@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { getStatusColor } from "../styles/theme";
 import { formatMoney } from "../../../../utils/currency.js";
+import { IconUser, StatusIcon } from "../ProfileIcons.jsx";
 
 export default function OrderServiceCard({
   item,
@@ -26,7 +27,8 @@ export default function OrderServiceCard({
             border: `1px solid ${statusColor.border}`,
           }}
         >
-          {statusColor.icon} {statusLabel || "Без статуса"}
+          <StatusIcon name={statusColor.icon} />
+          {statusLabel || "Без статуса"}
         </span>
       </div>
 
@@ -37,7 +39,7 @@ export default function OrderServiceCard({
 
       <div className="service-card__footer">
         <span className="service-card__customer">
-          <span aria-hidden="true">👤</span>
+          <IconUser width={14} height={14} />
           {partyName || partyLabel}
         </span>
         <span className="service-card__budget">

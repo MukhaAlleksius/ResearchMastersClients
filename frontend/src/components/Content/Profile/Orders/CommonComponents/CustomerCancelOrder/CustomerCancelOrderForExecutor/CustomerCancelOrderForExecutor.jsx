@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { API, apiFetch } from "../../../../../../../utils/api.js";
+import { IconCheck, IconAlert, IconClock } from "../../../../ProfileIcons.jsx";
 import "../cancel_order.css";
 const CUSTOMER_CANCEL_REASON_OPTIONS = [
   { value: "слишком_дорого", label: "Слишком дорого" },
@@ -80,7 +81,13 @@ export default function CustomerCancelOrderForExecutor({
     }
   };
 
-  const statusIcon = isExecutorAgreed ? "✓" : isExecutorDisagreed ? "!" : "…";
+  const statusIcon = isExecutorAgreed ? (
+    <IconCheck width={16} height={16} />
+  ) : isExecutorDisagreed ? (
+    <IconAlert width={16} height={16} />
+  ) : (
+    <IconClock width={16} height={16} />
+  );
   const statusIconClass = isExecutorAgreed
     ? "cancel-tab__status-icon--success"
     : isExecutorDisagreed

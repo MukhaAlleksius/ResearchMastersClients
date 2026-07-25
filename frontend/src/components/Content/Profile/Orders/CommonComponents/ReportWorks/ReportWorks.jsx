@@ -140,6 +140,27 @@ export default function ReportWorks({ order }) {
     );
   }
 
+  if (!loading && tableData.length === 0) {
+    return (
+      <div className="rw-report">
+        <header className="rw-report__header">
+          <div>
+            <h2 className="rw-report__title">График выполненных работ</h2>
+            <p className="rw-report__subtitle">
+              Отчёт исполнителя по объёмам и срокам работ
+            </p>
+          </div>
+        </header>
+        <div className="rw-report__empty rw-report__empty--notice">
+          <p className="rw-report__empty-title">График не велся</p>
+          <p className="rw-report__empty-text">
+            Исполнитель не вносил записи в график выполнения по этому заказу.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rw-report">
       <header className="rw-report__header">
@@ -153,40 +174,46 @@ export default function ReportWorks({ order }) {
         </div>
       </header>
 
-      <div className="rw-report__tabs">
-        <button
-          type="button"
-          className={`rw-report__tab ${reportTab === "table" ? "rw-report__tab--active" : ""}`}
-          onClick={() => setReportTab("table")}
-        >
-          Таблица
-        </button>
-        <button
-          type="button"
-          className={`rw-report__tab ${reportTab === "chart" ? "rw-report__tab--active" : ""}`}
-          onClick={() => setReportTab("chart")}
-        >
-          График
-        </button>
-      </div>
+      {loading ? (
+        <div className="rw-report__loading">Загрузка...</div>
+      ) : (
+        <>
+          <div className="rw-report__tabs">
+            <button
+              type="button"
+              className={`rw-report__tab ${reportTab === "table" ? "rw-report__tab--active" : ""}`}
+              onClick={() => setReportTab("table")}
+            >
+              Таблица
+            </button>
+            <button
+              type="button"
+              className={`rw-report__tab ${reportTab === "chart" ? "rw-report__tab--active" : ""}`}
+              onClick={() => setReportTab("chart")}
+            >
+              График
+            </button>
+          </div>
 
-      <div className="rw-report__body">
-        {reportTab === "table" ? (
-          <ReportTablePanel
-            tableData={tableData}
-            workOptions={workOptions}
-            currency={currency}
-            loading={loading}
-          />
-        ) : (
-          <WorkPeriodChart
-            workData={tableData}
-            workOptions={chartWorkOptions}
-            currency={currency}
-            loading={loading}
-          />
-        )}
-      </div>
+          <div className="rw-report__body">
+            {reportTab === "table" ? (
+              <ReportTablePanel
+                tableData={tableData}
+                workOptions={workOptions}
+                currency={currency}
+                loading={loading}
+              />
+            ) : (
+              <WorkPeriodChart
+                workData={tableData}
+                workOptions={chartWorkOptions}
+                currency={currency}
+                loading={loading}
+              />
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

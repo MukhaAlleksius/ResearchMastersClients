@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import CatalogPagination from "../../shared/CatalogPagination";
 import FiltersShell from "../../shared/FiltersShell";
 import { CATALOG_PAGE_SIZE, getCatalogPageFromSearch } from "../../../../utils/pagination";
+import { IconPin } from "../../Profile/ProfileIcons.jsx";
 import "../../shared/public_content_layout.css";
 import "./catalog_page.css";
 function Catalog() {
@@ -582,10 +583,11 @@ function ExecutorsGrid({ onTotalPagesChange }) {
                 </div>
               </div>
               <div className="executor-location">
-                <span className="executor-location__icon" aria-hidden="true">
-                  📍
+                <IconPin width={14} height={14} />
+                <span>
+                  {[executor.town, executor.region].filter(Boolean).join(", ") ||
+                    "Локация не указана"}
                 </span>
-                {executor.town}, {executor.region}
               </div>
               <div className="executor-rating">
                 <div className="stars" aria-hidden="true">

@@ -1,18 +1,6 @@
 import React from "react";
 import "../Services/services.css";
-
-const TAB_ICONS = {
-  completed: "✓",
-  inProgress: "◷",
-  awaiting: "⏱",
-  considerationCustomer: "◎",
-  offersCustomers: "✉",
-  myselfExecutor: "⚙",
-  graphicOrders: "▦",
-  researchExecutor: "⌕",
-  waitOfferExecutors: "✎",
-  all: "☰",
-};
+import { StatusFilterIcon } from "../ProfileIcons.jsx";
 
 const TAB_VARIANTS = {
   completed: "success",
@@ -49,7 +37,7 @@ export default function StatusFilterTabs({
         aria-pressed={isActive}
       >
         <span className="status-filter__icon" aria-hidden="true">
-          {TAB_ICONS[iconKey] || "•"}
+          <StatusFilterIcon name={iconKey} />
         </span>
         <span className="status-filter__text">
           <span className="status-filter__label">{label}</span>

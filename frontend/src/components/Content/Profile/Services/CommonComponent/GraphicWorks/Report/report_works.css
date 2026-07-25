@@ -638,6 +638,27 @@
   font-size: 0.9375rem;
 }
 
+.rw-report__empty--notice {
+  margin: 0 0 8px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+}
+
+.rw-report__empty-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.rw-report__empty-text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
 /* ChartWorks */
 .rw-chart-panel {
   color: var(--rw-text);

@@ -183,12 +183,12 @@ export default function Payment({ order, customerId, executorId, onSuccess }) {
 
   const getStatusBadge = (status) => {
     const styles = {
-      pending: { bg: "#fef3c7", color: "#92400e", text: "⏳ Ожидает оплаты" },
-      escrow: { bg: "#eff6ff", color: "#1e40af", text: "🛡️ В эскроу" },
-      released: { bg: "#ecfdf5", color: "#065f46", text: "✅ Переведено" },
-      paid: { bg: "#ecfdf5", color: "#065f46", text: "✅ Переведено" },
-      completed: { bg: "#ecfdf5", color: "#065f46", text: "✅ Завершено" },
-      failed: { bg: "#fef2f2", color: "#991b1b", text: "❌ Ошибка" },
+      pending: { bg: "#fef3c7", color: "#92400e", text: "Ожидает оплаты" },
+      escrow: { bg: "#eff6ff", color: "#1e40af", text: "В эскроу" },
+      released: { bg: "#ecfdf5", color: "#065f46", text: "Переведено" },
+      paid: { bg: "#ecfdf5", color: "#065f46", text: "Переведено" },
+      completed: { bg: "#ecfdf5", color: "#065f46", text: "Завершено" },
+      failed: { bg: "#fef2f2", color: "#991b1b", text: "Ошибка" },
     };
     const s = styles[status] || styles.pending;
     return (
@@ -468,8 +468,8 @@ export default function Payment({ order, customerId, executorId, onSuccess }) {
           }}
         >
           {isLoading
-            ? "⏳ Переводим..."
-            : `💰 Перевести исполнителю ${latestEscrowPayment?.executor_amount?.toLocaleString() || ""} ${order.currency}`}
+            ? "Переводим..."
+            : `Перевести исполнителю ${latestEscrowPayment?.executor_amount?.toLocaleString() || ""} ${order.currency}`}
         </button>
       )}
 
@@ -614,7 +614,7 @@ export default function Payment({ order, customerId, executorId, onSuccess }) {
             }}
           >
             {isLoading
-              ? "⏳ Обрабатываем..."
+              ? "Обрабатываем..."
               : `Оплатить ${paymentTotal.toLocaleString()} ${order.currency}`}
           </button>
         </div>
