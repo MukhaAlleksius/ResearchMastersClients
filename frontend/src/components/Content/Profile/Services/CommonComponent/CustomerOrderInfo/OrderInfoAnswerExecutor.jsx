@@ -3,6 +3,8 @@ import { API, apiFetch, buildApiUrl } from "../../../../../../utils/api.js";
 import ExecutorResponseDisplay from "./ExecutorResponseDisplay";
 import { OrderInfoEmpty, OrderDetailsGrid } from "./OrderInfoContent";
 import "./customer_order_info.css";
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 const budgetTypes = ["Фиксированная цена", "Почасовая оплата", "Договорная цена"];
 
 function OfferServiceIcon() {
@@ -273,7 +275,7 @@ export default function OrderInfoAnswerExecutor({
 
       setIsModalOpen(false);
 
-      alert("Предложение отправлено заказчику!");
+      await uiAlert("Предложение отправлено заказчику!");
     } catch (err) {
       console.error("Ошибка отправки:", err);
 
@@ -319,7 +321,7 @@ export default function OrderInfoAnswerExecutor({
 
       setIsModalOpen(false);
 
-      alert("Ответ обновлён!");
+      await uiAlert("Ответ обновлён!");
     } catch (err) {
       console.error("Ошибка обновления:", err);
 

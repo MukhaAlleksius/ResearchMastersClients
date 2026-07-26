@@ -72,7 +72,10 @@ export default function ProfileSettings() {
 
   const userProfileCustomizationData = {
     user_id: localStorage.getItem("user_id"),
-    avatar_url: avatarUrl,
+    // Relative path works behind Docker nginx /api; never store absolute host URLs.
+    avatar_url: localStorage.getItem("user_id")
+      ? `/avatar/${localStorage.getItem("user_id")}`
+      : null,
     bio: bio,
     short_review_master: shortReviewMaster,
     operating_mode: operatingMode,
@@ -334,12 +337,52 @@ export default function ProfileSettings() {
       const user_id = localStorage.getItem("user_id");
       if (!user_id) throw new Error("User ID не найден");
 
-      // Просто формируем URL, не пытаемся читать как JSON
-      const avatar_url = buildApiUrl(`/avatar/${user_id}?t=${new Date().getTime()}`);
-      setAvatarUrl(avatar_url);
+      const probe = await apiFetch(buildApiUrl(`/avatar/${user_id}`), {
+        method: "GET",
+      });
+      if (!probe.ok) {
+        setAvatarUrl("");
+        return;
+      }
+      setAvatarUrl(buildApiUrl(`/avatar/${user_id}?t=${Date.now()}`));
     } catch (error) {
       console.log("Ошибка: ", error);
+      setAvatarUrl("");
     }
+  };
+
+  const refreshAvatarPreview = (userId) => {
+    const id = userId || localStorage.getItem("user_id");
+    if (!id) return;
+    setAvatarUrl(buildApiUrl(`/avatar/${id}?t=${Date.now()}`));
+    setPreviewUrl("");
+    setSelectedPhoto(null);
+  };
+
+  const uploadAvatarFile = async (file) => {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await apiFetch(buildApiUrl("/upload_avatar"), {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      const message =
+        typeof detail.detail === "string"
+          ? detail.detail
+          : "Ошибка загрузки фото";
+      throw new Error(message);
+    }
+    return response.json().catch(() => null);
+  };
+
+  const uploadAvatar = async () => {
+    if (!selectedPhoto) return;
+    await uploadAvatarFile(selectedPhoto);
+    refreshAvatarPreview();
   };
 
   useEffect(() => {
@@ -356,9 +399,6 @@ export default function ProfileSettings() {
           value: common.country,
           label: common.country,
         });
-        // await fetchTownsRegion(
-        //   common.region.region_id || common.region.id || common.region
-        // );
       } else {
         setGeoCountry(null);
       }
@@ -368,9 +408,6 @@ export default function ProfileSettings() {
           value: common.region,
           label: common.region,
         });
-        // await fetchTownsRegion(
-        //   common.region.region_id || common.region.id || common.region
-        // );
       } else {
         setGeoRegion(null);
       }
@@ -406,15 +443,22 @@ export default function ProfileSettings() {
       await fetchUserPhotoAvatar();
     };
     loadData();
-    setPreviewUrl(""); // Сбрасываем preview, если есть
+    setPreviewUrl("");
   }, []);
 
-  // Обработчик выбора фото с местным предпросмотром
-  const handlePhotoChange = (event) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      setSelectedPhoto(file);
-      setPreviewUrl(URL.createObjectURL(file));
+  // Выбор фото: сразу грузим на сервер (удобно в Docker / без отдельного «Сохранить» только ради фото).
+  const handlePhotoChange = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    setSelectedPhoto(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    try {
+      await uploadAvatarFile(file);
+      refreshAvatarPreview();
+    } catch (error) {
+      console.error("Ошибка загрузки фото:", error);
+    } finally {
+      event.target.value = "";
     }
   };
 
@@ -461,74 +505,38 @@ export default function ProfileSettings() {
     }
   };
 
-  const handleAddUserCustomization = async (e, route, userData) => {
-    e.preventDefault();
-    try {
-      const response = await apiFetch(buildApiUrl(`/${route}`), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(userData),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Ошибка добавления заказа:", errorData);
-        throw new Error("Ошибка добавления заказа");
-      }
-      const data = await response.json();
-      alert("Заказ размещён!");
-      console.log(data);
-    } catch (error) {
-      console.error("Ошибка: ", error);
+  const handleAddUserCustomization = async (route, userData) => {
+    const response = await apiFetch(buildApiUrl(`/${route}`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(userData),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Ошибка сохранения профиля:", errorData);
+      throw new Error("Ошибка сохранения данных профиля");
     }
-  };
-
-  const uploadAvatar = async () => {
-    if (!selectedPhoto) return;
-    const formData = new FormData();
-    formData.append("file", selectedPhoto);
-    formData.append("user_id", localStorage.getItem("user_id")); // если нужно
-
-    try {
-      const response = await apiFetch(buildApiUrl("/upload_avatar"), {
-        method: "POST",
-        body: formData,
-        // Никаких заголовков Content-Type вручную
-      });
-      if (!response.ok) throw new Error("Ошибка загрузки фото");
-      const data = await response.json();
-      setAvatarUrl(data.avatar_url); // если в ответе новый URL
-      setPreviewUrl(URL.createObjectURL(selectedPhoto)); // исправлено, чтобы использовать selectedPhoto
-
-      alert("Фото успешно загружено!");
-    } catch (error) {
-      alert("Ошибка загрузки фото");
-      console.error(error);
-    }
+    return response.json().catch(() => null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await handleAddUserCustomization(
-        e,
         "add_user_common",
         userCommonCustomizationData,
       );
       await handleAddUserCustomization(
-        e,
         "add_user_business",
         userBusinessCustomizationData,
       );
       await handleAddUserCustomization(
-        e,
         "add_profile",
         userProfileCustomizationData,
       );
       await uploadAvatar();
-      alert("Данные успешно сохранены!");
     } catch (error) {
       console.error("Ошибка при сохранении:", error);
-      alert("Ошибка при сохранении данных.");
     }
   };
 
@@ -939,6 +947,10 @@ export default function ProfileSettings() {
                     src={avatarSrc}
                     alt="Фото профиля"
                     className="ps-avatar-preview"
+                    onError={() => {
+                      setAvatarUrl("");
+                      setPreviewUrl("");
+                    }}
                   />
                 ) : (
                   <div

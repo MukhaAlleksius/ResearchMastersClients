@@ -9,6 +9,8 @@ import { IconReply } from "../../../ProfileIcons.jsx";
 import "../../../Services/CommonComponent/CustomerOrderInfo/customer_order_info.css";
 import "./order_responses_executors.css";
 
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 const OrderResponsesExecutors = ({ order, onReject, onAcceptSuccess }) => {
   const [orderResponsesExecutors, setOrderResponsesExecutors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,7 +116,7 @@ const OrderResponsesExecutors = ({ order, onReject, onAcceptSuccess }) => {
       onAcceptSuccess?.(executorId);
     } catch (acceptError) {
       console.error("Ошибка принятия:", acceptError);
-      alert(acceptError.message || "Ошибка при принятии предложения");
+      await uiAlert(acceptError.message || "Ошибка при принятии предложения");
     } finally {
       setAcceptingId(null);
     }

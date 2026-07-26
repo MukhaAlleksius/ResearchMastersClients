@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./executor_registration_modal.css";
 
+import { uiAlert } from "../../UiDialog/uiDialog.js";
+
 export default function ExecutorModal({ isOpen, onClose }) {
   const [specialization, setSpecialization] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -10,7 +12,7 @@ export default function ExecutorModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     console.log({
@@ -20,7 +22,7 @@ export default function ExecutorModal({ isOpen, onClose }) {
       phone,
     });
 
-    alert("Заявка отправлена!");
+    await uiAlert("Заявка отправлена!");
 
     setSpecialization("");
     setFirstName("");

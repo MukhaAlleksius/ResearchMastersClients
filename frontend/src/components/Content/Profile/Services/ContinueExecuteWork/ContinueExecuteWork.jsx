@@ -9,6 +9,8 @@ import ExecutorCancelService from "../CommonComponent/ExecutorCancelService/Exec
 import GraphicWorks from "../CommonComponent/GraphicWorks/GraphicWorks";
 import OrderInfoWithMyResponse from "../CommonComponent/CustomerOrderInfo/OrderInfoWithMyResponse";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
+import { uiAlert } from "../../../../UiDialog/uiDialog.js";
+
 import {
   getWorkDetailTabs,
   useWorkDetailInitialTab,
@@ -123,8 +125,8 @@ export default function ContinueExecuteWorkServiceInfo({ orderId, onBack, userId
           order={currentOrder}
           executorId={executorId}
           status="pending_customer"
-          onCancelSuccess={() => {
-            alert("Заявка отправлена! Ожидайте решения заказчика.");
+          onCancelSuccess={async () => {
+            await uiAlert("Заявка отправлена! Ожидайте решения заказчика.");
           }}
           onCustomerCancelAgreed={onBack}
         />

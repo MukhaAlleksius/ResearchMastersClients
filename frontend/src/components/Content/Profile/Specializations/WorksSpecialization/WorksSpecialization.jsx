@@ -7,6 +7,8 @@ import {
 } from "../../../../../utils/currency";
 import { useNbrbRates } from "../../../../../hooks/useNbrbRates";
 import "../specializations.css";
+import { uiAlert } from "../../../../UiDialog/uiDialog.js";
+
 export default function WorksSpecialization({ category_work_id, currency = "BYN" }) {
 
   const [works, setWorks] = React.useState([]);
@@ -195,7 +197,7 @@ export default function WorksSpecialization({ category_work_id, currency = "BYN"
 
       console.error(error);
 
-      alert("Не удалось добавить работу");
+      await uiAlert("Не удалось добавить работу");
 
     }
 

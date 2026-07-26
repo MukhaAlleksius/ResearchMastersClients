@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { API, apiFetch, buildApiUrl } from "../../../../../../utils/api.js";
 import "./customer_estimate_works_materials.css";
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 export default function CustomerModalAddMaterials({
   workId,
   onClose,
@@ -74,7 +76,7 @@ export default function CustomerModalAddMaterials({
       !materialQuantity ||
       !materialCostForUnit
     ) {
-      alert("Пожалуйста, заполните все поля материала.");
+      await uiAlert("Пожалуйста, заполните все поля материала.");
       return;
     }
 
@@ -103,7 +105,7 @@ export default function CustomerModalAddMaterials({
       if (!response.ok) {
         const errorData = await response.text();
         console.error("❌ Сервер:", response.status, errorData);
-        alert(`Ошибка ${response.status}: ${errorData}`);
+        await uiAlert(`Ошибка ${response.status}: ${errorData}`);
         return;
       }
 
@@ -134,7 +136,7 @@ export default function CustomerModalAddMaterials({
       setSearchText("");
     } catch (error) {
       console.error("Ошибка сети:", error);
-      alert("Ошибка соединения с сервером");
+      await uiAlert("Ошибка соединения с сервером");
     }
   };
 

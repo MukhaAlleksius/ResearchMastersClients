@@ -9,6 +9,8 @@ import OrderInfoWithMyResponse from "../CommonComponent/CustomerOrderInfo/OrderI
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
 import StartWorkModal from "./StartWorkModal";
 import "./WaitExecuteWork.css";
+import { uiAlert } from "../../../../UiDialog/uiDialog.js";
+
 import {
   getWorkDetailTabs,
   useWorkDetailInitialTab,
@@ -212,8 +214,8 @@ export default function WaitExecuteWorkServiceInfo({
             executorId={userId}
             status="pending_customer"
             allowExecutorDecision={false}
-            onCancelSuccess={() => {
-              alert("Заявка отправлена! Ожидайте решения заказчика.");
+            onCancelSuccess={async () => {
+              await uiAlert("Заявка отправлена! Ожидайте решения заказчика.");
             }}
             onCustomerCancelAgreed={onBack}
           />

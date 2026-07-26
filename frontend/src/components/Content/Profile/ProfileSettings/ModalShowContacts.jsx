@@ -34,7 +34,6 @@ export default function ModalShowContacts({ onClose }) {
       await fetchUserContacts();
     } catch (error) {
       console.error("Ошибка: ", error);
-      alert("Не удалось удалить контакт");
     }
   };
 

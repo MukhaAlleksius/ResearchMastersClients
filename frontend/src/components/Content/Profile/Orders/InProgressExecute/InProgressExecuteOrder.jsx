@@ -11,6 +11,8 @@ import ExecutorInfo from "../CommonComponents/CustomerOrderInfo/ExecutorInfo";
 import OrderInfoWithExecutorResponse from "../../Services/CommonComponent/CustomerOrderInfo/OrderInfoWithExecutorResponse";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
 import CompleteOrderModal from "./CompleteOrderModal";
+import { uiAlert } from "../../../../UiDialog/uiDialog.js";
+
 import {
   getWorkDetailTabs,
   useWorkDetailInitialTab,
@@ -336,8 +338,8 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
             order={currentOrder}
             executorId={resolvedExecutorId}
             status="pending_executor"
-            onCancelSuccess={() => {
-              alert("Заявка отправлена! Ожидайте решения исполнителя.");
+            onCancelSuccess={async () => {
+              await uiAlert("Заявка отправлена! Ожидайте решения исполнителя.");
             }}
             onCancelResolved={onOrderStatusChanged}
           />

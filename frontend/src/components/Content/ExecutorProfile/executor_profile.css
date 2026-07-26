@@ -916,6 +916,65 @@
   color: var(--ep-text);
 }
 
+.ep-price-modal__tab-label {
+  margin: 0 0 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ep-muted);
+}
+
+.ep-spec-summary {
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--ep-border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.ep-spec-summary__desc {
+  margin: 0 0 14px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ep-text);
+  white-space: pre-wrap;
+}
+
+.ep-spec-summary__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ep-spec-summary__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--ep-border);
+}
+
+.ep-spec-summary__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ep-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.ep-spec-summary__value {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ep-text);
+}
+
+@media (max-width: 520px) {
+  .ep-spec-summary__meta {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ep-price-tabs {
   display: flex;
   flex-wrap: wrap;

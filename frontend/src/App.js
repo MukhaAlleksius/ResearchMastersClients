@@ -56,6 +56,7 @@ import UserProfileAdmin from "./components/Content/Admin/ManageUsers/Users/UserP
 import UserServiceProfileAdmin from "./components/Content/Admin/ManageUsers/Users/UserProfileAdmin/UserServicesProfileAdmin/UserServiceProfileAdmin/UserServiceProfileAdmin.jsx";
 import UserServicesProfileAdmin from "./components/Content/Admin/ManageUsers/Users/UserProfileAdmin/UserServicesProfileAdmin/UserServicesProfileAdmin.jsx";
 import WaitExecuteWorkServiceInfo from "./components/Content/Profile/Services/WaitExecuteWork/WaitExecuteWork.jsx";
+import UiDialogProvider from "./components/UiDialog/UiDialogProvider.jsx";
 import "./index.css";
 function App() {
   const [modal, setModal] = useState(null); // null или "executorModal", "registerModal", "loginModal"
@@ -109,6 +110,7 @@ function App() {
   }, [navigate]);
 
   return (
+    <UiDialogProvider>
     <div>
       {isLoggedIn ? (
         <>
@@ -317,6 +319,7 @@ function App() {
         </>
       )}
     </div>
+    </UiDialogProvider>
   );
 }
 

@@ -85,14 +85,6 @@ export default function ModalShowGeography({ onClose }) {
       console.error("town_id не найден для города", town);
       return;
     }
-    if (
-      !window.confirm(
-        `Удалить город ${town.name_town || town} в регионе ${regionKey}?`,
-      )
-    ) {
-      return;
-    }
-
     try {
       const response = await apiFetch(
         `${API.baseURL}/delete_town_geography_execute_orders?town_id=${townId}`,

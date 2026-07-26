@@ -3,6 +3,8 @@ import { API, apiFetch, buildApiUrl, readApiError } from "../../../../../utils/a
 import "../portfolio.css";
 import "./portfolio_information.css";
 
+import { uiAlert } from "../../../../UiDialog/uiDialog.js";
+
 function resolveImageUrl(path) {
   if (!path) return null;
   return path.startsWith("http") ? path : `${API.baseURL}${path}`;
@@ -61,7 +63,7 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
 
   const handleSaveImages = async () => {
     if (selectedFiles.length === 0) {
-      alert("Нет файлов для сохранения");
+      await uiAlert("Нет файлов для сохранения");
       return;
     }
 
@@ -91,7 +93,7 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
           `Ошибка сервера (${response.status})`,
         );
         console.error("Server error:", response.status, errorText);
-        alert(errorText);
+        await uiAlert(errorText);
         return;
       }
 
@@ -106,11 +108,11 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
         setSelectedFiles([]);
         onImagesChanged?.();
       } else {
-        alert("Ошибка сохранения файлов");
+        await uiAlert("Ошибка сохранения файлов");
       }
     } catch (error) {
       console.error("Fetch error:", error);
-      alert("Ошибка при сохранении: " + error.message);
+      await uiAlert("Ошибка при сохранении: " + error.message);
     } finally {
       setUploading(false);
     }
@@ -118,7 +120,7 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
 
   const handleDeleteSelectedOnServer = async () => {
     if (selectedForDelete.size === 0) {
-      alert("Нет выбранных для удаления изображений");
+      await uiAlert("Нет выбранных для удаления изображений");
       return;
     }
 
@@ -142,7 +144,7 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
         if (!response.ok) {
           const detail = await readApiError(response, `Ошибка удаления (${response.status})`);
           console.error(`Ошибка удаления файла ${filename}:`, detail);
-          alert(`Не удалось удалить файл: ${detail}`);
+          await uiAlert(`Не удалось удалить файл: ${detail}`);
           return;
         }
       }
@@ -150,10 +152,10 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
       setImages((prev) => prev.filter((img) => !selectedForDelete.has(img)));
       setSelectedForDelete(new Set());
       onImagesChanged?.();
-      alert("Выбранные фотографии удалены");
+      await uiAlert("Выбранные фотографии удалены");
     } catch (error) {
       console.error("Ошибка при удалении:", error);
-      alert("Ошибка при удалении: " + error.message);
+      await uiAlert("Ошибка при удалении: " + error.message);
     }
   };
 

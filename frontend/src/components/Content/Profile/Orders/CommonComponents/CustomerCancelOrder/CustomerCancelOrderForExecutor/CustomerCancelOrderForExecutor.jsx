@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { API, apiFetch } from "../../../../../../../utils/api.js";
 import { IconCheck, IconAlert, IconClock } from "../../../../ProfileIcons.jsx";
 import "../cancel_order.css";
+import { uiConfirm } from "../../../../../../UiDialog/uiDialog.js";
+
 const CUSTOMER_CANCEL_REASON_OPTIONS = [
   { value: "слишком_дорого", label: "Слишком дорого" },
   { value: "слишком_долго", label: "Слишком долгий срок" },
@@ -48,9 +50,9 @@ export default function CustomerCancelOrderForExecutor({
   const handleWithdrawCancel = async () => {
     if (!order?.id || !customerCancel) return;
     if (
-      !window.confirm(
+      !(await uiConfirm(
         "Отменить заявку на отказ? Заказ продолжит выполняться в обычном режиме.",
-      )
+      ))
     ) {
       return;
     }

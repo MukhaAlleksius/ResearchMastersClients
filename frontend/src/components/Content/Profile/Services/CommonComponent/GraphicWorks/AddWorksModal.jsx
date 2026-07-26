@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from "react";
 import { API, apiFetch } from "../../../../../../utils/api.js";
 import CreatableSelect from "react-select/creatable";
+import { uiAlert, uiConfirm } from "../../../../../UiDialog/uiDialog.js";
+
 const selectStyles = {
   control: (base, state) => ({
     ...base,
@@ -133,11 +135,11 @@ export default function AddWorksModal({
     e.preventDefault();
   };
 
-  const parsePositiveNumber = (value, label) => {
+  const parsePositiveNumber = async (value, label) => {
     const normalized = String(value || "").replace(",", ".");
     const parsed = parseFloat(normalized);
     if (isNaN(parsed) || parsed < 0) {
-      alert(`Введите корректную ${label}`);
+      await uiAlert(`Введите корректную ${label}`);
       return null;
     }
     return Number(parsed.toFixed(2));
@@ -155,13 +157,13 @@ export default function AddWorksModal({
 
   const addWork = useCallback(async () => {
     if (!selectedWorkOption?.label || !quantity || !selectedDate) {
-      alert("Выберите работу, дату и укажите количество");
+      await uiAlert("Выберите работу, дату и укажите количество");
       return;
     }
-    const qty = parsePositiveNumber(quantity, "положительное количество");
+    const qty = await parsePositiveNumber(quantity, "положительное количество");
     if (qty == null || qty <= 0) return;
 
-    const cost = parsePositiveNumber(costPerUnit, "стоимость за единицу");
+    const cost = await parsePositiveNumber(costPerUnit, "стоимость за единицу");
     if (cost == null) return;
 
     setLoading(true);
@@ -183,7 +185,7 @@ export default function AddWorksModal({
       resetEdit();
     } catch (error) {
       console.error(error);
-      alert("Не удалось добавить работу");
+      await uiAlert("Не удалось добавить работу");
     } finally {
       setLoading(false);
     }
@@ -205,10 +207,10 @@ export default function AddWorksModal({
   const updateWork = useCallback(async () => {
     if (!editingWorkId || !selectedWorkOption?.label || !quantity) return;
 
-    const qty = parsePositiveNumber(quantity, "положительное количество");
+    const qty = await parsePositiveNumber(quantity, "положительное количество");
     if (qty == null || qty <= 0) return;
 
-    const cost = parsePositiveNumber(costPerUnit, "стоимость за единицу");
+    const cost = await parsePositiveNumber(costPerUnit, "стоимость за единицу");
     if (cost == null) return;
 
     try {
@@ -234,7 +236,7 @@ export default function AddWorksModal({
       resetEdit();
     } catch (e) {
       console.error(e);
-      alert("Не удалось обновить работу");
+      await uiAlert("Не удалось обновить работу");
     } finally {
       setSaving(false);
     }
@@ -254,7 +256,7 @@ export default function AddWorksModal({
 
   const deleteWork = useCallback(
     async (workId) => {
-      if (!workId || !window.confirm("Удалить эту работу?")) return;
+      if (!workId || !(await uiConfirm("Удалить эту работу?"))) return;
       try {
         setSaving(true);
         await apiFetch(
@@ -265,7 +267,7 @@ export default function AddWorksModal({
         resetEdit();
       } catch (e) {
         console.error(e);
-        alert("Не удалось удалить работу");
+        await uiAlert("Не удалось удалить работу");
       } finally {
         setSaving(false);
       }

@@ -9,6 +9,8 @@ import {
 } from "../../../../../utils/currency";
 import { useNbrbRates } from "../../../../../hooks/useNbrbRates";
 import "../specializations.css";
+import { uiAlert, uiConfirm } from "../../../../UiDialog/uiDialog.js";
+
 const unitOptions = ["шт", "м", "м²", "м³", "кг", "т"];
 
 
@@ -251,7 +253,7 @@ export default function MyWorks({ category_work_id, currency = "BYN" }) {
 
     if (!newWork.title.trim() || !newWork.price.toString().trim()) {
 
-      alert("Укажите название и цену");
+      await uiAlert("Укажите название и цену");
 
       return;
 
@@ -293,7 +295,7 @@ export default function MyWorks({ category_work_id, currency = "BYN" }) {
 
     if (!response.ok) {
 
-      alert("Ошибка при добавлении");
+      await uiAlert("Ошибка при добавлении");
 
       return;
 
@@ -403,7 +405,7 @@ export default function MyWorks({ category_work_id, currency = "BYN" }) {
 
     } catch {
 
-      alert("Не удалось сохранить");
+      await uiAlert("Не удалось сохранить");
 
     }
 
@@ -469,7 +471,7 @@ export default function MyWorks({ category_work_id, currency = "BYN" }) {
 
     } catch {
 
-      alert("Не удалось сохранить");
+      await uiAlert("Не удалось сохранить");
 
     }
 
@@ -479,7 +481,7 @@ export default function MyWorks({ category_work_id, currency = "BYN" }) {
 
   const handleDeleteWorkFromAdmin = async (id) => {
 
-    if (!window.confirm("Удалить эту работу?")) return;
+    if (!(await uiConfirm("Удалить эту работу?"))) return;
 
     const response = await apiFetch(
 
@@ -497,7 +499,7 @@ export default function MyWorks({ category_work_id, currency = "BYN" }) {
 
   const handleDeleteWorkMyself = async (id) => {
 
-    if (!window.confirm("Удалить эту работу?")) return;
+    if (!(await uiConfirm("Удалить эту работу?"))) return;
 
     const response = await apiFetch(
 

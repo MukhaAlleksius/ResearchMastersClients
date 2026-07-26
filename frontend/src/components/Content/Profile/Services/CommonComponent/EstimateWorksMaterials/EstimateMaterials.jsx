@@ -10,6 +10,8 @@ import {
 } from "../../../../../../utils/estimateStorage.js";
 import "./estimate_works_materials.css";
 
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 export default function ModalAddMaterials({
   workId,
   userId,
@@ -74,7 +76,7 @@ export default function ModalAddMaterials({
       !materialQuantity ||
       !materialCostForUnit
     ) {
-      alert("Пожалуйста, заполните все поля материала.");
+      await uiAlert("Пожалуйста, заполните все поля материала.");
       return;
     }
 
@@ -102,7 +104,7 @@ export default function ModalAddMaterials({
 
       if (!response.ok) {
         const errorData = await response.text();
-        alert(`Ошибка ${response.status}: ${errorData}`);
+        await uiAlert(`Ошибка ${response.status}: ${errorData}`);
         return;
       }
 
@@ -127,7 +129,7 @@ export default function ModalAddMaterials({
       setMaterialCostForUnit("");
     } catch (error) {
       console.error("Ошибка сети:", error);
-      alert("Ошибка соединения с сервером");
+      await uiAlert("Ошибка соединения с сервером");
     }
   };
 
@@ -152,7 +154,7 @@ export default function ModalAddMaterials({
       !editingMaterialData.materialQuantity ||
       !editingMaterialData.materialPricePerUnit
     ) {
-      alert("Заполните все поля!");
+      await uiAlert("Заполните все поля!");
       return;
     }
 
@@ -170,7 +172,7 @@ export default function ModalAddMaterials({
       );
 
       if (!res.ok) {
-        alert(`Ошибка ${res.status}`);
+        await uiAlert(`Ошибка ${res.status}`);
         return;
       }
 
@@ -186,7 +188,7 @@ export default function ModalAddMaterials({
       cancelEditMaterial();
     } catch (error) {
       console.error("Ошибка сети:", error);
-      alert("Ошибка соединения с сервером");
+      await uiAlert("Ошибка соединения с сервером");
     }
   };
 

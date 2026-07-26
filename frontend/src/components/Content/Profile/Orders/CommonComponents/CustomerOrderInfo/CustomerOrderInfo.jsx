@@ -8,6 +8,8 @@ import DeadlineField, {
   isValidDeadline,
 } from "../../../../Common/DeadlineField.jsx";
 import "../AddOrder/add_order_for_draft.css";
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 const ORDER_STATUS = {
   DRAFT: "Не предложенные исполнителям",
   SEARCH: "В поиске исполнителя",
@@ -467,7 +469,7 @@ function CustomerOrderEditForm({
     setFormError("");
     try {
       await persistOrder(nextStatus);
-      alert(successMessage);
+      await uiAlert(successMessage);
     } catch (error) {
       console.error(error);
       setFormError(error.message || "Не удалось выполнить действие");

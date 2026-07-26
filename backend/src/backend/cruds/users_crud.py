@@ -213,10 +213,14 @@ async def add_profile_user(db: AsyncSession, user_profile: UserProfileSchema):
             return existing_user_profile
 
         # Иначе обновляем профиль
-        existing_user_profile.avatar_url = user_profile.avatar_url
-        existing_user_profile.bio = user_profile.bio
-        existing_user_profile.short_review_master = user_profile.short_review_master
-        existing_user_profile.operating_mode = user_profile.operating_mode
+        if user_profile.avatar_url is not None:
+            existing_user_profile.avatar_url = user_profile.avatar_url
+        if user_profile.bio is not None:
+            existing_user_profile.bio = user_profile.bio
+        if user_profile.short_review_master is not None:
+            existing_user_profile.short_review_master = user_profile.short_review_master
+        if user_profile.operating_mode is not None:
+            existing_user_profile.operating_mode = user_profile.operating_mode
 
         await db.commit()
         await db.refresh(existing_user_profile)

@@ -13,6 +13,8 @@ import {
 import { OrderDeleteFooterActions } from "../CommonComponents/DeleteOrder/DeleteOrderButton";
 import ExecutorInfo from "../CommonComponents/CustomerOrderInfo/ExecutorInfo";
 
+import { uiAlert } from "../../../../UiDialog/uiDialog.js";
+
 const FALLBACK_ORDER = {
   id: 123,
   title: "Покраска стен в комнате",
@@ -230,8 +232,8 @@ export default function WaitExecuteOrder({
           order={currentOrder}
           executorId={resolvedExecutorId}
           status="pending_executor"
-          onCancelSuccess={() => {
-            alert("Заявка отправлена! Ожидайте решения исполнителя.");
+          onCancelSuccess={async () => {
+            await uiAlert("Заявка отправлена! Ожидайте решения исполнителя.");
           }}
           onCancelResolved={onOrderStatusChanged}
         />

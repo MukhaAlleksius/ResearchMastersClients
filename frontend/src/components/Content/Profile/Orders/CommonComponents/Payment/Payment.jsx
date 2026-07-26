@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { API, apiFetch } from "../../../../../../utils/api.js";
+import { uiAlert, uiConfirm } from "../../../../../UiDialog/uiDialog.js";
+
 const HELD_STATUSES = new Set(["escrow", "released", "paid", "completed"]);
 const RELEASED_STATUSES = new Set(["released", "paid", "completed"]);
 /** Как в prod WebPay: redirect на шлюз. Локально — mock_web_pay.py на :8001 */
@@ -61,11 +63,11 @@ export default function Payment({ order, customerId, executorId, onSuccess }) {
 
   const submitPayment = async (paymentMethod) => {
     if (paymentExecutorAmount <= 0) {
-      alert("Введите сумму для оплаты");
+      await uiAlert("Введите сумму для оплаты");
       return;
     }
     if (paymentExecutorAmount > remainingExecutorAmount + 0.001) {
-      alert("Сумма превышает остаток по бюджету заказа");
+      await uiAlert("Сумма превышает остаток по бюджету заказа");
       return;
     }
 
@@ -93,7 +95,7 @@ export default function Payment({ order, customerId, executorId, onSuccess }) {
         const detail = Array.isArray(data.detail)
           ? data.detail.map((item) => item.msg || item).join(", ")
           : data.detail;
-        alert(detail || "Не удалось создать платёж");
+        await uiAlert(detail || "Не удалось создать платёж");
         return;
       }
 
@@ -101,7 +103,7 @@ export default function Payment({ order, customerId, executorId, onSuccess }) {
         await fetchPayments();
         onSuccess?.(data);
         setCustomAmount("");
-        alert(
+        await uiAlert(
           `Тестовая оплата: ${data.amount} ${data.currency} заморожено в эскроу.`,
         );
         return;
@@ -116,18 +118,18 @@ export default function Payment({ order, customerId, executorId, onSuccess }) {
         await fetchPayments();
         onSuccess?.(data);
         setCustomAmount("");
-        alert(
+        await uiAlert(
           `Оплата прошла. ${data.amount} ${data.currency} заморожено в эскроу.`,
         );
         return;
       }
 
       await fetchPayments();
-      alert(
+      await uiAlert(
         "Платёж создан и ожидает подтверждения. Нажмите «Обновить» после оплаты на странице шлюза.",
       );
     } catch (error) {
-      alert(error.message || "Ошибка сети. Войдите в аккаунт и повторите.");
+      await uiAlert(error.message || "Ошибка сети. Войдите в аккаунт и повторите.");
     } finally {
       setIsLoading(false);
     }
@@ -137,11 +139,11 @@ export default function Payment({ order, customerId, executorId, onSuccess }) {
 
   const handleReleasePayment = async () => {
     if (!latestEscrowPayment) {
-      alert("Нет активного эскроу для перевода");
+      await uiAlert("Нет активного эскроу для перевода");
       return;
     }
 
-    const agreed = window.confirm(
+    const agreed = await uiConfirm(
       `Перевести ${latestEscrowPayment.executor_amount} ${
         latestEscrowPayment.currency || order.currency
       } исполнителю?`,
@@ -159,12 +161,12 @@ export default function Payment({ order, customerId, executorId, onSuccess }) {
       if (response.ok) {
         await fetchPayments();
         onSuccess?.(payment);
-        alert("Деньги переведены исполнителю");
+        await uiAlert("Деньги переведены исполнителю");
       } else {
-        alert(payment.detail || "Ошибка перевода");
+        await uiAlert(payment.detail || "Ошибка перевода");
       }
     } catch (error) {
-      alert(error.message || "Ошибка сети");
+      await uiAlert(error.message || "Ошибка сети");
     } finally {
       setIsLoading(false);
     }

@@ -5,10 +5,13 @@ import {
   FaCity,
   FaSearch,
   FaPen,
+  FaTrash,
   FaMap,
 } from "react-icons/fa";
-import { API, apiFetch } from "../../../../utils/api.js";
+import { API, apiFetch, readApiError } from "../../../../utils/api.js";
 import "./geography.css";
+
+import { uiConfirm } from "../../../UiDialog/uiDialog.js";
 
 function useFlashMessage(timeout = 3500) {
   const [message, setMessage] = useState({ type: "", text: "" });
@@ -280,6 +283,107 @@ export default function AdminCountriesRegionsTowns() {
     }
   };
 
+  const deleteCountryItem = async (country, e) => {
+    e.stopPropagation();
+    if (
+      !(await uiConfirm(
+        `Удалить страну «${country.name_country}»?\nУдаление возможно только если нет регионов и страна нигде не используется (регистрация, профили, заказы).`,
+      ))
+    ) {
+      return;
+    }
+    try {
+      setSaving(true);
+      const res = await apiFetch(
+        `${API.baseURL}/delete_country/${country.country_id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        throw new Error(
+          (await readApiError(res)) || "Не удалось удалить страну",
+        );
+      }
+      if (selectedCountryId === country.country_id) {
+        setSelectedCountryId(null);
+        setSelectedRegionId(null);
+        setTowns([]);
+        resetRegionForm();
+        resetTownForm();
+      }
+      if (editCountryId === country.country_id) resetCountryForm();
+      await fetchCountries();
+      showFlash("success", "Страна удалена");
+    } catch (err) {
+      showFlash("error", err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteRegionItem = async (region, e) => {
+    e.stopPropagation();
+    if (
+      !(await uiConfirm(
+        `Удалить регион «${region.name_region}»?\nУдаление возможно только если нет городов и регион нигде не используется (регистрация, профили, заказы).`,
+      ))
+    ) {
+      return;
+    }
+    try {
+      setSaving(true);
+      const res = await apiFetch(
+        `${API.baseURL}/delete_region/${region.region_id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        throw new Error(
+          (await readApiError(res)) || "Не удалось удалить регион",
+        );
+      }
+      if (selectedRegionId === region.region_id) {
+        setSelectedRegionId(null);
+        setTowns([]);
+        resetTownForm();
+      }
+      if (editRegionId === region.region_id) resetRegionForm();
+      if (selectedCountryId) await fetchRegions(selectedCountryId);
+      showFlash("success", "Регион удалён");
+    } catch (err) {
+      showFlash("error", err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteTownItem = async (town) => {
+    if (
+      !(await uiConfirm(
+        `Удалить город «${town.name_town}»?\nУдаление возможно только если город нигде не используется (регистрация, профили, заказы, география исполнителей).`,
+      ))
+    ) {
+      return;
+    }
+    try {
+      setSaving(true);
+      const res = await apiFetch(
+        `${API.baseURL}/delete_town/${town.town_id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        throw new Error(
+          (await readApiError(res)) || "Не удалось удалить город",
+        );
+      }
+      if (editTownId === town.town_id) resetTownForm();
+      if (selectedRegionId) await fetchTowns(selectedRegionId);
+      showFlash("success", "Город удалён");
+    } catch (err) {
+      showFlash("error", err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const filteredCountries = useMemo(() => {
     const q = searchCountry.trim().toLowerCase();
     if (!q) return countries;
@@ -469,6 +573,15 @@ export default function AdminCountriesRegionsTowns() {
                     >
                       <FaPen />
                     </button>
+                    <button
+                      type="button"
+                      className="geo-item__delete"
+                      title="Удалить"
+                      disabled={saving}
+                      onClick={(e) => deleteCountryItem(c, e)}
+                    >
+                      <FaTrash />
+                    </button>
                   </div>
                 </button>
               ))
@@ -584,6 +697,15 @@ export default function AdminCountriesRegionsTowns() {
                         >
                           <FaPen />
                         </button>
+                        <button
+                          type="button"
+                          className="geo-item__delete"
+                          title="Удалить"
+                          disabled={saving}
+                          onClick={(e) => deleteRegionItem(r, e)}
+                        >
+                          <FaTrash />
+                        </button>
                       </div>
                     </button>
                   ))
@@ -698,6 +820,15 @@ export default function AdminCountriesRegionsTowns() {
                           onClick={() => startEditTown(t)}
                         >
                           <FaPen />
+                        </button>
+                        <button
+                          type="button"
+                          className="geo-item__delete"
+                          title="Удалить"
+                          disabled={saving}
+                          onClick={() => deleteTownItem(t)}
+                        >
+                          <FaTrash />
                         </button>
                       </div>
                     </div>

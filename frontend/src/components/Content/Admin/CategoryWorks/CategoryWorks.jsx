@@ -18,6 +18,8 @@ import {
 import { MdWork } from "react-icons/md";
 import "./category_works.css";
 
+import { uiConfirm } from "../../../UiDialog/uiDialog.js";
+
 const iconOptions = [
   { name: "Программист", icon: <FaLaptopCode /> },
   { name: "Художник", icon: <FaPaintBrush /> },
@@ -283,7 +285,7 @@ export default function AdminCategoriesAndWorks() {
 
   const deleteCategory = async (id, e) => {
     e.stopPropagation();
-    if (!window.confirm("Удалить категорию? Все работы тоже будут удалены.")) return;
+    if (!(await uiConfirm("Удалить категорию? Все работы тоже будут удалены."))) return;
     try {
       await apiFetch(`${API.baseURL}/delete_category_work/${id}`, { method: "DELETE" });
       setCategories((prev) => prev.filter((cat) => cat.id !== id));
@@ -369,7 +371,7 @@ export default function AdminCategoriesAndWorks() {
   };
 
   const deleteWork = async (id) => {
-    if (!window.confirm("Удалить работу?")) return;
+    if (!(await uiConfirm("Удалить работу?"))) return;
     try {
       await apiFetch(`${API.baseURL}/delete_work/${id}`, { method: "DELETE" });
       setWorks((prev) => prev.filter((w) => w.id !== id));

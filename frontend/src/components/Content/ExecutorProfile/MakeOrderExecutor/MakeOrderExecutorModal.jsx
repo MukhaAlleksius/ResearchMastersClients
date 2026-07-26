@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { API, apiFetch, ensureStoredUserId, formatApiDetail } from "../../../../utils/api.js";
 import "./make_order_executor_modal.css";
+import { uiAlert } from "../../../UiDialog/uiDialog.js";
+
 async function readErrorMessage(response, fallback) {
   try {
     const data = await response.json();
@@ -50,7 +52,7 @@ export default function MakeOrderExecutorModal({
     try {
       const customerId = await ensureStoredUserId();
       if (!customerId) {
-        alert("Не удалось определить пользователя. Войдите в аккаунт снова.");
+        await uiAlert("Не удалось определить пользователя. Войдите в аккаунт снова.");
         return;
       }
 
@@ -82,7 +84,7 @@ export default function MakeOrderExecutorModal({
         );
 
         if (!customerResponse.ok) {
-          alert(
+          await uiAlert(
             await readErrorMessage(
               customerResponse,
               "Не удалось обновить статус заказа",
@@ -92,7 +94,7 @@ export default function MakeOrderExecutorModal({
         }
 
         if (!executorResponse.ok) {
-          alert(
+          await uiAlert(
             await readErrorMessage(
               executorResponse,
               "Не удалось предложить заказ мастеру",
@@ -104,7 +106,7 @@ export default function MakeOrderExecutorModal({
       closeOrderModal();
     } catch (error) {
       console.log("Ошибка добавления данных", error);
-      alert(error.message || "Не удалось предложить заказ мастеру");
+      await uiAlert(error.message || "Не удалось предложить заказ мастеру");
     }
   };
 

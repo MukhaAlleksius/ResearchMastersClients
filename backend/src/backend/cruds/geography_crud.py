@@ -1,9 +1,10 @@
 import logging
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import and_, delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.geography_models import Country, Region, Town
+from models.users_models import GeographyExecuteOrder, User
 from schemas.geography_schemas import (
     CountrySchema,
     RegionReadSchema,
@@ -13,6 +14,14 @@ from schemas.geography_schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _block_delete(reasons: list[str]) -> None:
+    if reasons:
+        raise HTTPException(
+            status_code=400,
+            detail="Нельзя удалить: " + "; ".join(reasons),
+        )
 
 
 async def add_country(db: AsyncSession, country_schema: CountrySchema):
@@ -45,9 +54,66 @@ async def edit_country(db: AsyncSession, country_schema: CountrySchema):
         await db.commit()
         await db.refresh(country)
         return country
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"edit_country error: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
+
+
+async def delete_country(db: AsyncSession, country_id: int) -> None:
+    result = await db.execute(select(Country).where(Country.id == country_id))
+    country = result.scalar_one_or_none()
+    if not country:
+        raise HTTPException(status_code=404, detail="Страна не найдена")
+
+    name = country.name_country
+    reasons: list[str] = []
+
+    regions_count = await db.scalar(
+        select(func.count()).select_from(Region).where(Region.country_id == country_id)
+    )
+    if regions_count:
+        reasons.append(f"сначала удалите регионы ({regions_count})")
+
+    users_count = await db.scalar(
+        select(func.count())
+        .select_from(User)
+        .where(
+            or_(
+                User.country == name,
+                User.country == str(country_id),
+            )
+        )
+    )
+    if users_count:
+        reasons.append(f"используется у пользователей ({users_count})")
+
+    orders_result = await db.execute(
+        text(
+            "SELECT COUNT(*) FROM orders "
+            "WHERE country = :name OR country = :id_str"
+        ),
+        {"name": name, "id_str": str(country_id)},
+    )
+    orders_count = orders_result.scalar_one()
+    if orders_count:
+        reasons.append(f"используется в заказах ({orders_count})")
+
+    geo_count = await db.scalar(
+        select(func.count())
+        .select_from(GeographyExecuteOrder)
+        .join(Town, GeographyExecuteOrder.town_id == Town.id)
+        .join(Region, Town.region_id == Region.id)
+        .where(Region.country_id == country_id)
+    )
+    if geo_count:
+        reasons.append(f"есть в географии исполнителей ({geo_count})")
+
+    _block_delete(reasons)
+
+    await db.execute(delete(Country).where(Country.id == country_id))
+    await db.commit()
 
 
 async def get_countries(db: AsyncSession) -> list[CountrySchema]:
@@ -101,9 +167,79 @@ async def edit_region_for_country(db: AsyncSession, region_schema: RegionSchema)
         await db.commit()
         await db.refresh(region)
         return region
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"edit_region_for_country error: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
+
+
+async def delete_region(db: AsyncSession, region_id: int) -> None:
+    result = await db.execute(
+        select(Region, Country.name_country)
+        .join(Country, Region.country_id == Country.id)
+        .where(Region.id == region_id)
+    )
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Регион не найден")
+
+    region, country_name = row
+    name = region.name_region
+    reasons: list[str] = []
+
+    towns_count = await db.scalar(
+        select(func.count()).select_from(Town).where(Town.region_id == region_id)
+    )
+    if towns_count:
+        reasons.append(f"сначала удалите города ({towns_count})")
+
+    users_count = await db.scalar(
+        select(func.count())
+        .select_from(User)
+        .where(
+            and_(
+                or_(User.region == name, User.region == str(region_id)),
+                or_(
+                    User.country == country_name,
+                    User.country == str(region.country_id),
+                ),
+            )
+        )
+    )
+    if users_count:
+        reasons.append(f"используется у пользователей ({users_count})")
+
+    orders_result = await db.execute(
+        text(
+            "SELECT COUNT(*) FROM orders "
+            "WHERE (region = :name OR region = :id_str) "
+            "AND (country = :country_name OR country = :country_id_str)"
+        ),
+        {
+            "name": name,
+            "id_str": str(region_id),
+            "country_name": country_name,
+            "country_id_str": str(region.country_id),
+        },
+    )
+    orders_count = orders_result.scalar_one()
+    if orders_count:
+        reasons.append(f"используется в заказах ({orders_count})")
+
+    geo_count = await db.scalar(
+        select(func.count())
+        .select_from(GeographyExecuteOrder)
+        .join(Town, GeographyExecuteOrder.town_id == Town.id)
+        .where(Town.region_id == region_id)
+    )
+    if geo_count:
+        reasons.append(f"есть в географии исполнителей ({geo_count})")
+
+    _block_delete(reasons)
+
+    await db.execute(delete(Region).where(Region.id == region_id))
+    await db.commit()
 
 
 async def get_regions_for_country(
@@ -157,9 +293,75 @@ async def edit_town_for_region(db: AsyncSession, town_schema: TownSchema):
         await db.commit()
         await db.refresh(town)
         return town
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"edit_town_for_region error: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
+
+
+async def delete_town(db: AsyncSession, town_id: int) -> None:
+    result = await db.execute(
+        select(Town, Region.name_region, Country.name_country, Region.country_id)
+        .join(Region, Town.region_id == Region.id)
+        .join(Country, Region.country_id == Country.id)
+        .where(Town.id == town_id)
+    )
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Город не найден")
+
+    town, region_name, country_name, country_id = row
+    name = town.name_town
+    region_id = town.region_id
+    reasons: list[str] = []
+
+    geo_count = await db.scalar(
+        select(func.count())
+        .select_from(GeographyExecuteOrder)
+        .where(GeographyExecuteOrder.town_id == town_id)
+    )
+    if geo_count:
+        reasons.append(f"есть в географии исполнителей ({geo_count})")
+
+    users_count = await db.scalar(
+        select(func.count())
+        .select_from(User)
+        .where(
+            and_(
+                or_(User.town == name, User.town == str(town_id)),
+                or_(User.region == region_name, User.region == str(region_id)),
+                or_(User.country == country_name, User.country == str(country_id)),
+            )
+        )
+    )
+    if users_count:
+        reasons.append(f"используется у пользователей ({users_count})")
+
+    orders_result = await db.execute(
+        text(
+            "SELECT COUNT(*) FROM orders "
+            "WHERE (town = :name OR town = :id_str) "
+            "AND (region = :region_name OR region = :region_id_str) "
+            "AND (country = :country_name OR country = :country_id_str)"
+        ),
+        {
+            "name": name,
+            "id_str": str(town_id),
+            "region_name": region_name,
+            "region_id_str": str(region_id),
+            "country_name": country_name,
+            "country_id_str": str(country_id),
+        },
+    )
+    orders_count = orders_result.scalar_one()
+    if orders_count:
+        reasons.append(f"используется в заказах ({orders_count})")
+
+    _block_delete(reasons)
+
+    await db.execute(delete(Town).where(Town.id == town_id))
+    await db.commit()
 
 
 async def get_towns_for_region(

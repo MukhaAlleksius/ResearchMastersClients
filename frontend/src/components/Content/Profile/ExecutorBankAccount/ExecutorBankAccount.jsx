@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { API, apiFetch } from "../../../../utils/api.js";
 import "./executor_bank_account.css";
+import { uiAlert } from "../../../UiDialog/uiDialog.js";
+
 const BANK_OPTIONS = [
   "Беларусбанк",
   "Приорбанк",
@@ -101,7 +103,7 @@ export default function ExecutorBankAccount() {
       e.preventDefault();
 
       if (!validateForm() || !executorId) {
-        alert(
+        await uiAlert(
           executorId
             ? "Исправьте ошибки в форме"
             : "Пользователь не авторизован",
@@ -127,11 +129,11 @@ export default function ExecutorBankAccount() {
           setIsVerified(true);
         } else {
           const error = await response.json();
-          alert(`Ошибка: ${error.detail || "Неизвестная ошибка сервера"}`);
+          await uiAlert(`Ошибка: ${error.detail || "Неизвестная ошибка сервера"}`);
         }
       } catch (error) {
         console.error("Network error:", error);
-        alert("Ошибка сети. Проверьте подключение.");
+        await uiAlert("Ошибка сети. Проверьте подключение.");
       } finally {
         setLoading(false);
       }

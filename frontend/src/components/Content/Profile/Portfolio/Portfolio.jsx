@@ -4,6 +4,8 @@ import { API, apiFetch } from "../../../../utils/api.js";
 import PortfolioInformation from "./PorfolioInformation/PortfolioInformation";
 import "./portfolio.css";
 
+import { uiAlert } from "../../../UiDialog/uiDialog.js";
+
 const selectStyles = {
   control: (base, state) => ({
     ...base,
@@ -216,12 +218,12 @@ export default function Portfolio() {
     e.preventDefault();
 
     if (!newProject.title.trim()) {
-      alert("Введите название проекта");
+      await uiAlert("Введите название проекта");
       return;
     }
 
     if (!categoryWorkMaster?.value) {
-      alert("Выберите категорию работ");
+      await uiAlert("Выберите категорию работ");
       return;
     }
 
@@ -242,7 +244,7 @@ export default function Portfolio() {
     );
 
     if (!response.ok) {
-      alert("Ошибка при добавлении проекта");
+      await uiAlert("Ошибка при добавлении проекта");
       return;
     }
 

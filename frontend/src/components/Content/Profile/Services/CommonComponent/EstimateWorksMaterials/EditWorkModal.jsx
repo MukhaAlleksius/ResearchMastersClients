@@ -6,6 +6,8 @@ import {
   normalizeCurrencyCode,
 } from "../../../../../../utils/currency";
 import "./estimate_works_materials.css";
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 export default function EditWorkModal({
 
   userId,
@@ -140,7 +142,7 @@ export default function EditWorkModal({
 
     ) {
 
-      alert("Заполните все поля!");
+      await uiAlert("Заполните все поля!");
 
       return;
 
@@ -152,7 +154,7 @@ export default function EditWorkModal({
 
     if (numQty <= 0) {
 
-      alert("Количество должно быть больше 0");
+      await uiAlert("Количество должно быть больше 0");
 
       return;
 
@@ -164,7 +166,7 @@ export default function EditWorkModal({
 
     if (numPrice < 0) {
 
-      alert("Цена не может быть отрицательной");
+      await uiAlert("Цена не может быть отрицательной");
 
       return;
 
@@ -254,7 +256,7 @@ export default function EditWorkModal({
 
       console.error(e);
 
-      alert("Не удалось сохранить изменения");
+      await uiAlert("Не удалось сохранить изменения");
 
     } finally {
 

@@ -1,6 +1,11 @@
 #!/bin/sh
 set -e
 
+# Ensure local media dirs exist and are writable (Docker volumes / first boot).
+mkdir -p "${AVATARS_DIR:-/app/avatars}" \
+  "${PORTFOLIO_DIR:-/app/portfolio}" \
+  "${UPLOADS_FOLDER:-/app/uploads}"
+
 if [ "${RUN_MIGRATIONS_ON_STARTUP:-true}" = "true" ]; then
   echo "Checking database schema..."
   status="$(python bootstrap_schema.py)"

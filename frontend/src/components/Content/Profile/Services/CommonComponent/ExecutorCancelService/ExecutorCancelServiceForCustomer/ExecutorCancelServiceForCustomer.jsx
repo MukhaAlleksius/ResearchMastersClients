@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { API, apiFetch } from "../../../../../../../utils/api.js";
 import { IconCheck, IconAlert, IconClock } from "../../../../ProfileIcons.jsx";
 import "../../../../Orders/CommonComponents/CustomerCancelOrder/cancel_order.css";
+import { uiConfirm } from "../../../../../../UiDialog/uiDialog.js";
+
 const EXECUTOR_CANCEL_REASON_OPTIONS = [
   { value: "нет_времени", label: "Нет времени / занят" },
   { value: "сложнее_чем_ожидалось", label: "Заказ сложнее, чем ожидалось" },
@@ -46,9 +48,9 @@ export default function ExecutorCancelServiceForCustomer({
   const handleWithdrawCancel = async () => {
     if (!order?.id || !executorCancel) return;
     if (
-      !window.confirm(
+      !(await uiConfirm(
         "Отменить заявку на отказ? Заказ продолжит выполняться в обычном режиме.",
-      )
+      ))
     ) {
       return;
     }

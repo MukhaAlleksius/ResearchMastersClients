@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { API, apiFetch } from "../../../../utils/api.js";
 import "./support_contact_panel.css";
+import { uiAlert } from "../../../UiDialog/uiDialog.js";
+
 const SUPPORT = {
   START_CONVERSATION: `${API.baseURL}/support/add_conversation`,
   SEND_MESSAGE: `${API.baseURL}/support/add_message`,
@@ -180,7 +182,7 @@ export default function SupportContactPanel() {
         openConversation(conv.id);
       }
     } catch (err) {
-      alert("Ошибка: " + err.message);
+      await uiAlert("Ошибка: " + err.message);
     }
   };
 
@@ -206,7 +208,7 @@ export default function SupportContactPanel() {
         setMessage("");
       }
     } catch (err) {
-      alert("Ошибка отправки: " + err.message);
+      await uiAlert("Ошибка отправки: " + err.message);
     } finally {
       setIsSending(false);
     }

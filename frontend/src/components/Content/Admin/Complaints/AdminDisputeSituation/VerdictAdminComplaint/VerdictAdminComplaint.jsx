@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from "react";
 import { API, apiFetch, buildApiUrl } from "../../../../../../utils/api.js";
 import "./verdict_admin_complaint.css";
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 export default function VerdictAdminComplaint({
   complaintId,
   orderId,
@@ -89,14 +91,14 @@ export default function VerdictAdminComplaint({
   const handleSubmitVerdict = async () => {
     // Frontend валидация
     if (!verdict || !targetUserId || comment.trim().length < 5) {
-      alert("Заполните: решение, пользователя и комментарий (≥5 символов)");
+      await uiAlert("Заполните: решение, пользователя и комментарий (≥5 символов)");
       return;
     }
 
     if (verdict === "warning" || verdict === "ban") {
       const days = parseInt(banDays, 10);
       if (isNaN(days) || days < 1 || days > 365) {
-        alert("Для WARNING/BAN: 1-365 дней");
+        await uiAlert("Для WARNING/BAN: 1-365 дней");
         return;
       }
     }
@@ -110,7 +112,7 @@ export default function VerdictAdminComplaint({
     // Формируем payload
     const adminId = parseInt(localStorage.getItem("user_id"), 10);
     if (!adminId) {
-      alert("ID администратора не найден");
+      await uiAlert("ID администратора не найден");
       setLoading(false);
       return;
     }
@@ -143,7 +145,7 @@ export default function VerdictAdminComplaint({
       }
 
       console.log("✅ Вердикт сохранён!");
-      alert(
+      await uiAlert(
         `✅ Вердикт "${verdictOptions.find((o) => o.value === verdict)?.label}" вынесен!`,
       );
 
@@ -155,7 +157,7 @@ export default function VerdictAdminComplaint({
 
     } catch (error) {
       console.error("❌ Ошибка:", error);
-      alert("Ошибка: " + error.message);
+      await uiAlert("Ошибка: " + error.message);
     } finally {
       setLoading(false);
     }

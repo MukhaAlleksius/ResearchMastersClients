@@ -9,6 +9,9 @@ from cruds.geography_crud import (
     add_country,
     add_region_for_country,
     add_town_for_region,
+    delete_country,
+    delete_region,
+    delete_town,
     edit_country,
     edit_region_for_country,
     edit_town_for_region,
@@ -56,6 +59,16 @@ async def edit_country_api(
         raise HTTPException(status_code=403, detail=f"Ошибка {e}")
 
 
+@router.delete("/delete_country/{country_id}")
+async def delete_country_api(
+    country_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    await delete_country(db=db, country_id=country_id)
+    return {"message": "Страна удалена"}
+
+
 @router.get("/countries")
 async def get_countries_api(
     db: AsyncSession = Depends(get_db),
@@ -91,6 +104,16 @@ async def edit_region_api(
         return region
     except HTTPException as e:
         raise HTTPException(status_code=403, detail=f"Ошибка {e}")
+
+
+@router.delete("/delete_region/{region_id}")
+async def delete_region_api(
+    region_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    await delete_region(db=db, region_id=region_id)
+    return {"message": "Регион удалён"}
 
 
 @router.get("/countries/{country_id}/regions")
@@ -131,6 +154,16 @@ async def edit_town_api(
         raise HTTPException(status_code=403, detail=f"Ошибка {e}")
 
 
+@router.delete("/delete_town/{town_id}")
+async def delete_town_api(
+    town_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    await delete_town(db=db, town_id=town_id)
+    return {"message": "Город удалён"}
+
+
 @router.get("/regions/{region_id}/towns")
 async def get_towns_api(
     region_id: int,
@@ -141,7 +174,6 @@ async def get_towns_api(
         return towns
     except HTTPException as e:
         raise HTTPException(status_code=403, detail=f"Ошибка {e}")
-
 
 @router.get("/profile/regions")
 async def get_profile_regions_api(

@@ -10,6 +10,8 @@ import { getExecutorProfileLink } from "../../../../../../utils/executorProfile"
 import DeleteCustomerExecutorButton from "../../../MyExecutors/DeleteCustomerExecutorButton";
 import "../../../Services/CommonComponent/InformationAboutCustomer/information_about_customer.css";
 
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 const getInitials = (name) => {
   if (!name || name === "—") return "?";
   const parts = name.trim().split(/\s+/);
@@ -181,12 +183,12 @@ export default function ExecutorInfo({
 
   const saveInformation = async () => {
     if (!phone.trim()) {
-      alert("Введите телефон");
+      await uiAlert("Введите телефон");
       return;
     }
 
     if (!hasExecutorId || !hasCustomerId) {
-      alert("Не удалось определить заказчика или исполнителя");
+      await uiAlert("Не удалось определить заказчика или исполнителя");
       return;
     }
 
@@ -216,7 +218,7 @@ export default function ExecutorInfo({
       onSaved?.();
     } catch (err) {
       console.error("Ошибка:", err);
-      alert("Не удалось сохранить информацию");
+      await uiAlert("Не удалось сохранить информацию");
     } finally {
       setSubmitting(false);
     }

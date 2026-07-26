@@ -11,6 +11,8 @@ import {
 } from "../../../utils/geographyApi";
 import "./registration_modal.css";
 
+import { uiAlert } from "../../UiDialog/uiDialog.js";
+
 function FieldRow({ label, htmlFor, hint, children }) {
   return (
     <div className="reg-modal__row">
@@ -224,7 +226,7 @@ export default function RegisterModal({ isOpen, onClose }) {
 
       resetForm();
       onClose();
-      alert("Регистрация успешна! Теперь войдите в аккаунт.");
+      await uiAlert("Регистрация успешна! Теперь войдите в аккаунт.");
     } catch (err) {
       setError(err.message || "Ошибка регистрации");
     } finally {

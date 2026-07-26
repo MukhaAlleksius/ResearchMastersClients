@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { getCustomerProfileLink } from "../../../../../../utils/executorProfile";
 import DeleteExecutorCustomerButton from "../../../MyCustomers/DeleteExecutorCustomerButton";
 import "./information_about_customer.css";
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 const getInitials = (name) => {
   if (!name || name === "—") return "?";
   const parts = name.trim().split(/\s+/);
@@ -210,7 +212,7 @@ export default function CustomerInfo({
 
   const saveInformation = async () => {
     if (!phone.trim()) {
-      alert("Введите телефон");
+      await uiAlert("Введите телефон");
       return;
     }
 
@@ -241,7 +243,7 @@ export default function CustomerInfo({
       onSaved?.();
     } catch (err) {
       console.error("Ошибка:", err);
-      alert("Не удалось сохранить информацию");
+      await uiAlert("Не удалось сохранить информацию");
     } finally {
       setSubmitting(false);
     }

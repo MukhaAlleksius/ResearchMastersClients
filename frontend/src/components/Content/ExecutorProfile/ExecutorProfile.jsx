@@ -14,6 +14,8 @@ import {
   contactTypeIcon,
 } from "../Profile/ProfileIcons.jsx";
 import "./executor_profile.css";
+import { uiAlert } from "../../UiDialog/uiDialog.js";
+
 const STATUS_SEARCHING_EXECUTOR = "в поиске исполнителя";
 
 function isOrderAvailableForExecutorOffer(order, executorId) {
@@ -327,6 +329,17 @@ function PriceModal({
   const works = activeTab === "common" ? commonWorks : masterWorks;
   const tabLabel =
     activeTab === "common" ? "Общепринятые цены" : "Цены мастера";
+  const description =
+    selectedCategory.description_master ||
+    selectedCategory.description ||
+    "";
+  const experience = selectedCategory.experience;
+  const costHour = selectedCategory.cost_hour;
+  const hourlyCurrency = selectedCategory.currency || "BYN";
+  const hasExperience =
+    experience !== undefined && experience !== null && experience !== "";
+  const hasCostHour =
+    costHour !== undefined && costHour !== null && costHour !== "";
 
   return (
     <div
@@ -343,7 +356,7 @@ function PriceModal({
       >
         <header className="ep-price-modal__header">
           <h2 id="ep-price-title" className="ep-price-modal__title">
-            Прайс: {categoryName}
+            {categoryName}
           </h2>
           <button
             type="button"
@@ -358,10 +371,38 @@ function PriceModal({
           {loading ? (
             <div className="ep-price-modal__loading">
               <div className="ep-loading__spinner" aria-hidden="true" />
-              <span>Загрузка прайса…</span>
+              <span>Загрузка…</span>
             </div>
           ) : (
             <>
+              <section
+                className="ep-spec-summary"
+                aria-label="О специализации мастера"
+              >
+                <p className="ep-spec-summary__desc">
+                  {description.trim()
+                    ? description
+                    : "Мастер пока не добавил описание специализации"}
+                </p>
+                <div className="ep-spec-summary__meta">
+                  <div className="ep-spec-summary__item">
+                    <span className="ep-spec-summary__label">Опыт работы</span>
+                    <span className="ep-spec-summary__value">
+                      {hasExperience ? `${experience} лет` : "Не указан"}
+                    </span>
+                  </div>
+                  <div className="ep-spec-summary__item">
+                    <span className="ep-spec-summary__label">Цена за час</span>
+                    <span className="ep-spec-summary__value">
+                      {hasCostHour
+                        ? formatMoney(costHour, hourlyCurrency)
+                        : "Не указана"}
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              <h3 className="ep-price-modal__subtitle">Прайс-лист</h3>
               <div className="ep-price-tabs">
                 <button
                   type="button"
@@ -378,7 +419,7 @@ function PriceModal({
                   Цены мастера ({masterWorks?.length || 0})
                 </button>
               </div>
-              <h3 className="ep-price-modal__subtitle">{tabLabel}</h3>
+              <h4 className="ep-price-modal__tab-label">{tabLabel}</h4>
               {!works || works.length === 0 ? (
                 <p className="ep-empty">Работы не найдены</p>
               ) : (
@@ -486,7 +527,7 @@ export default function ExecutorProfile({ openModal }) {
 
   const handleShowSelectOrders = async () => {
     if (!executorId) {
-      alert("Не удалось определить исполнителя");
+      await uiAlert("Не удалось определить исполнителя");
       return;
     }
 
@@ -506,7 +547,7 @@ export default function ExecutorProfile({ openModal }) {
       setIsOrderModalOpen(true);
     } catch (error) {
       console.error("Ошибка загрузки заказов:", error);
-      alert("Не удалось загрузить ваши заказы");
+      await uiAlert("Не удалось загрузить ваши заказы");
     }
   };
 
@@ -822,7 +863,8 @@ export default function ExecutorProfile({ openModal }) {
                 Специализации мастера
               </h2>
               <p className="ep-specs__hint">
-                Нажмите на категорию, чтобы посмотреть прайс и список работ
+                Нажмите на категорию, чтобы посмотреть описание, опыт, цену за
+                час и прайс-лист
               </p>
             </div>
             <div className="ep-chips">

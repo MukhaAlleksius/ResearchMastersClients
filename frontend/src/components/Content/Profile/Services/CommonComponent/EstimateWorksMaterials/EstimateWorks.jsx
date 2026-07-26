@@ -21,6 +21,8 @@ import {
 } from "../../../../../../utils/estimateStorage.js";
 import "./estimate_works_materials.css";
 
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 const unitsList = ["м2", "шт", "кг", "м3", "пог.м"];
 
 function rebuildPriceAnchors(works) {
@@ -180,7 +182,7 @@ export default function EstimateWorks({ order_id, category_work_id }) {
           setCurrency(normalizedNew);
         } catch (error) {
           console.error(error);
-          alert(
+          await uiAlert(
             error.message?.includes("refresh_token")
               ? "Сессия истекла. Войдите снова."
               : "Не удалось сохранить валюту сметы",
@@ -213,18 +215,18 @@ export default function EstimateWorks({ order_id, category_work_id }) {
 
         if (!persistResult.saved) {
           console.error("Ошибки сохранения сметы:", persistResult.errors);
-          alert(
+          await uiAlert(
             `Смета пересчитана в ${normalizedNew}, но не все позиции сохранены на сервере.\n\n${persistResult.errors.slice(0, 3).join("\n")}`,
           );
         }
       } catch (error) {
         console.error(error);
         if (error.message?.includes("курс") || error.message?.includes("Курс")) {
-          alert("Не удалось загрузить курсы валют НБРБ. Проверьте, что сервер запущен.");
+          await uiAlert("Не удалось загрузить курсы валют НБРБ. Проверьте, что сервер запущен.");
         } else if (error.message?.includes("refresh_token")) {
-          alert("Сессия истекла. Войдите снова и повторите смену валюты.");
+          await uiAlert("Сессия истекла. Войдите снова и повторите смену валюты.");
         } else {
-          alert(`Не удалось пересчитать смету: ${error.message}`);
+          await uiAlert(`Не удалось пересчитать смету: ${error.message}`);
         }
       } finally {
         setIsConvertingCurrency(false);
@@ -562,7 +564,7 @@ export default function EstimateWorks({ order_id, category_work_id }) {
 
   const handleAddEstimateWork = async () => {
     if (!orderExists || !orderId) {
-      alert("Сначала сохраните заказ!");
+      await uiAlert("Сначала сохраните заказ!");
       return;
     }
 
@@ -574,13 +576,13 @@ export default function EstimateWorks({ order_id, category_work_id }) {
       !workQuantity ||
       !currency
     ) {
-      alert("Заполните все поля!");
+      await uiAlert("Заполните все поля!");
       return;
     }
 
     const numQty = Number(workQuantity);
     if (numQty <= 0) {
-      alert("Количество должно быть больше 0");
+      await uiAlert("Количество должно быть больше 0");
       return;
     }
 
@@ -601,7 +603,7 @@ export default function EstimateWorks({ order_id, category_work_id }) {
       });
 
       if (!res.ok) {
-        alert("Ошибка при сохранении работы");
+        await uiAlert("Ошибка при сохранении работы");
         return;
       }
 
@@ -641,10 +643,10 @@ export default function EstimateWorks({ order_id, category_work_id }) {
       );
       saveEstimateCurrency(user_id, orderId, normalizeCurrencyCode(currency));
 
-      alert("Работа добавлена в смету!");
+      await uiAlert("Работа добавлена в смету!");
     } catch (error) {
       console.error(error);
-      alert("Ошибка соединения с сервером");
+      await uiAlert("Ошибка соединения с сервером");
     }
 
     setWorkInput(null);

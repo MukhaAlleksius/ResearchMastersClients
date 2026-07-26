@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import "./estimate_works_materials.css";
 import CreatableSelect from "react-select/creatable";
 
+import { uiAlert } from "../../../../UiDialog/uiDialog.js";
+
 const worksList = [
   { id: 1, description: "Демонтаж старой плитки" },
   { id: 2, description: "Укладка новой плитки" },
@@ -37,14 +39,14 @@ export default function EstimateWorks() {
     setIsAddMaterialsOpen(false);
   };
 
-  const handleAddItem = () => {
+  const handleAddItem = async () => {
     if (
       !workInput?.value ||
       !unitMeasurement?.value ||
       !workPrice ||
       !workQuantity
     ) {
-      alert("Пожалуйста, заполните все поля.");
+      await uiAlert("Пожалуйста, заполните все поля.");
       return;
     }
     setAddedWorks((prev) => [
@@ -112,14 +114,14 @@ export default function EstimateWorks() {
       mat.toLowerCase().includes(searchText.toLowerCase())
     );
 
-    const handleAddMaterial = () => {
+    const handleAddMaterial = async () => {
       if (
         !materialInput ||
         !materialUnitMeasurement ||
         !materialQuantity ||
         !materialCostForUnit
       ) {
-        alert("Пожалуйста, заполните все поля материала.");
+        await uiAlert("Пожалуйста, заполните все поля материала.");
         return;
       }
 

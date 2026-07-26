@@ -7,6 +7,8 @@ import DeadlineField, {
 } from "../../../../Common/DeadlineField.jsx";
 import "./add_order_for_draft.css";
 
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 // сохранение заказа в черновик
 export default function AddOrderForDraft({ onSuccess }) {
   const [categoryWork, setCategoryWork] = useState("");
@@ -161,35 +163,35 @@ export default function AddOrderForDraft({ onSuccess }) {
 
     // ✅ Валидация
     if (!categoryWorkMaster) {
-      alert("Выберите категорию услуги");
+      await uiAlert("Выберите категорию услуги");
       return;
     }
     if (!title.trim()) {
-      alert("Введите заголовок заказа");
+      await uiAlert("Введите заголовок заказа");
       return;
     }
     if (!description.trim()) {
-      alert("Опишите задачу");
+      await uiAlert("Опишите задачу");
       return;
     }
     if (!location.trim()) {
-      alert("Укажите локацию");
+      await uiAlert("Укажите локацию");
       return;
     }
     if (!geoTown) {
-      alert("Укажите населённый пункт");
+      await uiAlert("Укажите населённый пункт");
       return;
     }
     if (!geoRegion) {
-      alert("Укажите регион");
+      await uiAlert("Укажите регион");
       return;
     }
     if (!geoCountry) {
-      alert("Укажите страну");
+      await uiAlert("Укажите страну");
       return;
     }
     if (!isValidDeadline(deadline)) {
-      alert("Выберите точную дату выполнения");
+      await uiAlert("Выберите точную дату выполнения");
       return;
     }
 
@@ -225,7 +227,7 @@ export default function AddOrderForDraft({ onSuccess }) {
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Ошибка добавления заказа:", errorData);
-        alert(`Ошибка: ${formatApiDetail(errorData.detail, "Не удалось разместить заказ")}`);
+        await uiAlert(`Ошибка: ${formatApiDetail(errorData.detail, "Не удалось разместить заказ")}`);
         return;
       }
 
@@ -263,7 +265,7 @@ export default function AddOrderForDraft({ onSuccess }) {
       onSuccess?.(data);
     } catch (error) {
       console.error("Ошибка: ", error);
-      alert("❌ Произошла ошибка при размещении заказа");
+      await uiAlert("❌ Произошла ошибка при размещении заказа");
     }
   };
 

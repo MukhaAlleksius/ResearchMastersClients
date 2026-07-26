@@ -458,7 +458,8 @@
   flex-shrink: 0;
 }
 
-.geo-item__edit {
+.geo-item__edit,
+.geo-item__delete {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -478,7 +479,18 @@
   color: #0f172a;
 }
 
-.geo-item__edit svg {
+.geo-item__delete:hover:not(:disabled) {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.geo-item__delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.geo-item__edit svg,
+.geo-item__delete svg {
   width: 0.75rem;
   height: 0.75rem;
 }

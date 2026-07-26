@@ -10,6 +10,8 @@ import {
   normalizeCurrencyCode,
 } from "../../../../utils/currency";
 import "./specializations.css";
+import { uiAlert } from "../../../UiDialog/uiDialog.js";
+
 const selectStyles = {
   control: (base, state) => ({
     ...base,
@@ -188,7 +190,7 @@ export default function Specializations() {
   const handleAddSpecialization = async (e) => {
     e.preventDefault();
     if (!categoryWorkMaster || !description || !experience || !costHour) {
-      alert("Пожалуйста, заполните все поля");
+      await uiAlert("Пожалуйста, заполните все поля");
       return;
     }
     setSaving(true);
@@ -217,7 +219,7 @@ export default function Specializations() {
       setSubTab("list");
     } catch (error) {
       console.error(error);
-      alert("Не удалось добавить специализацию");
+      await uiAlert("Не удалось добавить специализацию");
     } finally {
       setSaving(false);
     }

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { API, apiFetch, buildApiUrl, ensureStoredUserId } from "../../../../../../utils/api.js";
 import OrderInfoCard from "./OrderInfo";
 import "./customer_order_info.css";
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+
 const budgetTypes = ["Фиксированная цена", "Почасовая оплата", "Договорная цена"];
 const currencies = ["BYN", "Dollar USA", "Euro"];
 
@@ -260,9 +262,9 @@ export default function OrderInfoForAnswerExecutor({ order, embedded = false }) 
     return <OrderInfoCard />;
   }
 
-  const handleSendResponse = (data) => {
+  const handleSendResponse = async (data) => {
     console.log("Ответ исполнителя:", data);
-    alert(
+    await uiAlert(
       `Ответ отправлен!\nДата начала: ${data.startDate}\nСроки: ${data.duration}\nСтоимость: ${data.cost}\nСообщение: ${data.message}`,
     );
   };

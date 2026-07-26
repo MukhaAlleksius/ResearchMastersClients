@@ -3,6 +3,8 @@ import { API, apiFetch, buildApiUrl } from "../../../../../utils/api.js";
 import { normalizeCurrencyCode } from "../../../../../utils/currency";
 import "../specializations.css";
 
+import { uiAlert } from "../../../../UiDialog/uiDialog.js";
+
 const NAV_KEYS = [
   "Backspace",
   "Tab",
@@ -131,7 +133,7 @@ export default function EditSpecialization({
       });
     } catch (error) {
       console.error(error);
-      alert("Не удалось сохранить изменения");
+      await uiAlert("Не удалось сохранить изменения");
     } finally {
       setSaving(false);
     }

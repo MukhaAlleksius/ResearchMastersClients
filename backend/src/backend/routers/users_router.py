@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from google.auth.transport.requests import Request as GoogleRequest
@@ -34,7 +35,7 @@ from core.upload_validation import (
     validate_image_bytes,
 )
 from core.access import assert_user_not_blocked, assert_can_view_executor_profile
-from models.users_models import User
+from models.users_models import User, UserProfile
 from cruds.users_crud import (
     add_business_form,
     add_profile_user,
@@ -582,6 +583,7 @@ async def delete_town_user_geography_execute_orders_api(
 @router.post("/upload_avatar")
 async def upload_avatar_api(
     file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
     current_user: UserCommonSchema = Depends(get_current_user),
 ):
     user_id = current_user.user_id
@@ -597,13 +599,40 @@ async def upload_avatar_api(
 
     delete_avatar_files(user_id)
 
-    filename = f"{user_id}_{safe_filename}"
+    # Stable ASCII key keeps Docker/local storage predictable across locales.
+    ext = os.path.splitext(safe_filename)[1].lower() or ".jpg"
+    filename = f"{user_id}_avatar{ext}"
+    relative_url = f"/avatar/{user_id}"
     try:
-        get_avatar_storage().save(filename, content)
-        avatar_url = f"{PUBLIC_API_URL}/avatar/{user_id}"
-        return {"avatar_url": avatar_url}
+        storage = get_avatar_storage()
+        storage.save(filename, content)
+
+        result = await db.execute(
+            select(UserProfile).where(UserProfile.user_id == user_id)
+        )
+        profile = result.scalar_one_or_none()
+        if profile:
+            profile.avatar_url = relative_url
+        else:
+            db.add(
+                UserProfile(
+                    user_id=user_id,
+                    avatar_url=relative_url,
+                )
+            )
+        await db.commit()
+
+        return {
+            "avatar_url": relative_url,
+            "public_avatar_url": f"{PUBLIC_API_URL}{relative_url}",
+        }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Не удалось сохранить аватар") from e
+        logging.exception("upload_avatar failed for user_id=%s", user_id)
+        raise HTTPException(
+            status_code=500, detail=f"Не удалось сохранить аватар: {e}"
+        ) from e
 
 
 @router.get("/avatar/{user_id}")
