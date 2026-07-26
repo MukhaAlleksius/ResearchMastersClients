@@ -363,19 +363,26 @@ export default function Specializations() {
               />
             </div>
 
-            <div className="spec-field">
-              <label className="spec-label" htmlFor="spec-rate">
-                Стоимость за час (₽)
-              </label>
-              <input
-                id="spec-rate"
-                type="number"
-                min="0"
-                className="spec-input"
-                placeholder="1000"
-                value={costHour}
-                onChange={(e) => setCostHour(e.target.value)}
-              />
+            <div className="spec-row-2 spec-row-2--rate">
+              <div className="spec-field">
+                <label className="spec-label" htmlFor="spec-rate">
+                  Стоимость за час (BYN)
+                </label>
+                <input
+                  id="spec-rate"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="spec-input"
+                  placeholder="50"
+                  value={costHour}
+                  onChange={(e) => setCostHour(e.target.value)}
+                />
+              </div>
+              <div className="spec-field">
+                <span className="spec-label">Валюта</span>
+                <span className="spec-currency-readonly">BYN</span>
+              </div>
             </div>
 
             <div className="spec-form__actions">
