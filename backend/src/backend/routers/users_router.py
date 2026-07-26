@@ -148,7 +148,7 @@ async def google_register_user(
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(
             status_code=500,
-            detail="Google auth is not configured (GOOGLE_CLIENT_ID missing)",
+            detail="Вход через Google не настроен (GOOGLE_CLIENT_ID отсутствует)",
         )
 
     try:
@@ -159,11 +159,11 @@ async def google_register_user(
         )
     except Exception as e:
         logger.warning("Google token verification failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=401, detail="Invalid Google token") from e
+        raise HTTPException(status_code=401, detail="Недействительный токен Google") from e
 
     email = token_payload.get("email")
     if not email:
-        raise HTTPException(status_code=400, detail="Google token has no email")
+        raise HTTPException(status_code=400, detail="В токене Google нет email")
 
     first_name = (token_payload.get("given_name") or "").strip() or email.split("@")[0]
     last_name = (token_payload.get("family_name") or "").strip() or "User"
@@ -665,7 +665,7 @@ async def get_projects_portfolio_master_api(
         )
 
 
-@router.post("/upload_images_portfolio_master/")
+@router.post("/upload_images_portfolio_master")
 async def upload_images_portfolio_master_api(
     project_name: str = Query(..., min_length=3, max_length=100),
     files: List[UploadFile] = File(...),
@@ -728,7 +728,7 @@ async def get_projects_images_portfolio_master_api(
     return {"projects": _portfolio_projects(master_id)}
 
 
-@router.delete("/delete_image_portfolio_master/")
+@router.delete("/delete_image_portfolio_master")
 async def delete_image_portfolio_master_api(
     project_name: str = Query(..., min_length=3, max_length=100),
     filename: str = Query(..., min_length=1),

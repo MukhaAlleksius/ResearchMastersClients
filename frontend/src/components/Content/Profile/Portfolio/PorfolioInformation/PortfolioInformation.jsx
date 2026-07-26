@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { API, apiFetch } from "../../../../../utils/api.js";
+import { API, apiFetch, buildApiUrl, readApiError } from "../../../../../utils/api.js";
 import "../portfolio.css";
 import "./portfolio_information.css";
 
@@ -76,7 +76,7 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
       setUploading(true);
 
       const response = await apiFetch(
-        `${API.baseURL}/upload_images_portfolio_master/?master_id=${encodeURIComponent(
+        `${API.baseURL}/upload_images_portfolio_master?master_id=${encodeURIComponent(
           master_id,
         )}&project_name=${encodeURIComponent(projectName)}`,
         {
@@ -86,9 +86,12 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = await readApiError(
+          response,
+          `Ошибка сервера (${response.status})`,
+        );
         console.error("Server error:", response.status, errorText);
-        alert(`Ошибка сервера: ${response.status}`);
+        alert(errorText);
         return;
       }
 
@@ -126,19 +129,20 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
         const parts = img.split("/");
         const filename = parts[parts.length - 1];
 
-        const url = new URL(`${API.baseURL}/delete_image_portfolio_master/`);
-        url.searchParams.append("master_id", master_id);
-        url.searchParams.append("project_name", projectName);
-        url.searchParams.append("filename", filename);
+        const url = buildApiUrl("/delete_image_portfolio_master", {
+          master_id,
+          project_name: projectName,
+          filename,
+        });
 
-        const response = await apiFetch(url.toString(), {
+        const response = await apiFetch(url, {
           method: "DELETE",
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Ошибка удаления файла ${filename}:`, errorText);
-          alert(`Ошибка удаления файла ${filename}: ${response.status}`);
+          const detail = await readApiError(response, `Ошибка удаления (${response.status})`);
+          console.error(`Ошибка удаления файла ${filename}:`, detail);
+          alert(`Не удалось удалить файл: ${detail}`);
           return;
         }
       }

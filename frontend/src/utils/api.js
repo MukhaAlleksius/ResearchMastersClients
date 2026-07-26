@@ -19,10 +19,15 @@ const API_BASE_URL = resolveApiBaseUrl();
 
 export const API = {
   baseURL: API_BASE_URL,
-  headers: (token) => ({
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  }),
+  headers: (token, options = {}) => {
+    const headers = { Authorization: `Bearer ${token}` };
+    const isFormData =
+      typeof FormData !== "undefined" && options.body instanceof FormData;
+    if (!isFormData) {
+      headers["Content-Type"] = "application/json";
+    }
+    return headers;
+  },
 };
 
 export function getApiBaseUrl() {
@@ -197,9 +202,17 @@ export const fetchWithAuth = async (
     token = data.access_token;
   }
 
+  const authHeaders = API.headers(token, options);
+  const merged = { ...authHeaders, ...options.headers };
+  // FormData must not keep a forced JSON content-type (boundary is set by the browser).
+  if (typeof FormData !== "undefined" && options.body instanceof FormData) {
+    delete merged["Content-Type"];
+    delete merged["content-type"];
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: { ...options.headers, ...API.headers(token) },
+    headers: merged,
   });
   handleUnauthorizedResponse(response);
   return response;
@@ -212,9 +225,14 @@ export async function apiFetch(url, options = {}, config = {}) {
   if (isPublicRequest(url, method)) {
     const token = localStorage.getItem("access_token");
     if (token && !isTokenExpired(token)) {
+      const headers = { ...API.headers(token, options), ...options.headers };
+      if (typeof FormData !== "undefined" && options.body instanceof FormData) {
+        delete headers["Content-Type"];
+        delete headers["content-type"];
+      }
       return fetch(url, {
         ...options,
-        headers: { ...options.headers, ...API.headers(token) },
+        headers,
       });
     }
     return fetch(url, options);
@@ -223,11 +241,31 @@ export async function apiFetch(url, options = {}, config = {}) {
 }
 
 export function buildApiUrl(path, params) {
-  const url = path.startsWith("http") ? path : `${API.baseURL}${path}`;
-  if (!params) return url;
-  const search = params instanceof URLSearchParams ? params : new URLSearchParams(params);
+  let resolved;
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    resolved = path;
+  } else {
+    const [pathname, qs] = String(path || "").split("?");
+    const cleanPath =
+      pathname.length > 1 ? pathname.replace(/\/+$/, "") || "/" : pathname || "/";
+    const withQs = qs != null && qs !== "" ? `${cleanPath}?${qs}` : cleanPath;
+    resolved = `${API.baseURL}${withQs.startsWith("/") ? withQs : `/${withQs}`}`;
+  }
+
+  // Also strip trailing slash on absolute URLs before the query string.
+  const qIndex = resolved.indexOf("?");
+  const head = qIndex >= 0 ? resolved.slice(0, qIndex) : resolved;
+  const tail = qIndex >= 0 ? resolved.slice(qIndex) : "";
+  if (head.length > 1 && head.endsWith("/")) {
+    resolved = `${head.replace(/\/+$/, "")}${tail}`;
+  }
+
+  if (!params) return resolved;
+  const search =
+    params instanceof URLSearchParams ? params : new URLSearchParams(params);
   const query = search.toString();
-  return query ? `${url}?${query}` : url;
+  if (!query) return resolved;
+  return resolved.includes("?") ? `${resolved}&${query}` : `${resolved}?${query}`;
 }
 
 export function resolveMediaUrl(value) {
@@ -278,12 +316,16 @@ export function formatApiDetail(detail, fallback = "Ошибка запроса"
   }
 
   const parts = detail.map((item) => {
+    const rawMsg = String(item?.msg || item?.message || "").trim();
+    // Backend may already return "Пароль: минимум 6 символов"
+    if (rawMsg.includes(": ")) return rawMsg;
+
     const loc = Array.isArray(item?.loc)
       ? item.loc.filter((part) => part !== "body" && part !== "query")
       : [];
-    const fieldKey = loc.length ? String(loc[loc.length - 1]) : "";
+    const fieldKey = item?.field || (loc.length ? String(loc[loc.length - 1]) : "");
     const field = FIELD_LABELS_RU[fieldKey] || fieldKey;
-    const message = humanizeValidationMsg(item?.msg || item?.message || "");
+    const message = humanizeValidationMsg(rawMsg);
     if (field && message) return `${field}: ${message}`;
     return message || field || JSON.stringify(item);
   });

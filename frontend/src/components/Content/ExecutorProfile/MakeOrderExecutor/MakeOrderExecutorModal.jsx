@@ -1,11 +1,10 @@
 import { useState, useMemo } from "react";
-import { API, apiFetch, ensureStoredUserId } from "../../../../utils/api.js";
+import { API, apiFetch, ensureStoredUserId, formatApiDetail } from "../../../../utils/api.js";
 import "./make_order_executor_modal.css";
 async function readErrorMessage(response, fallback) {
   try {
     const data = await response.json();
-    if (typeof data?.detail === "string") return data.detail;
-    if (data?.detail) return JSON.stringify(data.detail);
+    return formatApiDetail(data?.detail, fallback);
   } catch {
     // ignore
   }
