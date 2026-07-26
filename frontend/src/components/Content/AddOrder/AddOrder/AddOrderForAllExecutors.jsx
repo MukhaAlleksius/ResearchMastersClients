@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { API, apiFetch, buildApiUrl } from "../../../../utils/api.js";
+import { API, apiFetch, buildApiUrl, formatApiDetail } from "../../../../utils/api.js";
 import CreatableSelect from "react-select/creatable";
 import Select from "react-select";
 import EstimateWorks from "../../Profile/Services/CommonComponent/EstimateWorksMaterials/EstimateWorks";
@@ -229,7 +229,9 @@ export default function AddOrderForAllExecutors({
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Ошибка добавления заказа:", errorData);
-        alert(`Ошибка: ${errorData.detail || "Не удалось разместить заказ"}`);
+        alert(
+          `Ошибка: ${formatApiDetail(errorData.detail, "Не удалось разместить заказ")}`,
+        );
         return;
       }
 

@@ -34,7 +34,11 @@ from core.config import (
     SENTRY_TRACES_SAMPLE_RATE,
 )
 from core.database import check_connection, init_db
-from core.error_responses import public_exception_detail, public_http_detail
+from core.error_responses import (
+    format_validation_errors,
+    public_exception_detail,
+    public_http_detail,
+)
 from core.logging_setup import configure_logging, init_sentry, log_request_end, log_request_start
 from core.uptime_alerts import maybe_send_health_alert
 from core.models_loader import load_all_models
@@ -87,7 +91,7 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutdown complete.")
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
@@ -162,6 +166,15 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 @app.middleware("http")
+async def normalize_trailing_slash(request: Request, call_next):
+    # Avoid FastAPI 307 redirects that break behind nginx /api prefix.
+    path = request.scope.get("path", "")
+    if len(path) > 1 and path.endswith("/"):
+        request.scope["path"] = path.rstrip("/")
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def security_middleware(request: Request, call_next):
     check_rate_limit(request)
     verbose = LOG_VERBOSE_REQUESTS and not IS_PRODUCTION
@@ -200,5 +213,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     body = exc.body if not IS_PRODUCTION else None
     return JSONResponse(
         status_code=422,
-        content=jsonable_encoder({"detail": exc.errors(), "body": body}),
+        content=jsonable_encoder(
+            {"detail": format_validation_errors(exc.errors()), "body": body}
+        ),
     )

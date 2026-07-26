@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import "../../../Services/CommonComponent/CustomerOrderInfo/customer_order_info.css";
+import "../../Services/CommonComponent/CustomerOrderInfo/customer_order_info.css";
 
 export default function CompleteOrderModal({
   orderTitle,

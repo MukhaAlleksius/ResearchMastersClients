@@ -199,7 +199,7 @@ export default function MainPage() {
   const fetchProfileMaster = async () => {
     try {
       const response = await apiFetch(
-        buildApiUrl(`/profile/?user_id=${userId}`),
+        buildApiUrl(`/profile?user_id=${userId}`),
       );
       if (!response.ok) throw new Error("Не получили данных с сервера");
       setProfileMaster(await response.json());
@@ -212,7 +212,7 @@ export default function MainPage() {
   const fetchContactsMaster = async () => {
     try {
       const response = await apiFetch(
-        `${API.baseURL}/contacts/`,
+        `${API.baseURL}/contacts`,
       );
       if (!response.ok) throw new Error("Не получили данных с сервера");
       setContacts(await response.json());

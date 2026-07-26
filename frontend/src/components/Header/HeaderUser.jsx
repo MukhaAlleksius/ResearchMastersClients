@@ -70,15 +70,21 @@ export default function HeaderUser({ onLogout }) {
     (async () => {
       try {
         const response = await apiFetch(
-          buildApiUrl(`/profile/?user_id=${userId}`),
+          buildApiUrl(`/profile?user_id=${userId}`),
         );
-        if (!response.ok) return;
+        if (!response.ok) {
+          console.error("Профиль недоступен:", response.status);
+          return;
+        }
         const profile = await response.json();
         if (!cancelled) {
           setUserName(formatUserName(profile));
         }
       } catch (error) {
         console.error("Не удалось загрузить имя пользователя:", error);
+        if (!cancelled) {
+          setUserName("");
+        }
       }
     })();
 

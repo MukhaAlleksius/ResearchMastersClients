@@ -179,7 +179,7 @@ export default function CustomerInfo({
         apiFetch(
           buildApiUrl(`/information_about_customer/${user_id}/${customerId}`),
         ),
-        apiFetch(buildApiUrl(`/profile/?user_id=${customerId}`)),
+        apiFetch(buildApiUrl(`/profile?user_id=${customerId}`)),
       ]);
 
       if (contactsRes.ok) {

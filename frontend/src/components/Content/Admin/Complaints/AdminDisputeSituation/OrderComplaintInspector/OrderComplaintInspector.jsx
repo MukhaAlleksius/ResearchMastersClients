@@ -88,7 +88,7 @@ export default function OrderComplaintInspector({ orderId }) {
         console.log("🔄 Загрузка customer:", orderData.customer_id);
         try {
           const customerResponse = await apiFetch(
-            buildApiUrl(`/profile/?user_id=${orderData.customer_id}`),
+            buildApiUrl(`/profile?user_id=${orderData.customer_id}`),
           );
           if (customerResponse.ok) {
             customerData = await customerResponse.json();

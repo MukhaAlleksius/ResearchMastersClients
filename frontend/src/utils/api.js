@@ -19,10 +19,15 @@ const API_BASE_URL = resolveApiBaseUrl();
 
 export const API = {
   baseURL: API_BASE_URL,
-  headers: (token) => ({
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  }),
+  headers: (token, options = {}) => {
+    const headers = { Authorization: `Bearer ${token}` };
+    const isFormData =
+      typeof FormData !== "undefined" && options.body instanceof FormData;
+    if (!isFormData) {
+      headers["Content-Type"] = "application/json";
+    }
+    return headers;
+  },
 };
 
 export function getApiBaseUrl() {
@@ -67,10 +72,23 @@ const PUBLIC_POST_EXACT = new Set([
 
 function normalizePath(url) {
   try {
-    const parsed = new URL(url, API.baseURL);
-    return parsed.pathname.replace(/\/+$/, "") || "/";
+    // Relative baseURL ("/api" in Docker) is not a valid URL base — use page origin.
+    const base =
+      API.baseURL.startsWith("http://") || API.baseURL.startsWith("https://")
+        ? API.baseURL
+        : `${typeof window !== "undefined" ? window.location.origin : "http://localhost"}${API.baseURL.startsWith("/") ? "" : "/"}${API.baseURL || ""}`;
+    const parsed = new URL(url, base.endsWith("/") ? base : `${base}/`);
+    let path = parsed.pathname.replace(/\/+$/, "") || "/";
+    // Nginx mounts API at /api — strip it so public-route checks match backend paths.
+    if (path === "/api") path = "/";
+    else if (path.startsWith("/api/")) path = path.slice(4) || "/";
+    return path;
   } catch {
-    return url;
+    const raw = String(url || "");
+    const pathOnly = raw.split("?")[0].replace(/\/+$/, "") || "/";
+    if (pathOnly === "/api") return "/";
+    if (pathOnly.startsWith("/api/")) return pathOnly.slice(4) || "/";
+    return pathOnly;
   }
 }
 
@@ -184,9 +202,17 @@ export const fetchWithAuth = async (
     token = data.access_token;
   }
 
+  const authHeaders = API.headers(token, options);
+  const merged = { ...authHeaders, ...options.headers };
+  // FormData must not keep a forced JSON content-type (boundary is set by the browser).
+  if (typeof FormData !== "undefined" && options.body instanceof FormData) {
+    delete merged["Content-Type"];
+    delete merged["content-type"];
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: { ...options.headers, ...API.headers(token) },
+    headers: merged,
   });
   handleUnauthorizedResponse(response);
   return response;
@@ -199,9 +225,14 @@ export async function apiFetch(url, options = {}, config = {}) {
   if (isPublicRequest(url, method)) {
     const token = localStorage.getItem("access_token");
     if (token && !isTokenExpired(token)) {
+      const headers = { ...API.headers(token, options), ...options.headers };
+      if (typeof FormData !== "undefined" && options.body instanceof FormData) {
+        delete headers["Content-Type"];
+        delete headers["content-type"];
+      }
       return fetch(url, {
         ...options,
-        headers: { ...options.headers, ...API.headers(token) },
+        headers,
       });
     }
     return fetch(url, options);
@@ -210,11 +241,31 @@ export async function apiFetch(url, options = {}, config = {}) {
 }
 
 export function buildApiUrl(path, params) {
-  const url = path.startsWith("http") ? path : `${API.baseURL}${path}`;
-  if (!params) return url;
-  const search = params instanceof URLSearchParams ? params : new URLSearchParams(params);
+  let resolved;
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    resolved = path;
+  } else {
+    const [pathname, qs] = String(path || "").split("?");
+    const cleanPath =
+      pathname.length > 1 ? pathname.replace(/\/+$/, "") || "/" : pathname || "/";
+    const withQs = qs != null && qs !== "" ? `${cleanPath}?${qs}` : cleanPath;
+    resolved = `${API.baseURL}${withQs.startsWith("/") ? withQs : `/${withQs}`}`;
+  }
+
+  // Also strip trailing slash on absolute URLs before the query string.
+  const qIndex = resolved.indexOf("?");
+  const head = qIndex >= 0 ? resolved.slice(0, qIndex) : resolved;
+  const tail = qIndex >= 0 ? resolved.slice(qIndex) : "";
+  if (head.length > 1 && head.endsWith("/")) {
+    resolved = `${head.replace(/\/+$/, "")}${tail}`;
+  }
+
+  if (!params) return resolved;
+  const search =
+    params instanceof URLSearchParams ? params : new URLSearchParams(params);
   const query = search.toString();
-  return query ? `${url}?${query}` : url;
+  if (!query) return resolved;
+  return resolved.includes("?") ? `${resolved}&${query}` : `${resolved}?${query}`;
 }
 
 export function resolveMediaUrl(value) {
@@ -225,15 +276,70 @@ export function resolveMediaUrl(value) {
   return `${API.baseURL}${raw.startsWith("/") ? raw : `/${raw}`}`;
 }
 
-export async function readApiError(response) {
+const FIELD_LABELS_RU = {
+  password: "Пароль",
+  email: "Email",
+  first_name: "Имя",
+  last_name: "Фамилия",
+  country: "Страна",
+  region: "Регион",
+  town: "Город",
+};
+
+function humanizeValidationMsg(msg = "") {
+  const text = String(msg);
+  if (/at least 6 characters/i.test(text) || /min_length.*6/i.test(text)) {
+    return "минимум 6 символов";
+  }
+  if (/at most|max_length/i.test(text)) {
+    return "слишком длинное значение";
+  }
+  if (/valid email|value is not a valid email/i.test(text)) {
+    return "укажите корректный email";
+  }
+  if (/field required/i.test(text)) {
+    return "обязательное поле";
+  }
+  return text;
+}
+
+/** Human-readable FastAPI / Pydantic error detail (string or validation array). */
+export function formatApiDetail(detail, fallback = "Ошибка запроса") {
+  if (detail == null || detail === "") return fallback;
+  if (typeof detail === "string") return detail;
+  if (!Array.isArray(detail)) {
+    try {
+      return JSON.stringify(detail);
+    } catch {
+      return fallback;
+    }
+  }
+
+  const parts = detail.map((item) => {
+    const rawMsg = String(item?.msg || item?.message || "").trim();
+    // Backend may already return "Пароль: минимум 6 символов"
+    if (rawMsg.includes(": ")) return rawMsg;
+
+    const loc = Array.isArray(item?.loc)
+      ? item.loc.filter((part) => part !== "body" && part !== "query")
+      : [];
+    const fieldKey = item?.field || (loc.length ? String(loc[loc.length - 1]) : "");
+    const field = FIELD_LABELS_RU[fieldKey] || fieldKey;
+    const message = humanizeValidationMsg(rawMsg);
+    if (field && message) return `${field}: ${message}`;
+    return message || field || JSON.stringify(item);
+  });
+
+  return parts.filter(Boolean).join(". ") || fallback;
+}
+
+export async function readApiError(response, fallback = null) {
   try {
     const body = await response.json();
-    if (!body?.detail) return null;
-    return typeof body.detail === "string"
-      ? body.detail
-      : JSON.stringify(body.detail);
+    if (!body?.detail) return fallback;
+    return formatApiDetail(body.detail, fallback || "Ошибка запроса");
   } catch {
-    return null;
+    return fallback;
   }
 }
 

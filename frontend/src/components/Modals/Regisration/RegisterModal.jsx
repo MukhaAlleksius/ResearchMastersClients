@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Select from "react-select";
-import { API, apiFetch } from "../../../utils/api.js";
+import { API, apiFetch, formatApiDetail } from "../../../utils/api.js";
 import { Link } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
@@ -187,6 +187,16 @@ export default function RegisterModal({ isOpen, onClose }) {
       return;
     }
 
+    if (!email.includes("@") || email.trim().length < 5) {
+      setError("Укажите корректный email, например name@example.com");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Пароль должен содержать минимум 6 символов");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -207,9 +217,8 @@ export default function RegisterModal({ isOpen, onClose }) {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const detail = data.detail;
         throw new Error(
-          typeof detail === "string" ? detail : "Не удалось зарегистрироваться",
+          formatApiDetail(data.detail, "Не удалось зарегистрироваться"),
         );
       }
 

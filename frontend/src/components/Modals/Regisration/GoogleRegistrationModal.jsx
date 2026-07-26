@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import Select from "react-select";
 import { createPortal } from "react-dom";
-import { apiFetch, buildApiUrl } from "../../../utils/api.js";
+import { apiFetch, buildApiUrl, formatApiDetail } from "../../../utils/api.js";
 import {
   fetchRegionsList,
   fetchTownsList,
@@ -178,11 +178,11 @@ export default function GoogleRegistrationModal({
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const detail = data?.detail;
         throw new Error(
-          typeof detail === "string"
-            ? detail
-            : "Не удалось завершить регистрацию через Google",
+          formatApiDetail(
+            data?.detail,
+            "Не удалось завершить регистрацию через Google",
+          ),
         );
       }
 
