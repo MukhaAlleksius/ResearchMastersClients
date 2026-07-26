@@ -316,6 +316,7 @@ export function formatApiDetail(detail, fallback = "Ошибка запроса"
   }
 
   const parts = detail.map((item) => {
+<<<<<<< HEAD
     const rawMsg = String(item?.msg || item?.message || "").trim();
     // Backend may already return "Пароль: минимум 6 символов"
     if (rawMsg.includes(": ")) return rawMsg;
@@ -326,6 +327,14 @@ export function formatApiDetail(detail, fallback = "Ошибка запроса"
     const fieldKey = item?.field || (loc.length ? String(loc[loc.length - 1]) : "");
     const field = FIELD_LABELS_RU[fieldKey] || fieldKey;
     const message = humanizeValidationMsg(rawMsg);
+=======
+    const loc = Array.isArray(item?.loc)
+      ? item.loc.filter((part) => part !== "body" && part !== "query")
+      : [];
+    const fieldKey = loc.length ? String(loc[loc.length - 1]) : "";
+    const field = FIELD_LABELS_RU[fieldKey] || fieldKey;
+    const message = humanizeValidationMsg(item?.msg || item?.message || "");
+>>>>>>> bf13cf5efb37ac28ac0176b5dbfee2e24f9266ef
     if (field && message) return `${field}: ${message}`;
     return message || field || JSON.stringify(item);
   });

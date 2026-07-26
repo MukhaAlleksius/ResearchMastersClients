@@ -331,26 +331,50 @@ poetry run pytest
 
 ---
 
-## Production (Docker)
+## Запуск через Docker (рекомендуется)
 
-Минимальный prod-стек: **nginx** → **frontend** (static) + **backend** (gunicorn/uvicorn) + **PostgreSQL**.
+Нужен только **Docker Desktop** (или Docker Engine + Compose). Python/Node локально не обязательны.
 
 ```bash
+git clone https://github.com/MukhaAlleksius/ResearchMastersClients.git
+cd ResearchMastersClients
 cp .env.example .env
-# заполните SECRET_KEY, DATABASE_URL, PUBLIC_API_URL=http://localhost/api, POSTGRES_*
+```
+
+В `.env` заполните минимум:
+
+| Переменная | Пример |
+|------------|--------|
+| `SECRET_KEY` | длинная случайная строка |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | например `fixer` / `fixer` / `fixer` |
+| `DATABASE_URL` | `postgresql+asyncpg://fixer:fixer@db:5432/fixer` (user/pass/db как выше, хост **`db`**) |
+| `PUBLIC_API_URL` | `http://localhost/api` |
+| `PAYMENT_CALLBACK_SECRET` | любая секретная строка |
+| `CORS_ORIGINS` | уже есть в `.env.example` для Docker |
+
+Затем:
+
+```bash
 docker compose up -d --build
+```
+
+Первая сборка занимает несколько минут. Проверка:
+
+```bash
 curl http://localhost/health
 ```
 
-- Подробности: [deploy/DEPLOY.md](deploy/DEPLOY.md)
-- Managed PostgreSQL: `docker compose -f docker-compose.prod.yml up -d --build`
-- CI: GitHub Actions — тесты backend, сборка frontend, сборка Docker-образов
+| URL | Назначение |
+|-----|------------|
+| http://localhost | сайт |
+| http://localhost/api/ | API |
+| http://localhost/api/docs | Swagger |
+| http://localhost/health | health-check |
 
-| URL (Docker) | Назначение |
-|--------------|------------|
-| http://localhost | React SPA |
-| http://localhost/api/ | FastAPI API |
-| http://localhost/health | Health-check (БД + приложение) |
+Остановка: `docker compose down`  
+Логи: `docker compose logs -f`
+
+Подробности prod/HTTPS: [deploy/DEPLOY.md](deploy/DEPLOY.md). Managed PostgreSQL: `docker compose -f docker-compose.prod.yml up -d --build`.
 
 ---
 
@@ -380,5 +404,6 @@ curl http://localhost/health
 ## Контакты и название
 
 В UI используется бренд **Fixer**. Репозиторий: **ResearchMastersClients**.
-#   R e s e a r c h M a s t e r s C l i e n t s  
+#   R e s e a r c h M a s t e r s C l i e n t s 
+ 
  
