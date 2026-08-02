@@ -82,7 +82,7 @@ function App() {
     localStorage.removeItem("user_role");
 
     setIsLoggedIn(false);
-    navigate("/catalog");
+    navigate("/home");
   };
 
   useEffect(() => {

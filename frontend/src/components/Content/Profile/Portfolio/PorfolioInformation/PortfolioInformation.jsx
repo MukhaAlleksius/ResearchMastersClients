@@ -24,10 +24,11 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
   const [selectedForDelete, setSelectedForDelete] = useState(new Set());
 
   const master_id = localStorage.getItem("user_id");
+  const portfolioItemId = project.portfolio_item_id ?? project.id;
   const coverUrl = resolveImageUrl(images[0] || project.coverImage);
 
   const loadProjectImages = useCallback(async () => {
-    if (!master_id) {
+    if (!master_id || !portfolioItemId) {
       setLoadingImages(false);
       return;
     }
@@ -42,7 +43,9 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
 
       const data = await response.json();
       const projectsArray = data.projects || [];
-      const projectData = projectsArray.find((p) => p.title === project.title);
+      const projectData = projectsArray.find(
+        (p) => Number(p.portfolio_item_id ?? p.id) === Number(portfolioItemId),
+      );
 
       setImages(projectData?.images || []);
     } catch (error) {
@@ -50,7 +53,7 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
     } finally {
       setLoadingImages(false);
     }
-  }, [master_id, project.title]);
+  }, [master_id, portfolioItemId]);
 
   useEffect(() => {
     loadProjectImages();
@@ -67,20 +70,23 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
       return;
     }
 
+    if (!portfolioItemId) {
+      await uiAlert("Не удалось определить проект портфолио");
+      return;
+    }
+
     const formData = new FormData();
     selectedFiles.forEach((file) => {
       formData.append("files", file);
     });
 
-    const projectName = project.title;
-
     try {
       setUploading(true);
 
       const response = await apiFetch(
-        `${API.baseURL}/upload_images_portfolio_master?master_id=${encodeURIComponent(
-          master_id,
-        )}&project_name=${encodeURIComponent(projectName)}`,
+        `${API.baseURL}/upload_images_portfolio_master?portfolio_item_id=${encodeURIComponent(
+          portfolioItemId,
+        )}`,
         {
           method: "POST",
           body: formData,
@@ -101,7 +107,8 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
       if (data.success) {
         const newImagePaths = data.saved_files.map(
           (file) =>
-            `/portfolio/${master_id}/${projectName}/файлы_изображений/${file.saved_name}`,
+            file.url ||
+            `/portfolio/${master_id}/${portfolioItemId}/файлы_изображений/${file.saved_name}`,
         );
 
         setImages((prev) => [...prev, ...newImagePaths]);
@@ -124,7 +131,10 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
       return;
     }
 
-    const projectName = project.title;
+    if (!portfolioItemId) {
+      await uiAlert("Не удалось определить проект портфолио");
+      return;
+    }
 
     try {
       for (const img of selectedForDelete) {
@@ -132,8 +142,7 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
         const filename = parts[parts.length - 1];
 
         const url = buildApiUrl("/delete_image_portfolio_master", {
-          master_id,
-          project_name: projectName,
+          portfolio_item_id: portfolioItemId,
           filename,
         });
 

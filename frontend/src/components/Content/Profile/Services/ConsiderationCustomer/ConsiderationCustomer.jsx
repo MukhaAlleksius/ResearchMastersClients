@@ -10,7 +10,7 @@ import {
   useWorkDetailInitialTab,
 } from "../../Common/workDetailTabs";
 
-export default function ConsiderationCustomer({ orderId, onBack, userId, listActivity }) {
+export default function ConsiderationCustomer({ orderId, onBack }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("executor_consideration");
   const [order, setOrder] = useState(null);
   const [executeOrderInfo, setExecuteOrderInfo] = useState(null);
@@ -128,16 +128,6 @@ export default function ConsiderationCustomer({ orderId, onBack, userId, listAct
       title={order?.title || "Услуга"}
       backLabel="Назад к услугам"
       onBack={onBack || (() => navigate(-1))}
-      activityConfig={
-        userId && orderIdFinal
-          ? {
-              userId,
-              orderId: orderIdFinal,
-              presetKey: "executor_consideration",
-              activity: listActivity,
-            }
-          : undefined
-      }
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}

@@ -1,20 +1,20 @@
-from decimal import Decimal
-import logging
-from fastapi import HTTPException
-from sqlalchemy import and_, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from decimal import Decimal  # Точные расчёты количества и стоимости
+import logging  # Логирование обновлений
+from fastapi import HTTPException  # HTTP-ошибки
+from sqlalchemy import and_, select, update  # SQL-операции
+from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
-from cruds.notifications_crud import (
+from cruds.notifications_crud import (  # Уведомления
     ESTIMATE_UPDATED_NOTIFICATION_TYPE,
     SCHEDULE_UPDATED_NOTIFICATION_TYPE,
     notify_order_event,
 )
-from models.estimate_graphic_works_models import (
+from models.estimate_graphic_works_models import (  # ORM сметы и графика
     GraphicWork,
     MaterialEstimate,
     WorkEstimate,
 )
-from schemas.estimate_graphic_works_schemas import (
+from schemas.estimate_graphic_works_schemas import (  # Pydantic-схемы
     GraphicWorksReadSchema,
     GraphicWorksSchema,
     MaterialEstimateSchema,
@@ -23,12 +23,12 @@ from schemas.estimate_graphic_works_schemas import (
     WorkEstimateUpdateSchema,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # Логгер модуля
 
 
 async def _notify_estimate_updated(
     db: AsyncSession, order_id: int, user_id: int
-) -> None:
+) -> None:  # Безопасное уведомление об изменении сметы
     try:
         await notify_order_event(
             db,
@@ -42,7 +42,7 @@ async def _notify_estimate_updated(
 
 async def _notify_schedule_updated(
     db: AsyncSession, order_id: int, user_id: int
-) -> None:
+) -> None:  # Безопасное уведомление об изменении графика
     try:
         await notify_order_event(
             db,
@@ -55,7 +55,7 @@ async def _notify_schedule_updated(
 
 
 # ==================== ОБНОВЛЕНИЕ РАБОТЫ В СМЕТЕ ====================
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func  # Доп. импорты для агрегатов
 
 
 async def update_work_into_estimate_for_order(
@@ -72,7 +72,7 @@ async def update_work_into_estimate_for_order(
                 GraphicWork.user_id == user_id,
                 GraphicWork.order_id == order_id,
             )
-        )
+        )  # Уже запланировано в графике
 
         quantity_work = result_graphic_works.scalar_one()
 
@@ -142,7 +142,7 @@ async def update_material_into_estimate_for_order(
             select(WorkEstimate).where(
                 WorkEstimate.id == material_estimate_schema.work_estimate_id
             )
-        )
+        )  # Родительская работа для уведомления
         work_estimate = work_estimate_result.scalar_one_or_none()
         if work_estimate:
             await _notify_estimate_updated(
@@ -213,7 +213,7 @@ async def update_graphic_works(
                     GraphicWork.name_work == graphic_works.name_work,
                 )
             )
-        )
+        )  # Сумма по графику для этой работы
 
         # Сумма из БД приводим к Decimal для корректного сравнения
         total_work_qty = Decimal(str(total_work_qty_result.scalar() or 0))
@@ -226,7 +226,7 @@ async def update_graphic_works(
                     update(WorkEstimate)
                     .where(WorkEstimate.id == existing_estimate_work.id)
                     .values(quantity=total_work_qty)
-                )
+                )  # Подтягиваем смету под график
                 if update_estimate_result.rowcount == 0:
                     logger.warning(
                         "Не удалось обновить количество в смете для '%s'",
@@ -243,7 +243,7 @@ async def update_graphic_works(
                     .values(cost_unit=Decimal(str(graphic_works.cost_unit)))
                 )
         elif graphic_works.cost_unit is not None:
-            new_estimate_work = WorkEstimate(
+            new_estimate_work = WorkEstimate(  # Создаём строку сметы из графика
                 user_id=user_id,
                 order_id=order_id,
                 name_work=graphic_works.name_work,

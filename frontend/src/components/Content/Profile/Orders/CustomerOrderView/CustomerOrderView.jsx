@@ -7,12 +7,6 @@ import InProgressExecuteOrder from "../InProgressExecute/InProgressExecuteOrder"
 import MyselfExecutor from "../MyselfExecutor/MyselfExecutor";
 import ResearchExecutor from "../ResearchExecutors/ResearchExecutorsOrder";
 import WaitExecuteOrder from "../WaitExecute/WaitExecuteOrder";
-import {
-  syncSeenActivityBaseline,
-  syncSeenCancelAck,
-  syncSeenOnRoleStatusChange,
-} from "../../../../../utils/orderActivity.js";
-
 function matchesStatus(order, fragment) {
   return order?.status_order_customer?.includes(fragment);
 }
@@ -59,18 +53,6 @@ export default function CustomerOrderView() {
         return;
       }
 
-      if (found.activity) {
-        syncSeenCancelAck(userId, found.id, found.activity);
-        syncSeenActivityBaseline(userId, found.id, found.activity);
-        syncSeenOnRoleStatusChange(
-          userId,
-          found.id,
-          found.activity,
-          "customer",
-          found.status_order_customer,
-        );
-      }
-
       setOrder(found);
     } catch (err) {
       console.error("Ошибка загрузки заказа:", err);
@@ -108,7 +90,6 @@ export default function CustomerOrderView() {
     onOrderDeleted: handleOrderDeleted,
     onOrderStatusChanged: fetchOrder,
     userId,
-    listActivity: order?.activity,
   };
 
   if (loading && !order) {

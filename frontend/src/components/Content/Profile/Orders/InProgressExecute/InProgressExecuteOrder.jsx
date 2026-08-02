@@ -28,7 +28,7 @@ const FALLBACK_ORDER = {
   location: "Москва, ул. Ленина, д.10",
 };
 
-export default function InProgressExecuteOrder({ order, onBack, userId, listActivity, onOrderStatusChanged }) {
+export default function InProgressExecuteOrder({ order, onBack, userId, onOrderStatusChanged }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("customer_in_progress");
   const [orderData, setOrderData] = useState(null);
   const [executorOrder, setExecutorOrder] = useState(null);
@@ -257,16 +257,6 @@ export default function InProgressExecuteOrder({ order, onBack, userId, listActi
         title={currentOrder.title || "Заказ"}
         backLabel="Назад к заказам"
         onBack={onBack || (() => navigate(-1))}
-        activityConfig={
-          userId && orderId
-            ? {
-                userId,
-                orderId,
-                presetKey: "customer_in_progress",
-                activity: listActivity ?? order?.activity,
-              }
-            : undefined
-        }
         headerExtra={
           <div className="work-detail__header-action">
             <button

@@ -1,14 +1,14 @@
-from fastapi import HTTPException
-from cruds.notifications_crud import (
+from fastapi import HTTPException  # HTTP-ошибки
+from cruds.notifications_crud import (  # Уведомления об изменении сметы/графика
     ESTIMATE_UPDATED_NOTIFICATION_TYPE,
     SCHEDULE_UPDATED_NOTIFICATION_TYPE,
     notify_order_event_safe,
 )
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete, select  # DELETE и SELECT
+from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
-from models.estimate_graphic_works_models import GraphicWork, WorkEstimate
-from models.orders_models import GraphicOrderMaster
+from models.estimate_graphic_works_models import GraphicWork, WorkEstimate  # Смета и график
+from models.orders_models import GraphicOrderMaster  # Мастер-запись графика заказа
 
 
 async def clear_estimate_and_graphic_for_order(
@@ -22,19 +22,19 @@ async def clear_estimate_and_graphic_for_order(
             WorkEstimate.user_id == user_id,
             WorkEstimate.order_id == order_id,
         )
-    )
+    )  # Смета пользователя
     await db.execute(
         delete(GraphicWork).where(
             GraphicWork.user_id == user_id,
             GraphicWork.order_id == order_id,
         )
-    )
+    )  # График работ
     await db.execute(
         delete(GraphicOrderMaster).where(
             GraphicOrderMaster.user_id == user_id,
             GraphicOrderMaster.order_id == order_id,
         )
-    )
+    )  # Мастер-запись графика
 
 
 async def clear_all_order_estimate_data(
@@ -44,7 +44,7 @@ async def clear_all_order_estimate_data(
     """Удаляет смету и материалы по заказу для всех участников."""
     await db.execute(
         delete(WorkEstimate).where(WorkEstimate.order_id == order_id)
-    )
+    )  # CASCADE материалов через FK
 
 
 async def clear_all_order_estimate_and_graphic_data(
@@ -71,7 +71,7 @@ async def delete_work_from_estimate_for_order(
                 WorkEstimate.order_id == order_id,
                 WorkEstimate.id == work_estimate_id,
             )
-            .returning(WorkEstimate.id)
+            .returning(WorkEstimate.id)  # Проверка, что строка удалена
         )
         deleted_work_estimate = result.scalar_one_or_none()
 

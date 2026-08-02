@@ -1,14 +1,14 @@
-"""Safe error payloads for API clients."""
+"""Safe error payloads for API clients."""  # Безопасные тексты ошибок для клиентов API
 
-from __future__ import annotations
+from __future__ import annotations  # Отложенные аннотации
 
-from typing import Any
+from typing import Any  # Произвольные типы в detail/ошибках
 
-from core.config import IS_PRODUCTION
+from core.config import IS_PRODUCTION  # В проде скрываем внутренности 500
 
-GENERIC_500_DETAIL = "Внутренняя ошибка сервера"
+GENERIC_500_DETAIL = "Внутренняя ошибка сервера"  # Общий текст 500 для продакшена
 
-FIELD_LABELS_RU = {
+FIELD_LABELS_RU = {  # Англ. имена полей → русские подписи в ошибках валидации
     "password": "Пароль",
     "email": "Email",
     "first_name": "Имя",
@@ -16,70 +16,71 @@ FIELD_LABELS_RU = {
     "country": "Страна",
     "region": "Регион",
     "town": "Город",
+    "town_id": "Город",
     "title": "Название",
     "description": "Описание",
     "phone": "Телефон",
 }
 
 
-def public_exception_detail(exc: Exception) -> str:
-    if IS_PRODUCTION:
-        return GENERIC_500_DETAIL
-    message = str(exc).strip()
-    return message or GENERIC_500_DETAIL
+def public_exception_detail(exc: Exception) -> str:  # Текст для неожиданного 500
+    if IS_PRODUCTION:  # В проде не светим traceback/сообщение
+        return GENERIC_500_DETAIL  # Общая фраза
+    message = str(exc).strip()  # В dev показываем текст исключения
+    return message or GENERIC_500_DETAIL  # Или запасной текст, если пусто
 
 
-def public_http_detail(status_code: int, detail: Any) -> Any:
-    if IS_PRODUCTION and status_code >= 500:
-        return GENERIC_500_DETAIL
-    return detail
+def public_http_detail(status_code: int, detail: Any) -> Any:  # Фильтр detail у HTTPException
+    if IS_PRODUCTION and status_code >= 500:  # Серверные ошибки в проде
+        return GENERIC_500_DETAIL  # Прячем детали
+    return detail  # Иначе отдаём как есть
 
 
-def _humanize_validation_msg(msg: str, ctx: dict | None = None) -> str:
-    text = (msg or "").strip()
-    lower = text.lower()
-    ctx = ctx or {}
+def _humanize_validation_msg(msg: str, ctx: dict | None = None) -> str:  # Перевод типовых pydantic-сообщений
+    text = (msg or "").strip()  # Исходное сообщение
+    lower = text.lower()  # Для сравнения без регистра
+    ctx = ctx or {}  # Контекст (min_length и т.д.)
 
-    if "at least" in lower and "character" in lower:
-        min_len = ctx.get("min_length")
-        if min_len is not None:
-            return f"минимум {min_len} символов"
-        return "слишком короткое значение"
-    if "at most" in lower and "character" in lower:
-        max_len = ctx.get("max_length")
+    if "at least" in lower and "character" in lower:  # Слишком коротко
+        min_len = ctx.get("min_length")  # Минимальная длина из контекста
+        if min_len is not None:  # Есть число
+            return f"минимум {min_len} символов"  # По-русски с числом
+        return "слишком короткое значение"  # Без числа
+    if "at most" in lower and "character" in lower:  # Слишком длинно
+        max_len = ctx.get("max_length")  # Максимальная длина
         if max_len is not None:
             return f"максимум {max_len} символов"
         return "слишком длинное значение"
-    if "field required" in lower or text == "Field required":
+    if "field required" in lower or text == "Field required":  # Поле обязательно
         return "обязательное поле"
-    if "valid email" in lower:
+    if "valid email" in lower:  # Невалидный email
         return "укажите корректный email"
-    if "input should be a valid integer" in lower:
+    if "input should be a valid integer" in lower:  # Не int
         return "ожидается целое число"
-    if "input should be a valid number" in lower:
+    if "input should be a valid number" in lower:  # Не число
         return "ожидается число"
-    return text
+    return text  # Иначе оставляем оригинал
 
 
-def format_validation_errors(errors: list[Any]) -> list[dict[str, Any]]:
+def format_validation_errors(errors: list[Any]) -> list[dict[str, Any]]:  # Форматирует ошибки 422 для фронта
     """Return validation errors with Russian field labels and clearer messages."""
-    formatted: list[dict[str, Any]] = []
-    for err in errors or []:
-        if not isinstance(err, dict):
-            formatted.append({"msg": str(err)})
+    formatted: list[dict[str, Any]] = []  # Результат
+    for err in errors or []:  # Каждая ошибка pydantic
+        if not isinstance(err, dict):  # Неожиданный формат
+            formatted.append({"msg": str(err)})  # Кладём как строку
             continue
-        loc = err.get("loc") or ()
-        parts = [p for p in loc if p not in ("body", "query", "path", "header")]
-        field_key = str(parts[-1]) if parts else ""
-        field = FIELD_LABELS_RU.get(field_key, field_key)
-        msg = _humanize_validation_msg(str(err.get("msg") or ""), err.get("ctx"))
-        item = {
-            "type": err.get("type"),
-            "loc": list(loc),
-            "msg": f"{field}: {msg}" if field else msg,
-            "input": err.get("input"),
+        loc = err.get("loc") or ()  # Путь к полю (body, field, ...)
+        parts = [p for p in loc if p not in ("body", "query", "path", "header")]  # Убираем служебные части
+        field_key = str(parts[-1]) if parts else ""  # Имя поля
+        field = FIELD_LABELS_RU.get(field_key, field_key)  # Русская подпись или как есть
+        msg = _humanize_validation_msg(str(err.get("msg") or ""), err.get("ctx"))  # Человекочитаемое сообщение
+        item = {  # Объект ошибки для клиента
+            "type": err.get("type"),  # Тип ошибки pydantic
+            "loc": list(loc),  # Полный путь
+            "msg": f"{field}: {msg}" if field else msg,  # «Поле: сообщение»
+            "input": err.get("input"),  # Введённое значение
         }
-        if field_key:
-            item["field"] = field_key
-        formatted.append(item)
-    return formatted
+        if field_key:  # Есть ключ поля
+            item["field"] = field_key  # Дублируем для удобства фронта
+        formatted.append(item)  # В список
+    return formatted  # Готовый список ошибок

@@ -65,9 +65,12 @@ const PUBLIC_POST_EXACT = new Set([
   "/token",
   "/refresh",
   "/register",
+  "/auth/google/login",
+  "/api/auth/google/login",
   "/auth/google/register",
   "/api/auth/google/register",
   "/payment/callback",
+  "/add_town_by_user",
 ]);
 
 function normalizePath(url) {
@@ -284,6 +287,7 @@ const FIELD_LABELS_RU = {
   country: "Страна",
   region: "Регион",
   town: "Город",
+  town_id: "Город",
 };
 
 function humanizeValidationMsg(msg = "") {

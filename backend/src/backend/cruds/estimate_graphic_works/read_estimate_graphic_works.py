@@ -1,16 +1,16 @@
-from datetime import date
-from decimal import Decimal
-import logging
-from fastapi import HTTPException
-from sqlalchemy import and_, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import date  # Тип даты (legacy-код закомментирован)
+from decimal import Decimal  # Точный подсчёт сумм сметы
+import logging  # Логирование чтения сметы
+from fastapi import HTTPException  # HTTP-ошибки
+from sqlalchemy import and_, func, select  # SQL-операции
+from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
-from models.estimate_graphic_works_models import (
+from models.estimate_graphic_works_models import (  # ORM сметы и графика
     GraphicWork,
     MaterialEstimate,
     WorkEstimate,
 )
-from schemas.estimate_graphic_works_schemas import (
+from schemas.estimate_graphic_works_schemas import (  # Схемы ответа
     DateGraphicWorkSchema,
     EstimateTotals,
     FullEstimateResponse,
@@ -22,7 +22,7 @@ from schemas.estimate_graphic_works_schemas import (
     WorkFromGraphicWorksSchema,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # Логгер модуля
 
 
 # получить работы из сметы для заказа определенного пользователя
@@ -169,40 +169,40 @@ async def get_full_estimate_for_order(
 
 
 # получить материалы из сметы для работы заказа определенного пользователя
-async def get_materials_estimates_for_order(
-    db: AsyncSession, user_id: int, order_id: int
-) -> list[WorkEstimateSchema]:
-    try:
-        result = await db.execute(
-            select(WorkEstimate).where(
-                WorkEstimate.user_id == user_id, WorkEstimate.order_id == order_id
-            )
-        )
-        works_estimates = result.scalars().all()
-        return [
-            WorkEstimateSchema(
-                user_id=work_estimate.user_id,
-                order_id=work_estimate.order_id,
-                name_work=work_estimate.name_work,
-                quantity=work_estimate.quantity,
-                unit_measurement=work_estimate.unit_measurement,
-                cost_unit=work_estimate.cost_unit,
-                currency=work_estimate.currency,
-            )
-            for work_estimate in works_estimates
-        ]
-    except Exception as e:
-        logger.error(f"get_countries error: {str(e)}")
-        raise HTTPException(
-            status_code=400, detail=f"Ошибка получения данных: {str(e)}"
-        )
+# async def get_materials_estimates_for_order(
+#     db: AsyncSession, user_id: int, order_id: int
+# ) -> list[WorkEstimateSchema]:  # READ работ сметы (упрощённая схема)
+#     try:
+#         result = await db.execute(
+#             select(WorkEstimate).where(
+#                 WorkEstimate.user_id == user_id, WorkEstimate.order_id == order_id
+#             )
+#         )
+#         works_estimates = result.scalars().all()
+#         return [
+#             WorkEstimateSchema(
+#                 user_id=work_estimate.user_id,
+#                 order_id=work_estimate.order_id,
+#                 name_work=work_estimate.name_work,
+#                 quantity=work_estimate.quantity,
+#                 unit_measurement=work_estimate.unit_measurement,
+#                 cost_unit=work_estimate.cost_unit,
+#                 currency=work_estimate.currency,
+#             )
+#             for work_estimate in works_estimates
+#         ]
+#     except Exception as e:
+#         logger.error(f"get_countries error: {str(e)}")
+#         raise HTTPException(
+#             status_code=400, detail=f"Ошибка получения данных: {str(e)}"
+#         )
 
 
 # получить работы, выполненные пользователем для конкретного заказа при отображении работ
 # во вкладке "график работ" там, где "отчет о работе"
 async def get_works_from_graphic_works_for_order(
     db: AsyncSession, user_id: int, order_id: int
-) -> list[GraphicWorksReadSchema]:
+) -> list[GraphicWorksReadSchema]:  # READ всех записей графика работ
     try:
         result = await db.execute(
             select(GraphicWork).where(
@@ -233,7 +233,7 @@ async def get_works_from_graphic_works_for_order(
 # работ во вкладке "график работ" в выпадающем списке с работами
 async def get_works_estimate_for_order(
     db: AsyncSession, user_id: int, order_id: int
-) -> list[WorkEstimateReadSchema]:
+) -> list[WorkEstimateReadSchema]:  # READ работ сметы с id для UI
     try:
         result = await db.execute(
             select(WorkEstimate).where(

@@ -1,6 +1,5 @@
 import React from "react";
 import "./work-detail-layout.css";
-import { useWorkDetailActivity } from "./useWorkDetailActivity";
 import { WorkDetailTabIcon } from "../ProfileIcons.jsx";
 
 /**
@@ -33,18 +32,9 @@ export default function WorkDetailLayout({
   narrow = false,
   showPanelHead = true,
   rootClassName = "",
-  activityConfig,
   children,
 }) {
-  const { tabsWithUpdates, handleBackWithMark } = useWorkDetailActivity({
-    activityConfig,
-    tabs,
-    activeTab,
-    onBack,
-  });
-
-  const displayTabs = activityConfig ? tabsWithUpdates : tabs;
-  const activeTabMeta = displayTabs.find((t) => t.id === activeTab);
+  const activeTabMeta = tabs.find((t) => t.id === activeTab);
 
   if (loading) {
     return (
@@ -67,7 +57,7 @@ export default function WorkDetailLayout({
             <button
               type="button"
               className="work-detail__back"
-              onClick={activityConfig ? handleBackWithMark : onBack}
+              onClick={onBack}
             >
               ← {backLabel}
             </button>
@@ -122,12 +112,12 @@ export default function WorkDetailLayout({
       )}
 
       <div className="work-detail__main">
-        {displayTabs.length > 0 && (
+        {tabs.length > 0 && (
           <nav className="work-detail__tabs" aria-label="Разделы работы">
             <div className="work-detail__tabs-scroll">
-              {displayTabs.map((tab, index) => {
+              {tabs.map((tab, index) => {
                 const isActive = activeTab === tab.id;
-                const prevTab = displayTabs[index - 1];
+                const prevTab = tabs[index - 1];
                 const showGroupDivider =
                   index > 0 &&
                   tab.group &&
@@ -151,12 +141,6 @@ export default function WorkDetailLayout({
                     >
                       <span className="work-detail__tab-icon" aria-hidden="true">
                         {tab.icon || getWorkDetailTabIcon(tab.id)}
-                        {tab.hasUpdate && (
-                          <span
-                            className="work-detail__tab-update"
-                            aria-label="Есть непросмотренные изменения"
-                          />
-                        )}
                       </span>
                       <span className="work-detail__tab-label">
                         {tab.shortLabel || tab.label}
@@ -172,15 +156,17 @@ export default function WorkDetailLayout({
           </nav>
         )}
 
-        {displayTabs.length > 0 && showPanelHead && (
-        <div className="work-detail__panel-head">
-          <h2 className="work-detail__panel-title">
-            {activeTabMeta?.label || "Раздел"}
-          </h2>
-          {activeTabMeta?.description && (
-            <p className="work-detail__panel-desc">{activeTabMeta.description}</p>
-          )}
-        </div>
+        {tabs.length > 0 && showPanelHead && (
+          <div className="work-detail__panel-head">
+            <h2 className="work-detail__panel-title">
+              {activeTabMeta?.label || "Раздел"}
+            </h2>
+            {activeTabMeta?.description && (
+              <p className="work-detail__panel-desc">
+                {activeTabMeta.description}
+              </p>
+            )}
+          </div>
         )}
 
         <div className="work-detail__panel-body">

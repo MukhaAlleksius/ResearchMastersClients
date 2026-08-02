@@ -5,32 +5,6 @@ from typing import Dict, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, validator
 
 
-# валидатор для предоставления информации пользователю в карточках
-class OrderActivitySignals(BaseModel):
-    unread_messages: int = 0
-    pending_cancel: bool = False
-    responses_count: int = 0
-    responses_latest_id: int = 0
-    estimate_count_other: int = 0
-    estimate_max_id: int = 0
-    schedule_count_other: int = 0
-    schedule_max_id: int = 0
-    contract_other_signed: bool = False
-    contract_viewer_signed: bool = False
-    contract_updated_at: Optional[datetime] = None
-    order_unavailable: bool = False
-    order_updated_at: Optional[datetime] = None
-    response_updated_at: Optional[datetime] = None
-    assigned_response_latest_id: int = 0
-    unread_complaint_messages: int = 0
-    complaint_latest_id: int = 0
-    payment_latest_id: int = 0
-    payment_updated_at: Optional[datetime] = None
-    review_latest_id: int = 0
-    customer_info_max_id: int = 0
-    executor_info_max_id: int = 0
-
-
 class OrderServiceSchema(BaseModel):
     id: int
     category_work: str = Field(
@@ -51,7 +25,6 @@ class OrderUserSchema(OrderServiceSchema):
     category_work_id: Optional[int] = None
     executor_id: Optional[int] = None
     status_order_customer: Optional[str] = Field(None)
-    activity: Optional[OrderActivitySignals] = None
 
 
 # валидатор для предоставления информации пользователю в карточках
@@ -61,7 +34,6 @@ class ServiceUserSchema(OrderServiceSchema):
         None, max_length=100, description="Имя заказчика"
     )
     status_service_executor: Optional[str] = Field(None)
-    activity: Optional[OrderActivitySignals] = None
 
 
 # ✅ Валидатор для создания заказа

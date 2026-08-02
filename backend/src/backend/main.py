@@ -42,6 +42,9 @@ from core.error_responses import (
 from core.logging_setup import configure_logging, init_sentry, log_request_end, log_request_start
 from core.uptime_alerts import maybe_send_health_alert
 from core.models_loader import load_all_models
+
+load_all_models()  # все ORM до импорта роутеров (связи Order ↔ ComplaintConversation и т.п.)
+
 from core.rate_limit import check_rate_limit
 from routers import users_router
 from routers import contracts_router

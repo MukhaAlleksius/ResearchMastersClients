@@ -96,6 +96,29 @@ export async function fetchTownsList(regionId) {
   return Array.isArray(data) ? data.map(formatTown) : [];
 }
 
+/** Создать город пользователем (регистрация), если его нет в справочнике. */
+export async function createTownByUser(regionId, nameTown) {
+  const response = await apiFetch(`${API.baseURL}/add_town_by_user`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      region_id: Number(regionId),
+      name_town: nameTown,
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail =
+      typeof data?.detail === "string"
+        ? data.detail
+        : Array.isArray(data?.detail)
+          ? data.detail.map((d) => d.msg || d).join("; ")
+          : "Не удалось добавить город";
+    throw new Error(detail);
+  }
+  return formatTown(data);
+}
+
 /**
  * Prefer справочник when available; otherwise use hardcoded defaults
  * so registration always opens with Беларусь / Минская область / Солигорск.

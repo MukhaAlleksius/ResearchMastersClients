@@ -44,6 +44,11 @@
   background: #ccfbf1;
 }
 
+.ui-dialog__icon--warning {
+  color: #b45309;
+  background: #ffedd5;
+}
+
 .ui-dialog__icon--success {
   color: #047857;
   background: #d1fae5;

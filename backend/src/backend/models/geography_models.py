@@ -1,4 +1,13 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import relationship
 from core.database import Base
 
@@ -34,7 +43,7 @@ class Region(Base):
     towns = relationship("Town", back_populates="region")
 
 
-# для внесения изменений администратором
+# справочник городов; пользователь может добавить непроверенный город
 class Town(Base):
     __tablename__ = "towns"
     __table_args__ = (
@@ -48,5 +57,12 @@ class Town(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     region_id = Column(Integer, ForeignKey("regions.id"))
     name_town = Column(String(255), nullable=False)
+    source = Column(String(20), nullable=False, server_default="admin")  # admin | user
+    is_verified = Column(Boolean, nullable=False, server_default="true")
+    created_by_user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     region = relationship("Region", back_populates="towns")
+    created_by = relationship("User", foreign_keys=[created_by_user_id])

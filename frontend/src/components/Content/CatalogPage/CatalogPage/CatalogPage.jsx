@@ -9,22 +9,49 @@ import "../../shared/public_content_layout.css";
 import "./catalog_page.css";
 function Catalog() {
   const [totalPages, setTotalPages] = useState(0);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const hasActiveFilters = (() => {
+    const params = new URLSearchParams(location.search);
+    params.delete("page");
+    return [...params.keys()].length > 0;
+  })();
+
+  const resetFilters = () => {
+    navigate(location.pathname, { replace: true });
+  };
 
   return (
     <div id="catalog" className="catalog-page public-content-narrow">
       <div className="catalog-container">
-        <div className="catalog-top">
-          <header className="catalog-hero">
-            <span className="catalog-hero__badge">Каталог</span>
-            <h1 className="catalog-title">Исполнители</h1>
-            <p className="catalog-hero__text">
-              Фильтруйте по категории, рейтингу, цене и городу — выберите
-              подходящего мастера
-            </p>
-          </header>
-          <Filters />
+        <header className="catalog-hero">
+          <span className="catalog-hero__badge">Каталог</span>
+          <h1 className="catalog-title">Исполнители</h1>
+          <p className="catalog-hero__text">
+            Фильтруйте по категории, рейтингу, цене и городу — выберите
+            подходящего мастера
+          </p>
+        </header>
+        <div className="catalog-list-toolbar">
+          <p className="catalog-list-toolbar__meta">Список исполнителей</p>
+          <div className="catalog-list-toolbar__actions">
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className="catalog-reset-filters"
+                onClick={resetFilters}
+              >
+                Сбросить фильтры
+              </button>
+            )}
+            <Filters />
+          </div>
         </div>
-        <ExecutorsGrid onTotalPagesChange={setTotalPages} />
+        <ExecutorsGrid
+          onTotalPagesChange={setTotalPages}
+          hasActiveFilters={hasActiveFilters}
+          onResetFilters={resetFilters}
+        />
         <CatalogPagination totalPages={totalPages} />
       </div>
     </div>
@@ -454,7 +481,11 @@ function executorProfileSlug(executor) {
     .substring(0, 50);
 }
 
-function ExecutorsGrid({ onTotalPagesChange }) {
+function ExecutorsGrid({
+  onTotalPagesChange,
+  hasActiveFilters = false,
+  onResetFilters,
+}) {
   const location = useLocation();
   const [executors, setExecutors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -536,7 +567,20 @@ function ExecutorsGrid({ onTotalPagesChange }) {
       {executors.length === 0 ? (
         <div className="catalog-state catalog-state--empty">
           <p>Исполнители не найдены</p>
-          <span>Измените фильтры или выберите другую категорию</span>
+          <span>
+            {hasActiveFilters
+              ? "Измените параметры поиска или сбросьте фильтры"
+              : "Пока нет исполнителей в каталоге"}
+          </span>
+          {hasActiveFilters && onResetFilters && (
+            <button
+              type="button"
+              className="catalog-state__reset"
+              onClick={onResetFilters}
+            >
+              Сбросить фильтры
+            </button>
+          )}
         </div>
       ) : (
         executors.map((executor) => {

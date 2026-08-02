@@ -1,8 +1,8 @@
-from datetime import datetime, time
-from sqlalchemy import select, func, and_, case
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, time  # Границы периода для аналитики
+from sqlalchemy import select, func, and_, case  # SQL-выражения и агрегаты
+from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
-from models.orders_models import (
+from models.orders_models import (  # Модели заказов и отзывов
     CustomerOrderCancellation,
     ExecutorOrderCancellation,
     Order,
@@ -11,37 +11,37 @@ from models.orders_models import (
 )
 
 
-def _period_bounds(start_date, end_date):
-    start_dt = datetime.combine(start_date, time.min)
-    end_dt = datetime.combine(end_date, time.max)
+def _period_bounds(start_date, end_date):  # Начало и конец календарного периода
+    start_dt = datetime.combine(start_date, time.min)  # 00:00:00 первого дня
+    end_dt = datetime.combine(end_date, time.max)  # 23:59:59 последнего дня
     return start_dt, end_dt
 
 
 async def get_orders_count_by_period(
     session: AsyncSession, user_id: int, start_date, end_date
-):
+):  # Количество заказов заказчика за период
     start_dt, end_dt = _period_bounds(start_date, end_date)
 
-    stmt = select(func.count(Order.id)).where(
+    stmt = select(func.count(Order.id)).where(  # COUNT заказов
         Order.customer_id == user_id,
         Order.created_at >= start_dt,
         Order.created_at <= end_dt,
     )
     result = await session.execute(stmt)
-    return result.scalar() or 0
+    return result.scalar() or 0  # 0, если заказов нет
 
 
 async def get_orders_money_stats(
     session: AsyncSession, user_id: int, start_date, end_date
-):
+):  # Денежная статистика по бюджетам заказов
     start_dt, end_dt = _period_bounds(start_date, end_date)
 
     stmt = select(
-        func.coalesce(func.sum(Order.budget), 0),
-        func.coalesce(func.avg(Order.budget), 0),
-        func.coalesce(func.min(Order.budget), 0),
-        func.coalesce(func.max(Order.budget), 0),
-        func.coalesce(func.max(Order.currency), None),
+        func.coalesce(func.sum(Order.budget), 0),  # Сумма бюджетов
+        func.coalesce(func.avg(Order.budget), 0),  # Средний бюджет
+        func.coalesce(func.min(Order.budget), 0),  # Минимальный
+        func.coalesce(func.max(Order.budget), 0),  # Максимальный
+        func.coalesce(func.max(Order.currency), None),  # Валюта (любая из периода)
     ).where(
         Order.customer_id == user_id,
         Order.created_at >= start_dt,
@@ -60,16 +60,16 @@ async def get_orders_money_stats(
 
 async def get_cancellation_stats(
     session: AsyncSession, user_id: int, start_date, end_date
-):
+):  # Статистика отмен заказов пользователем
     start_dt, end_dt = _period_bounds(start_date, end_date)
 
-    customer_stmt = select(func.count(CustomerOrderCancellation.id)).where(
+    customer_stmt = select(func.count(CustomerOrderCancellation.id)).where(  # Отмены как заказчик
         CustomerOrderCancellation.customer_id == user_id,
         CustomerOrderCancellation.created_at >= start_dt,
         CustomerOrderCancellation.created_at <= end_dt,
     )
 
-    executor_stmt = select(func.count(ExecutorOrderCancellation.id)).where(
+    executor_stmt = select(func.count(ExecutorOrderCancellation.id)).where(  # Отмены как исполнитель
         ExecutorOrderCancellation.executor_id == user_id,
         ExecutorOrderCancellation.created_at >= start_dt,
         ExecutorOrderCancellation.created_at <= end_dt,
@@ -84,18 +84,18 @@ async def get_cancellation_stats(
     return {
         "customer_cancellations": customer_count,
         "executor_cancellations": executor_count,
-        "total_cancellations": customer_count + executor_count,
+        "total_cancellations": customer_count + executor_count,  # Суммарно
     }
 
 
-async def get_rating_stats(session: AsyncSession, user_id: int, start_date, end_date):
+async def get_rating_stats(session: AsyncSession, user_id: int, start_date, end_date):  # Рейтинг и число отзывов
     start_dt, end_dt = _period_bounds(start_date, end_date)
 
     stmt = select(
-        func.coalesce(func.avg(Review.rating), 0),
-        func.count(Review.id),
+        func.coalesce(func.avg(Review.rating), 0),  # Средняя оценка
+        func.count(Review.id),  # Количество отзывов
     ).where(
-        Review.reviewee_id == user_id,
+        Review.reviewee_id == user_id,  # Отзывы о данном пользователе
         Review.created_at >= start_dt,
         Review.created_at <= end_dt,
     )
@@ -110,16 +110,16 @@ async def get_rating_stats(session: AsyncSession, user_id: int, start_date, end_
 
 async def get_order_status_stats(
     session: AsyncSession, user_id: int, start_date, end_date
-):
+):  # Распределение заказов по статусам
     start_dt, end_dt = _period_bounds(start_date, end_date)
 
-    total_stmt = select(func.count(Order.id)).where(
+    total_stmt = select(func.count(Order.id)).where(  # Все заказы за период
         Order.customer_id == user_id,
         Order.created_at >= start_dt,
         Order.created_at <= end_dt,
     )
 
-    completed_stmt = (
+    completed_stmt = (  # Завершённые заказы
         select(func.count(StatusOrderCustomer.id))
         .select_from(StatusOrderCustomer)
         .join(Order, Order.id == StatusOrderCustomer.order_id)
@@ -131,7 +131,7 @@ async def get_order_status_stats(
         )
     )
 
-    in_progress_stmt = (
+    in_progress_stmt = (  # Заказы в работе
         select(func.count(StatusOrderCustomer.id))
         .select_from(StatusOrderCustomer)
         .join(Order, Order.id == StatusOrderCustomer.order_id)
@@ -143,7 +143,7 @@ async def get_order_status_stats(
         )
     )
 
-    cancelled_stmt = (
+    cancelled_stmt = (  # Отменённые заказы
         select(func.count(StatusOrderCustomer.id))
         .select_from(StatusOrderCustomer)
         .join(Order, Order.id == StatusOrderCustomer.order_id)

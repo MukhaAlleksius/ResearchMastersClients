@@ -20,7 +20,7 @@ const FALLBACK_ORDER = {
   location: "Москва",
 };
 
-export default function ExecutedOrder({ order, onBack, userId, listActivity }) {
+export default function ExecutedOrder({ order, onBack, userId }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("customer_completed");
   const [orderData, setOrderData] = useState(null);
   const [executorOrder, setExecutorOrder] = useState(null);
@@ -137,16 +137,6 @@ export default function ExecutedOrder({ order, onBack, userId, listActivity }) {
       title={currentOrder.title || "Выполненный заказ"}
       backLabel="Назад к заказам"
       onBack={onBack || (() => navigate(-1))}
-      activityConfig={
-        userId && orderId
-          ? {
-              userId,
-              orderId,
-              presetKey: "customer_completed",
-              activity: listActivity ?? order?.activity,
-            }
-          : undefined
-      }
       meta={
         <>
           <span>

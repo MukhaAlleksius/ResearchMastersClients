@@ -12,6 +12,17 @@ import "../shared/public_content_layout.css";
 import "./orders_customers.css";
 function CatalogOrdersCustomers() {
   const [totalPages, setTotalPages] = useState(0);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const hasActiveFilters = (() => {
+    const params = new URLSearchParams(location.search);
+    params.delete("page");
+    return [...params.keys()].length > 0;
+  })();
+
+  const resetFilters = () => {
+    navigate(location.pathname, { replace: true });
+  };
 
   return (
     <div
@@ -19,18 +30,34 @@ function CatalogOrdersCustomers() {
       className="catalog-page catalog-page--orders public-content-narrow"
     >
       <div className="catalog-container">
-        <div className="catalog-top">
-          <header className="catalog-hero">
-            <span className="catalog-hero__badge">Для исполнителей</span>
-            <h1 className="catalog-title">Каталог заказов</h1>
-            <p className="catalog-hero__text">
-              Найдите подходящие задачи от заказчиков и откликнитесь на
-              интересные предложения
-            </p>
-          </header>
-          <FiltersOrders />
+        <header className="catalog-hero">
+          <span className="catalog-hero__badge">Для исполнителей</span>
+          <h1 className="catalog-title">Каталог заказов</h1>
+          <p className="catalog-hero__text">
+            Найдите подходящие задачи от заказчиков и откликнитесь на
+            интересные предложения
+          </p>
+        </header>
+        <div className="catalog-list-toolbar">
+          <p className="catalog-list-toolbar__meta">Список заказов</p>
+          <div className="catalog-list-toolbar__actions">
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className="catalog-reset-filters"
+                onClick={resetFilters}
+              >
+                Сбросить фильтры
+              </button>
+            )}
+            <FiltersOrders />
+          </div>
         </div>
-        <OrdersGrid onTotalPagesChange={setTotalPages} />
+        <OrdersGrid
+          onTotalPagesChange={setTotalPages}
+          hasActiveFilters={hasActiveFilters}
+          onResetFilters={resetFilters}
+        />
         <CatalogPagination totalPages={totalPages} />
       </div>
     </div>
@@ -471,7 +498,11 @@ function OrderCatalogCard({ order, returnTo }) {
   );
 }
 
-function OrdersGrid({ onTotalPagesChange }) {
+function OrdersGrid({
+  onTotalPagesChange,
+  hasActiveFilters = false,
+  onResetFilters,
+}) {
   const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -561,8 +592,19 @@ function OrdersGrid({ onTotalPagesChange }) {
           </div>
           <p className="empty-state__title">Заказы не найдены</p>
           <p className="empty-state__text">
-            Попробуйте изменить фильтры или выберите другую категорию
+            {hasActiveFilters
+              ? "Измените параметры поиска или сбросьте фильтры"
+              : "Пока нет подходящих заказов"}
           </p>
+          {hasActiveFilters && onResetFilters && (
+            <button
+              type="button"
+              className="empty-state__reset"
+              onClick={onResetFilters}
+            >
+              Сбросить фильтры
+            </button>
+          )}
         </div>
       ) : (
         orders.map((order) => (

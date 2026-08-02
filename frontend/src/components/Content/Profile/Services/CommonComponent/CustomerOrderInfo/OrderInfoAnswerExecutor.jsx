@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { API, apiFetch, buildApiUrl } from "../../../../../../utils/api.js";
+import { useNavigate } from "react-router-dom";
+import {
+  apiFetch,
+  buildApiUrl,
+  readApiError,
+} from "../../../../../../utils/api.js";
 import ExecutorResponseDisplay from "./ExecutorResponseDisplay";
 import { OrderInfoEmpty, OrderDetailsGrid } from "./OrderInfoContent";
 import "./customer_order_info.css";
-import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+import { uiAlert, uiConfirm } from "../../../../../UiDialog/uiDialog.js";
 
 const budgetTypes = ["Фиксированная цена", "Почасовая оплата", "Договорная цена"];
 
@@ -41,6 +46,8 @@ export default function OrderInfoAnswerExecutor({
   createModalTitle,
   buttonOnly = false,
 }) {
+  const navigate = useNavigate();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState("order");
@@ -242,9 +249,13 @@ export default function OrderInfoAnswerExecutor({
       );
 
       if (!response.ok) {
-        const errBody = await response.json().catch(() => ({}));
+        if (response.status === 403) {
+          setIsModalOpen(false);
+          await promptMissingSpecialization();
+          return;
+        }
 
-        throw new Error(errBody.detail || `Ошибка: ${response.status}`);
+        throw new Error(await readApiError(response, `Ошибка: ${response.status}`));
       }
 
       const statusRes = await apiFetch(
@@ -339,7 +350,58 @@ export default function OrderInfoAnswerExecutor({
     }
   };
 
-  const openCreateModal = () => {
+  const promptMissingSpecialization = async () => {
+    const go = await uiConfirm(
+      "У вас нет специализации по категории этого заказа. Добавьте её во вкладке «Специализации», чтобы предложить услугу.",
+      {
+        title: "Нет специализации",
+        confirmLabel: "Перейти к специализациям",
+        cancelLabel: "Закрыть",
+        danger: false,
+      },
+    );
+    if (go) navigate("/profile/specialization");
+  };
+
+  const openCreateModal = async () => {
+    if (!user_id) {
+      await uiAlert("Войдите в аккаунт, чтобы предложить услугу");
+      return;
+    }
+
+    const categoryWorkId =
+      order?.category_work_id ||
+      order?.category_id ||
+      order?.category_work?.category_work_id ||
+      order?.category_work?.id;
+
+    if (!categoryWorkId) {
+      await uiAlert("У заказа не указана категория работ");
+      return;
+    }
+
+    try {
+      const response = await apiFetch(
+        buildApiUrl(`/user_have_category_work/${user_id}/${categoryWorkId}`),
+      );
+
+      if (response.status === 403) {
+        await promptMissingSpecialization();
+        return;
+      }
+
+      if (!response.ok) {
+        await uiAlert(
+          await readApiError(response, "Не удалось проверить специализацию"),
+        );
+        return;
+      }
+    } catch (err) {
+      console.error("Ошибка проверки специализации:", err);
+      await uiAlert(err.message || "Не удалось проверить специализацию");
+      return;
+    }
+
     setFormData({
       proposed_price: "",
 

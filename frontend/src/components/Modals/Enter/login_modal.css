@@ -1,28 +1,41 @@
 .login-modal {
-  max-width: 440px;
-  max-height: min(92vh, 620px);
+  max-width: 420px;
+  max-height: min(90vh, 540px);
+}
+
+.login-modal .reg-modal__fields {
+  gap: 0.65rem;
+}
+
+/* Email / пароль: без колонки подсказки — поле шире */
+.login-modal .reg-modal__row {
+  grid-template-columns: 4.75rem minmax(0, 1fr);
+}
+
+.login-modal .reg-modal__row > :last-child {
+  display: none;
 }
 
 .login-modal__google {
   flex-shrink: 0;
-  padding: 0.85rem 1.15rem 1.1rem;
+  padding: 0.65rem 1rem 0.9rem;
   text-align: center;
 }
 
 .login-modal__google-divider {
-  margin-bottom: 0.65rem;
-  font-size: 0.8125rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
   opacity: 0.75;
 }
 
 .login-modal__google-button {
   display: flex;
   justify-content: center;
-  min-height: 44px;
+  min-height: 40px;
 }
 
 .login-modal__forgot {
-  margin-top: 0.85rem;
+  margin-top: 0.65rem;
   text-align: center;
 }
 
@@ -31,7 +44,7 @@
   border: none;
   background: none;
   font-family: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #2563eb;
   cursor: pointer;
@@ -44,17 +57,17 @@
 .login-modal__footer {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.5rem;
 }
 
 .login-modal__secondary {
   width: 100%;
-  padding: 0.7rem 1rem;
+  padding: 0.6rem 1rem;
   border: 1px solid #cbd5e1;
-  border-radius: 12px;
+  border-radius: 11px;
   background: #fff;
   color: #334155;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;

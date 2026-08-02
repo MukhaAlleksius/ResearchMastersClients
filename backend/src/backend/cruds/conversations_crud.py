@@ -1,23 +1,23 @@
-from datetime import datetime, timedelta, timezone
-import logging
-from typing import Optional
-from fastapi import HTTPException
-from sqlalchemy import and_, func, or_, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased, joinedload
+from datetime import datetime, timedelta, timezone  # Время для блокировок и сроков
+import logging  # Логирование операций чатов
+from typing import Optional  # Опциональные id и параметры
+from fastapi import HTTPException  # HTTP-ошибки API
+from sqlalchemy import and_, func, or_, select, update  # Условия, SELECT, UPDATE
+from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
+from sqlalchemy.orm import aliased, joinedload  # Алиасы и eager-load (импорт)
 
-from sqlalchemy.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.exc import NoResultFound, MultipleResultsFound  # Ошибки ORM при get
 
 
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload  # Подгрузка связей списком
 
-from cruds.notifications_crud import (
+from cruds.notifications_crud import (  # Уведомления о сообщениях и жалобах
     NEW_MESSAGE_NOTIFICATION_TYPE,
     notify_complaint_message,
     notify_order_event,
 )
-from models.orders_models import ExecutorOrder, Order, StatusOrderExecutor
-from models.conversations_models import (
+from models.orders_models import ExecutorOrder, Order, StatusOrderExecutor  # Заказ и назначение
+from models.conversations_models import (  # ORM чатов, жалоб, поддержки
     ActionType,
     ComplaintConversation,
     ComplaintMessage,
@@ -27,8 +27,8 @@ from models.conversations_models import (
     SupportConversation,
     SupportMessage,
 )
-from models.users_models import User
-from schemas.conversations_schemas import (
+from models.users_models import User  # ORM пользователя
+from schemas.conversations_schemas import (  # Pydantic-схемы чатов
     ComplaintChatRead,
     ComplaintConversationCreate,
     ComplaintConversationRead,
@@ -43,13 +43,13 @@ from schemas.conversations_schemas import (
     SupportMessageCreate,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # Логгер модуля
 
 
-async def add_conversation(db: AsyncSession, conversation_schema: ConversationBase):
+async def add_conversation(db: AsyncSession, conversation_schema: ConversationBase):  # Создание чата по заказу
     try:
 
-        result = await db.execute(
+        result = await db.execute(  # Уже есть чат для тройки order/customer/executor?
             select(Conversation).where(
                 and_(
                     Conversation.order_id == conversation_schema.order_id,
@@ -60,7 +60,7 @@ async def add_conversation(db: AsyncSession, conversation_schema: ConversationBa
         )
         row = result.scalar_one_or_none()
 
-        if not row:
+        if not row:  # Создаём новый чат
 
             conversation = Conversation(
                 order_id=conversation_schema.order_id,
@@ -71,20 +71,20 @@ async def add_conversation(db: AsyncSession, conversation_schema: ConversationBa
             db.add(conversation)
             await db.commit()
 
-        return conversation
-    except Exception as e:
+        return conversation  # Существующий или новый
+    except Exception as e:  # Ошибка создания
         logger.error(f"add_message error: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
 
 
-async def add_message(db: AsyncSession, message_schema: MessageBase):
+async def add_message(db: AsyncSession, message_schema: MessageBase):  # Добавление сообщения в чат заказа
     try:
-        logger.info(
+        logger.info(  # Отладочный лог параметров
             f"🔍 order_id={message_schema.order_id}, sender_id={message_schema.sender_id}"
         )
 
         # 1. Ищем conversation
-        result = await db.execute(
+        result = await db.execute(  # Id чата, где отправитель — заказчик или исполнитель
             select(Conversation.id).where(
                 and_(
                     Conversation.order_id == message_schema.order_id,
@@ -97,9 +97,9 @@ async def add_message(db: AsyncSession, message_schema: MessageBase):
         )
         conversation_id = result.scalar_one_or_none()
 
-        if not conversation_id:
+        if not conversation_id:  # Чата нет — создаём из заказа
             # ✅ ИСПРАВЛЕНО: Используем fetchone() вместо first()
-            order_result = await db.execute(
+            order_result = await db.execute(  # Заказ + назначение исполнителя
                 select(Order, ExecutorOrder)
                 .outerjoin(ExecutorOrder, Order.id == ExecutorOrder.order_id)
                 .where(Order.id == message_schema.order_id)
@@ -107,7 +107,7 @@ async def add_message(db: AsyncSession, message_schema: MessageBase):
 
             # ✅ ПРОВЕРЯЕМ результат!
             row = order_result.fetchone()
-            if not row:
+            if not row:  # Заказ не найден
                 raise HTTPException(status_code=404, detail="Заказ не найден")
 
             order, executor_order = (
@@ -116,7 +116,7 @@ async def add_message(db: AsyncSession, message_schema: MessageBase):
             )  # ✅ Правильный доступ!
 
             # ✅ Проверка executor_order
-            if executor_order is None:
+            if executor_order is None:  # Исполнитель не назначен
                 raise HTTPException(status_code=404, detail="Исполнитель не назначен")
 
             # Создаем conversation
@@ -126,7 +126,7 @@ async def add_message(db: AsyncSession, message_schema: MessageBase):
                 executor_id=executor_order.executor_id,
             )
             db.add(conversation)
-            await db.flush()
+            await db.flush()  # Получаем id без commit
             conversation_id = conversation.id
 
         # Создаем сообщение
@@ -140,23 +140,23 @@ async def add_message(db: AsyncSession, message_schema: MessageBase):
         )
 
         db.add(message)
-        await db.flush()
+        await db.flush()  # Id сообщения до уведомления
         try:
-            await notify_order_event(
+            await notify_order_event(  # Push/email о новом сообщении
                 db,
                 order_id=message_schema.order_id,
                 actor_user_id=message_schema.sender_id,
                 notification_type=NEW_MESSAGE_NOTIFICATION_TYPE,
             )
-        except Exception as notify_error:
+        except Exception as notify_error:  # Уведомление не блокирует сохранение
             logger.warning("notify new_message failed: %s", notify_error)
-        await db.commit()
-        await db.refresh(message)
+        await db.commit()  # Фиксируем сообщение
+        await db.refresh(message)  # Актуальные поля из БД
         return message
 
-    except HTTPException:
+    except HTTPException:  # Пробрасываем HTTP-ошибки
         raise
-    except Exception as e:
+    except Exception as e:  # Откат и общая ошибка
         await db.rollback()
         logger.error(f"add_message error: {str(e)}")
         raise HTTPException(status_code=400, detail="Ошибка добавления сообщения")
@@ -179,9 +179,9 @@ async def add_message(db: AsyncSession, message_schema: MessageBase):
 #         raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
 
 
-async def get_conversation(db: AsyncSession, order_id: int, current_user_id: int):
+async def get_conversation(db: AsyncSession, order_id: int, current_user_id: int):  # Чат заказа для участника
     try:
-        result = await db.execute(
+        result = await db.execute(  # Чат + все сообщения (outer join)
             select(Conversation, Message)
             .outerjoin(Message, Conversation.id == Message.conversation_id)
             .where(
@@ -196,17 +196,17 @@ async def get_conversation(db: AsyncSession, order_id: int, current_user_id: int
         )
 
         rows = result.all()
-        if not rows:
+        if not rows:  # Чата ещё нет — заглушка из заказа
             order_result = await db.execute(
                 select(Order.id, Order.customer_id, ExecutorOrder.executor_id)
                 .outerjoin(ExecutorOrder, ExecutorOrder.order_id == Order.id)
                 .where(Order.id == order_id)
             )
             order_row = order_result.first()
-            if not order_row:
+            if not order_row:  # Заказ не найден
                 return None
 
-            return ConversationRead(
+            return ConversationRead(  # Пустой чат с id=0
                 id=0,
                 order_id=order_id,
                 customer_id=order_row.customer_id,
@@ -214,8 +214,8 @@ async def get_conversation(db: AsyncSession, order_id: int, current_user_id: int
                 messages=[],
             )
 
-        conversation = rows[0].Conversation
-        messages = [
+        conversation = rows[0].Conversation  # Первая строка — метаданные чата
+        messages = [  # Сообщения из join (без None)
             MessageRead(
                 id=msg.Message.id,
                 sender_id=msg.Message.sender_id,
@@ -228,27 +228,27 @@ async def get_conversation(db: AsyncSession, order_id: int, current_user_id: int
             if msg.Message is not None
         ]
 
-        return ConversationRead(
+        return ConversationRead(  # Полный ответ
             id=conversation.id,
             order_id=conversation.order_id,
             customer_id=conversation.customer_id,
             executor_id=conversation.executor_id,
             messages=messages,  # ← НЕТ created_at=strftime()
         )
-    except Exception as e:
+    except Exception as e:  # Внутренняя ошибка
         logger.error(f"get_conversation error: {str(e)}")
         raise HTTPException(status_code=500, detail="Ошибка сервера")  # ← detail!
 
 
 # Опрерации для жалоб пользователей админситратору и вынесение вердиктов
-async def add_complaint_conversation(
+async def add_complaint_conversation(  # Создание жалобы по заказу
     db: AsyncSession, schema: ComplaintConversationCreate, current_user_id: int
 ):
 
     try:
 
         # 1. ✅ Проверяем существующую жалобу
-        result = await db.execute(
+        result = await db.execute(  # Активная жалоба того же типа от пользователя
             select(ComplaintConversation).where(
                 and_(
                     ComplaintConversation.order_id == schema.order_id,
@@ -262,7 +262,7 @@ async def add_complaint_conversation(
         )
         existing = result.scalar_one_or_none()
 
-        if existing:
+        if existing:  # Не дублируем — возвращаем существующую
             logger.info(f"Жалоба уже существует: {existing.id}")
             await db.refresh(existing)  # Обновляем данные
             return existing
@@ -292,15 +292,15 @@ async def add_complaint_conversation(
         logger.info(f"Создана жалоба #{conversation.id}")
         return conversation
 
-    except HTTPException:
+    except HTTPException:  # Пробрасываем FastAPI исключения
         raise  # Пробрасываем FastAPI исключения
-    except Exception as e:
+    except Exception as e:  # Откат и 500
         await db.rollback()
         logger.error(f"create_complaint error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Ошибка создания жалобы")
 
 
-async def add_complaint_message(
+async def add_complaint_message(  # Сообщение в чат жалобы
     db: AsyncSession,
     schema: ComplaintMessageCreate,
     current_user_id: int,
@@ -311,7 +311,7 @@ async def add_complaint_message(
         order_stmt = select(Order).where(Order.id == schema.order_id)
         order_result = await db.execute(order_stmt)
         order = order_result.scalar_one_or_none()
-        if not order:
+        if not order:  # Заказ не найден
             raise HTTPException(status_code=404, detail="Заказ не найден")
 
         # 1.1 Получаем executor_order (если нужно)
@@ -322,18 +322,18 @@ async def add_complaint_message(
         executor_order = executor_result.scalar_one_or_none()
 
         # 2. Найти беседу по жалобе (одна на заказ)
-        if complaint_id is not None:
+        if complaint_id is not None:  # По id жалобы
             conversation_stmt = select(ComplaintConversation).where(
                 ComplaintConversation.id == complaint_id,
             )
-        else:
+        else:  # По order_id
             conversation_stmt = select(ComplaintConversation).where(
                 ComplaintConversation.order_id == schema.order_id,
             )
         conversation_result = await db.execute(conversation_stmt)
         conversation = conversation_result.scalar_one_or_none()
 
-        if not conversation:
+        if not conversation:  # Создаём беседу, если нет
 
             conversation = ComplaintConversation(
                 order_id=schema.order_id,
@@ -352,21 +352,21 @@ async def add_complaint_message(
             # Админ всегда может писать
             pass
 
-        elif sender_type == "customer":
+        elif sender_type == "customer":  # Только заказчик заказа
             if current_user_id != order.customer_id:
                 raise HTTPException(
                     status_code=403,
                     detail="Вы не являетесь заказчиком по этому заказу",
                 )
 
-        elif sender_type == "executor":
+        elif sender_type == "executor":  # Только назначенный исполнитель
             if not executor_order or current_user_id != executor_order.executor_id:
                 raise HTTPException(
                     status_code=403,
                     detail="Вы не являетесь исполнителем по этому заказу",
                 )
 
-        else:
+        else:  # Неверный тип отправителя
             raise HTTPException(status_code=400, detail="Неверный sender_type")
 
         # 4. Создать сообщение
@@ -382,13 +382,13 @@ async def add_complaint_message(
         db.add(message)
         await db.flush()
         try:
-            await notify_complaint_message(
+            await notify_complaint_message(  # Уведомление участникам жалобы
                 db,
                 order_id=schema.order_id,
                 sender_user_id=current_user_id,
                 sender_type=sender_type,
             )
-        except Exception as notify_error:
+        except Exception as notify_error:  # Не блокируем сохранение
             logger.warning("notify complaint_message failed: %s", notify_error)
         await db.commit()
         await db.refresh(message)
@@ -398,16 +398,16 @@ async def add_complaint_message(
         )
         return message
 
-    except HTTPException:
+    except HTTPException:  # Пробрасываем
         raise
 
-    except Exception as e:
+    except Exception as e:  # Откат и 500
         await db.rollback()
         logger.error(f"add_complaint_message error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Ошибка добавления сообщения")
 
 
-async def get_complaint(
+async def get_complaint(  # Жалоба с историей для текущего пользователя
     db: AsyncSession, complaint_id: int, current_user_id: int
 ) -> Optional[ComplaintConversation]:
 
@@ -435,7 +435,7 @@ async def get_complaint(
         )
         conversation = result.scalar_one_or_none()
 
-        if not conversation:
+        if not conversation:  # Нет доступа или не найдена
             logger.warning(
                 f"Жалоба #{complaint_id} недоступна для user #{current_user_id}"
             )
@@ -446,16 +446,16 @@ async def get_complaint(
             if not msg.is_read and msg.sender_id != current_user_id:
                 msg.is_read = True
 
-        await db.commit()
+        await db.commit()  # Сохраняем is_read
         return conversation
 
-    except Exception as e:
+    except Exception as e:  # Ошибка загрузки
         logger.error(f"get_complaint error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Ошибка получения жалобы")
 
 
 # Получить все беседы с жалобами для администратора
-async def get_complaints_for_admin(db: AsyncSession) -> list[ComplaintConversationRead]:
+async def get_complaints_for_admin(db: AsyncSession) -> list[ComplaintConversationRead]:  # Список всех жалоб
     try:
         # Выбираем все жалобы с нужными статусами
         result = await db.execute(select(ComplaintConversation))
@@ -465,19 +465,19 @@ async def get_complaints_for_admin(db: AsyncSession) -> list[ComplaintConversati
         # Можно не возвращать None, а просто пустой список
         return conversations
 
-    except Exception as e:
+    except Exception as e:  # Ошибка списка
         logger.error(f"get_complaints_for_admin error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Ошибка получения списка жалоб")
 
 
 # получаем чат для споров между заказчиком, исполнителем и админитратором
-async def get_complaint_chat_for_admin(
+async def get_complaint_chat_for_admin(  # Полный чат жалобы для админки
     db: AsyncSession,
     order_id: int,
 ):
     try:
-        CustomerUser = aliased(User, name="customer_user")
-        ExecutorUser = aliased(User, name="executor_user")
+        CustomerUser = aliased(User, name="customer_user")  # Алиас заказчика (не используется в запросах ниже)
+        ExecutorUser = aliased(User, name="executor_user")  # Алиас исполнителя
 
         # ✅ ПРОСТОЙ запрос ТОЛЬКО ComplaintConversation
         stmt_conversation = select(ComplaintConversation).where(
@@ -486,7 +486,7 @@ async def get_complaint_chat_for_admin(
         result_conv = await db.execute(stmt_conversation)
         conversation = result_conv.scalar_one_or_none()
 
-        if not conversation:
+        if not conversation:  # Жалоба по заказу не найдена
             raise HTTPException(status_code=404, detail="Жалоба не найдена")
 
         # ✅ ОТДЕЛЬНЫЙ запрос Order
@@ -509,7 +509,7 @@ async def get_complaint_chat_for_admin(
         result_exec = await db.execute(stmt_exec_order)
         exec_orders = result_exec.scalars().all()
 
-        if exec_orders:
+        if exec_orders:  # Берём первого назначенного исполнителя
             executor_id = exec_orders[0].executor_id
             stmt_executor = select(User).where(User.id == executor_id)
             result_executor = await db.execute(stmt_executor)
@@ -524,13 +524,13 @@ async def get_complaint_chat_for_admin(
         result_msg = await db.execute(stmt_messages)
         messages = result_msg.scalars().all()
 
-        logger.info(
+        logger.info(  # Отладочная сводка
             f"🔍 Conversation ID: {conversation.id} | "
             f"Сообщений: {len(messages)} | "
             f"Customer: {customer.first_name if customer else 'None'}"
         )
 
-        return {
+        return {  # Словарь для админ-UI
             "id": conversation.id,
             "order_id": conversation.order_id,
             "admin_id": conversation.admin_id,
@@ -575,14 +575,14 @@ async def get_complaint_chat_for_admin(
             ],
         }
 
-    except HTTPException:
+    except HTTPException:  # Пробрасываем
         raise
-    except Exception as e:
+    except Exception as e:  # Ошибка сборки чата
         logger.error(f"get_complaint_chat_for_admin error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Ошибка загрузки чата жалобы")
 
 
-async def update_complaint_status(
+async def update_complaint_status(  # Смена статуса и вердикта жалобы
     db: AsyncSession,
     complaint_id: int,
     status: str,
@@ -593,25 +593,25 @@ async def update_complaint_status(
     try:
         # ✅ Валидация статусов
         valid_statuses = ["new", "investigating", "active", "verdict", "closed"]
-        if status not in valid_statuses:
+        if status not in valid_statuses:  # Недопустимый статус
             raise HTTPException(status_code=400, detail=f"Неверный статус: {status}")
 
         # 1. ✅ Находим жалобу
         conversation = await db.get(ComplaintConversation, complaint_id)
-        if not conversation:
+        if not conversation:  # Не найдена
             raise HTTPException(status_code=404, detail="Жалоба не найдена")
 
         # 2. ✅ Проверяем админа (если передан)
         if admin_id:
             admin = await db.get(User, admin_id)
-            if not admin or getattr(admin, "role", None) != "admin":
+            if not admin or getattr(admin, "role", None) != "admin":  # Не админ
                 raise HTTPException(status_code=403, detail="Требуется администратор")
 
         # 3. ✅ Логика статусов
-        if status == "investigating" and not conversation.admin_id:
+        if status == "investigating" and not conversation.admin_id:  # Назначаем админа
             conversation.admin_id = admin_id
 
-        if status == "closed" and not verdict:
+        if status == "closed" and not verdict:  # Закрытие без вердикта запрещено
             raise HTTPException(
                 status_code=400, detail="Вердикт обязателен для закрытия"
             )
@@ -625,16 +625,16 @@ async def update_complaint_status(
         logger.info(f"Жалоба #{complaint_id} → статус: {status}")
         return conversation
 
-    except HTTPException:
+    except HTTPException:  # Пробрасываем
         raise
-    except Exception as e:
+    except Exception as e:  # Откат и 500
         await db.rollback()
         logger.error(f"update_complaint_status error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Ошибка обновления статуса")
 
 
 # добавляем вердикт администратора для жалобы
-async def add_verdict_admin(
+async def add_verdict_admin(  # Модерационное действие по жалобе (бан, предупреждение)
     db: AsyncSession,
     moderation_action_schema: ModerationActionCreate,
 ) -> ComplaintModerationAction:
@@ -661,20 +661,20 @@ async def add_verdict_admin(
         )
 
         result_user = await db.execute(stmt_user)
-        user = result_user.scalar_one()
+        user = result_user.scalar_one()  # Должен существовать
 
         # 3. Применяем действия модерации
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)  # Текущее UTC-время
 
-        if moderation_action_schema.action_type == ActionType.BAN:
+        if moderation_action_schema.action_type == ActionType.BAN:  # Блокировка
             user.blocked = True
-            if moderation_action_schema.duration_days is not None:
+            if moderation_action_schema.duration_days is not None:  # Временный бан
                 user.blocked_until = now + timedelta(
                     days=moderation_action_schema.duration_days
                 )
             await db.flush()  # чтобы сразу зафиксировать изменение user
 
-        elif moderation_action_schema.action_type == ActionType.WARNING:
+        elif moderation_action_schema.action_type == ActionType.WARNING:  # Предупреждение
             user.warnings_count += 1
             await db.flush()
 
@@ -695,14 +695,14 @@ async def add_verdict_admin(
 
         return moderation_action
 
-    except (NoResultFound, MultipleResultsFound) as exc:
+    except (NoResultFound, MultipleResultsFound) as exc:  # Пользователь/действие не найдены
         logger.error(
             f"Ошибка поиска ModerationAction или User: {str(exc)}", exc_info=True
         )
         raise HTTPException(
             status_code=404, detail="Пользователь или действие не найдены"
         )
-    except Exception as e:
+    except Exception as e:  # Прочая ошибка
         logger.error(f"add_verdict_admin error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Ошибка при добавлении вердикта модератора"
@@ -710,11 +710,11 @@ async def add_verdict_admin(
 
 
 # Функции для поддержки пользователей администратором
-async def create_support_conversation(
+async def create_support_conversation(  # Тема обращения в поддержку (без дубликатов)
     db: AsyncSession, conv: SupportConversationCreate
 ) -> SupportConversation:
     try:
-        result = await db.execute(
+        result = await db.execute(  # Уже есть диалог user+topic?
             select(SupportConversation).where(
                 and_(
                     SupportConversation.user_id == conv.user_id,
@@ -724,31 +724,31 @@ async def create_support_conversation(
         )
         support_conversation = result.scalar_one_or_none()
         if support_conversation is not None:
-            return support_conversation
+            return support_conversation  # Возвращаем существующий
         db_conv = SupportConversation(user_id=conv.user_id, topic=conv.topic)
         db.add(db_conv)
         await db.commit()
         await db.refresh(db_conv)
         return db_conv
 
-    except Exception as e:
+    except Exception as e:  # Откат и 500
         await db.rollback()
         logger.error(f"create_support_conversation error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Ошибка добавления разговора")
 
 
-async def get_support_conversation(
+async def get_support_conversation(  # Один диалог поддержки по id
     db: AsyncSession, conv_id: int, user_id: int = None
 ) -> SupportConversation | None:
     stmt = select(SupportConversation).where(SupportConversation.id == conv_id)
-    if user_id is not None:
+    if user_id is not None:  # Ограничение владельцем
         stmt = stmt.where(SupportConversation.user_id == user_id)
 
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def get_user_conversations(
+async def get_user_conversations(  # Все диалоги поддержки пользователя
     db: AsyncSession, user_id: int
 ) -> list[SupportConversation]:
     stmt = select(SupportConversation).where(SupportConversation.user_id == user_id)
@@ -756,7 +756,7 @@ async def get_user_conversations(
     return list(result.scalars().all())
 
 
-async def create_support_message(
+async def create_support_message(  # Сообщение в чат поддержки
     db: AsyncSession, msg: SupportMessageCreate
 ) -> SupportMessage:
     try:
@@ -773,13 +773,13 @@ async def create_support_message(
         await db.refresh(db_msg)
         return db_msg
 
-    except Exception as e:
+    except Exception as e:  # Откат и 500
         await db.rollback()
         logger.error(f"create_support_message error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Ошибка добавления сообщения")
 
 
-async def get_messages_by_conversation(
+async def get_messages_by_conversation(  # История сообщений поддержки
     db: AsyncSession, conv_id: int
 ) -> list[SupportMessage]:
     stmt = (
@@ -791,7 +791,7 @@ async def get_messages_by_conversation(
     return list(result.scalars().all())
 
 
-async def mark_messages_as_read(
+async def mark_messages_as_read(  # Пометить сообщения поддержки прочитанными
     db: AsyncSession, conv_id: int, is_read: bool = True
 ) -> None:
     stmt = (

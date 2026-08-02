@@ -1,14 +1,12 @@
 from datetime import datetime
 from typing import Dict, List, Optional
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 
 class UserBaseSchema(BaseModel):
     first_name: str = Field(..., max_length=100)
     last_name: str = Field(..., max_length=100)
-    country: str = Field(...)
-    region: str = Field(...)
-    town: str = Field(...)
+    town_id: int
     email: str = Field(..., max_length=255)
     created_at: datetime = Field(
         default_factory=datetime.now, description="Дата регистрации"
@@ -25,6 +23,15 @@ class UserSchema(UserBaseSchema):
         validation_alias=AliasChoices("password", "password_hash"),
     )
 
+    @field_validator("password")
+    @classmethod
+    def pawword_not_blank(cls, value: str) -> str:
+        if not value or value.strip():
+            raise ValueError("Пароль не может состоять только из пробелов")
+        if len(value) < 6:
+            raise ValueError("Пароль должен содержать мимнимум 6 символов")
+        return value  # trim не делать - пробелы внутри пароля ok
+
 
 class UserReadSchema(UserBaseSchema):
     is_verified: bool
@@ -38,7 +45,8 @@ class UserReadSchema(UserBaseSchema):
 class UserCommonReadSchema(BaseModel):
     first_name: Optional[str] = Field(None, max_length=100)
     last_name: Optional[str] = Field(None, max_length=100)
-    country: Optional[str] = Field(None, max_length=100)
+    town_id: Optional[int] = None
+    country: Optional[str] = Field(None, max_length=100)  # имя через join
     region: Optional[str] = Field(None, max_length=100)
     town: Optional[str] = Field(None, max_length=100)
     location: Optional[str] = Field(None, max_length=100)
@@ -134,11 +142,15 @@ class UserLogin(BaseModel):
     )
 
 
+class GoogleLoginSchema(BaseModel):
+    """Вход существующего пользователя: только Google ID token (JWT-строка)."""
+
+    id_token: str
+
+
 class GoogleRegisterSchema(BaseModel):
     id_token: str
-    country: str = Field(..., max_length=100)
-    region: str = Field(..., max_length=100)
-    town: str = Field(..., max_length=100)
+    town_id: int
 
 
 class Token(BaseModel):
@@ -159,6 +171,7 @@ class UserProfileReadSchema(BaseModel):
     id: int
     first_name: Optional[str] = Field("", max_length=100)
     last_name: Optional[str] = Field("", max_length=100)
+    town_id: Optional[int] = None
     country: Optional[str] = Field("", max_length=100)
     region: Optional[str] = Field("", max_length=100)
     town: Optional[str] = Field("", max_length=100)
@@ -221,3 +234,8 @@ class UserProfileForAdminSchema(UserCardForAdminSchema):
     short_review_master: Optional[str] = None
     operating_mode: Optional[str] = None
     # mark_rating: Optional[str] = None
+
+
+class UserCategoryWork(BaseModel):
+    master_id: int
+    category_work_id: int

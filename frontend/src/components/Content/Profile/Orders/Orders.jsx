@@ -1,20 +1,11 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { API, apiFetch, ensureStoredUserId, getStoredUserId } from "../../../../utils/api.js";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AddOrderForDraft from "./CommonComponents/AddOrder/AddOrderForDarft";
 import OrderServiceCard from "../Common/OrderServiceCard";
 import StatusFilterTabs from "../Common/StatusFilterTabs";
-import { dedupeOrdersById } from "../../../../utils/orders.js";
-import { getCustomerOrderPresetKey } from "../Common/workDetailTabs";
+import { useCustomerOrdersList } from "../Common/useCustomerOrdersList.js";
 import { IconInbox } from "../ProfileIcons.jsx";
 import "../Services/services.css";
-import {
-  enrichListItemWithUpdates,
-  LIST_ACTIVITY_POLL_MS,
-  syncSeenCancelAck,
-  syncSeenActivityBaseline,
-  syncSeenOnRoleStatusChange,
-} from "../../../../utils/orderActivity.js";
 
 const statusTabs = [
   {
@@ -67,124 +58,22 @@ const allTabHint =
 export default function Orders() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [allOrders, setAllOrders] = useState([]);
-  const [ordersByStatus, setOrdersByStatus] = useState({});
   const [addOrder, setAddOrder] = useState(false);
   const [activeStatusTab, setActiveStatusTab] = useState(
     location.state?.activeStatusTab ?? "all",
   );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [seenRevision, setSeenRevision] = useState(0);
 
-  const [userId, setUserId] = useState(() => getStoredUserId());
-
-  const enrichedOrders = useMemo(
-    () =>
-      allOrders.map((order) =>
-        enrichListItemWithUpdates(
-          order,
-          userId,
-          getCustomerOrderPresetKey(order.status_order_customer),
-        ),
-      ),
-    [allOrders, userId, seenRevision],
-  );
-
-  const applyOrdersData = useCallback(
-    (data) => {
-      const uniqueOrders = dedupeOrdersById(data);
-      let seenChanged = false;
-
-      uniqueOrders.forEach((order) => {
-        if (userId && order.activity) {
-          if (syncSeenCancelAck(userId, order.id, order.activity)) {
-            seenChanged = true;
-          }
-          if (syncSeenActivityBaseline(userId, order.id, order.activity)) {
-            seenChanged = true;
-          }
-          if (
-            syncSeenOnRoleStatusChange(
-              userId,
-              order.id,
-              order.activity,
-              "customer",
-              order.status_order_customer,
-            )
-          ) {
-            seenChanged = true;
-          }
-        }
-      });
-
-      if (seenChanged) {
-        setSeenRevision((value) => value + 1);
-      }
-
-      setAllOrders(uniqueOrders);
-
-      const byStatus = uniqueOrders.reduce((acc, order) => {
-        const status = order.status_order_customer || "Без статуса";
-        acc[status] = acc[status] || [];
-        acc[status].push(order);
-        return acc;
-      }, {});
-
-      const statusMap = { ...byStatus };
-      statusTabs.forEach((tab) => {
-        statusMap[tab.statusKey] = statusMap[tab.statusKey] || [];
-      });
-      setOrdersByStatus(statusMap);
-    },
-    [userId],
-  );
-
-  const fetchOrdersCustomer = useCallback(
-    async ({ silent = false } = {}) => {
-      try {
-        if (!silent) {
-          setLoading(true);
-          setError(null);
-        }
-        const user_id = (await ensureStoredUserId()) ?? userId;
-        if (user_id && user_id !== userId) {
-          setUserId(user_id);
-        }
-        if (!user_id) {
-          throw new Error("Войдите в аккаунт для просмотра заказов");
-        }
-
-        const response = await apiFetch(
-          `${API.baseURL}/orders_customer`,
-        );
-        if (!response.ok)
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-
-        const data = await response.json();
-        if (!Array.isArray(data)) throw new Error("Получены некорректные данные");
-
-        applyOrdersData(data);
-      } catch (err) {
-        console.error("Ошибка загрузки заказов:", err);
-        if (!silent) setError(err.message);
-      } finally {
-        if (!silent) setLoading(false);
-      }
-    },
-    [applyOrdersData, userId],
-  );
-
-  useEffect(() => {
-    if (userId) return;
-    ensureStoredUserId().then((id) => {
-      if (id) setUserId(id);
-    });
-  }, [userId]);
-
-  useEffect(() => {
-    fetchOrdersCustomer();
-  }, [fetchOrdersCustomer]);
+  const {
+    allOrders,
+    currentOrders,
+    loading,
+    error,
+    fetchOrders,
+    getStatusCount,
+  } = useCustomerOrdersList({
+    statusTabs,
+    activeStatusTab,
+  });
 
   useEffect(() => {
     if (location.state?.activeStatusTab) {
@@ -192,63 +81,16 @@ export default function Orders() {
     }
   }, [location.state?.activeStatusTab, navigate]);
 
-  useEffect(() => {
-    if (addOrder) return undefined;
-
-    const timerId = setInterval(() => {
-      fetchOrdersCustomer({ silent: true });
-    }, LIST_ACTIVITY_POLL_MS);
-
-    return () => clearInterval(timerId);
-  }, [addOrder, fetchOrdersCustomer]);
-
-  const currentOrders = useMemo(() => {
-    if (activeStatusTab === "all") return enrichedOrders;
-    const statusKey = statusTabs.find(
-      (tab) => tab.id === activeStatusTab,
-    )?.statusKey;
-    return enrichedOrders.filter(
-      (order) => (order.status_order_customer || "Без статуса") === statusKey,
-    );
-  }, [activeStatusTab, enrichedOrders]);
-
-  const getStatusCount = useCallback(
-    (statusKey) => ordersByStatus[statusKey]?.length || 0,
-    [ordersByStatus],
-  );
-
-  const getUpdatesCount = useCallback(
-    (statusKey) =>
-      enrichedOrders.filter(
-        (order) =>
-          (order.status_order_customer || "Без статуса") === statusKey &&
-          order.updateInfo?.hasUpdates,
-      ).length,
-    [enrichedOrders],
-  );
-
-  const totalUpdatesCount = useMemo(
-    () => enrichedOrders.filter((order) => order.updateInfo?.hasUpdates).length,
-    [enrichedOrders],
-  );
-
   const activeTabMeta =
     activeStatusTab === "all"
       ? { label: "Все заказы", hint: allTabHint }
       : statusTabs.find((tab) => tab.id === activeStatusTab);
 
-  const handleStatusChange = (tabId) => {
-    setActiveStatusTab(tabId);
+  const handleDraftOrderCreated = async () => {
+    setAddOrder(false);
+    setActiveStatusTab("waitOfferExecutors");
+    await fetchOrders();
   };
-
-  const handleDraftOrderCreated = useCallback(
-    async () => {
-      setAddOrder(false);
-      setActiveStatusTab("waitOfferExecutors");
-      await fetchOrdersCustomer();
-    },
-    [fetchOrdersCustomer],
-  );
 
   if (loading) {
     return (
@@ -304,7 +146,7 @@ export default function Orders() {
           <button
             type="button"
             className="list-alert__retry"
-            onClick={fetchOrdersCustomer}
+            onClick={fetchOrders}
           >
             Попробовать снова
           </button>
@@ -315,15 +157,13 @@ export default function Orders() {
         <StatusFilterTabs
           tabs={statusTabs}
           activeId={activeStatusTab}
-          onChange={handleStatusChange}
+          onChange={setActiveStatusTab}
           allTab={{
             id: "all",
             label: "Все заказы",
             count: allOrders.length,
-            updatesCount: totalUpdatesCount,
           }}
           getCount={getStatusCount}
-          getUpdatesCount={getUpdatesCount}
         />
 
         <div className="list-page__content">
@@ -373,7 +213,6 @@ export default function Orders() {
                   statusLabel={order.status_order_customer}
                   partyLabel="Клиент"
                   partyName={order.customer_name || order.executor_name}
-                  updateInfo={order.updateInfo}
                   to={`/profile/orders/${order.id}`}
                   linkState={{ order, fromTab: activeStatusTab }}
                 />

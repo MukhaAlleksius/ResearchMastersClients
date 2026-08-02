@@ -1,19 +1,19 @@
-import logging
-import uuid
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Optional
+import logging  # Логирование платёжных операций
+import uuid  # Генерация test transaction_id
+from decimal import Decimal, ROUND_HALF_UP  # Денежная арифметика
+from typing import Optional  # Необязательные параметры
 
-import httpx
-from fastapi import HTTPException
-from sqlalchemy import and_, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+import httpx  # HTTP к платёжному шлюзу
+from fastapi import HTTPException  # HTTP-ошибки
+from sqlalchemy import and_, func, select  # SQL-операции
+from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
-from core.config import PAYMENT_ALLOW_TEST, WEBPAY_API_URL
-from cruds.notifications_crud import notify_payment_event
-from models.orders_models import ExecutorOrder, Order, OrderResponseExecutor
-from models.payments_models import ExecutorBankAccount, Payment
-from models.users_models import User
-from payments.constants import (
+from core.config import PAYMENT_ALLOW_TEST, WEBPAY_API_URL  # Настройки оплаты
+from cruds.notifications_crud import notify_payment_event  # Уведомления о платежах
+from models.orders_models import ExecutorOrder, Order, OrderResponseExecutor  # Заказ и исполнитель
+from models.payments_models import ExecutorBankAccount, Payment  # Платежи и счета
+from models.users_models import User  # Имена для админ-списка
+from payments.constants import (  # Статусы и комиссия
     COMMISSION_RATE,
     HELD_PAYMENT_STATUSES,
     LEGACY_RELEASED_STATUSES,
@@ -21,23 +21,23 @@ from payments.constants import (
     PAYMENT_STATUS_PENDING,
     PAYMENT_STATUS_RELEASED,
 )
-from schemas.payments_schemas import (
+from schemas.payments_schemas import (  # Схемы админки и счёта
     AdminPaymentListItem,
     AdminPaymentStats,
     AdminPaymentsResponse,
     ExecutorBankAccountSchema,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # Логгер модуля
 
-MOCK_WEBPAY_URL = WEBPAY_API_URL
+MOCK_WEBPAY_URL = WEBPAY_API_URL  # URL mock/real WebPay
 
 
-def _money(value) -> Decimal:
+def _money(value) -> Decimal:  # Приведение к Decimal с 2 знаками
     return Decimal(str(value or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def calculate_payment_parts(executor_amount: Decimal) -> tuple[Decimal, Decimal, Decimal]:
+def calculate_payment_parts(executor_amount: Decimal) -> tuple[Decimal, Decimal, Decimal]:  # Сумма, комиссия, итого
     commission = (executor_amount * Decimal(str(COMMISSION_RATE))).quantize(
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
@@ -45,7 +45,7 @@ def calculate_payment_parts(executor_amount: Decimal) -> tuple[Decimal, Decimal,
     return executor_amount, commission, total
 
 
-async def get_order_for_payment(db: AsyncSession, order_id: int) -> Order:
+async def get_order_for_payment(db: AsyncSession, order_id: int) -> Order:  # Заказ для оплаты или 404
     result = await db.execute(select(Order).where(Order.id == order_id))
     order = result.scalar_one_or_none()
     if not order:
@@ -59,13 +59,13 @@ async def resolve_executor_for_payment(
     *,
     fallback_executor_id: Optional[int] = None,
     allow_fallback: bool = False,
-) -> int:
+) -> int:  # ID исполнителя для платежа
     result = await db.execute(
         select(ExecutorOrder.executor_id).where(ExecutorOrder.order_id == order_id)
     )
     executor_id = result.scalar_one_or_none()
     if executor_id:
-        return int(executor_id)
+        return int(executor_id)  # Назначенный исполнитель
 
     response_result = await db.execute(
         select(OrderResponseExecutor.executor_id)
@@ -75,10 +75,10 @@ async def resolve_executor_for_payment(
     )
     response_executor_id = response_result.scalar_one_or_none()
     if response_executor_id:
-        return int(response_executor_id)
+        return int(response_executor_id)  # Последний отклик
 
     if allow_fallback and fallback_executor_id:
-        return int(fallback_executor_id)
+        return int(fallback_executor_id)  # Тестовый fallback
 
     raise HTTPException(
         status_code=400,
@@ -89,7 +89,7 @@ async def resolve_executor_for_payment(
     )
 
 
-async def get_executor_paid_total(db: AsyncSession, order_id: int) -> Decimal:
+async def get_executor_paid_total(db: AsyncSession, order_id: int) -> Decimal:  # Уже оплачено исполнителю
     result = await db.execute(
         select(func.coalesce(func.sum(Payment.executor_amount), 0)).where(
             Payment.order_id == order_id,
@@ -105,7 +105,7 @@ async def add_executor_bank_account(
     db: AsyncSession,
     executor_id: int,
     executor_bank_account_schema: ExecutorBankAccountSchema,
-):
+):  # Привязка банковского счёта исполнителя
     result = await db.execute(
         select(ExecutorBankAccount).where(
             ExecutorBankAccount.executor_id == executor_id
@@ -133,7 +133,7 @@ async def add_executor_bank_account(
 
 async def get_payment_order(
     db: AsyncSession, order_id: int, customer_id: int
-) -> list[Payment]:
+) -> list[Payment]:  # Платежи заказа для заказчика
     try:
         result = await db.execute(
             select(Payment).where(
@@ -147,7 +147,7 @@ async def get_payment_order(
 
 async def get_executor_order_all_payments(
     db: AsyncSession, executor_id: int, order_id: int
-):
+):  # Все платежи исполнителя по заказу
     try:
         result = await db.execute(
             select(Payment)
@@ -172,7 +172,7 @@ async def create_escrow_payment(
     executor_amount_raw: float,
     payment_method: str,
     fallback_executor_id: Optional[int] = None,
-) -> tuple[Payment, Optional[str], bool]:
+) -> tuple[Payment, Optional[str], bool]:  # Создание эскроу-платежа
     method = (payment_method or "webpay").lower()
     is_test = method == "test"
 
@@ -198,7 +198,7 @@ async def create_escrow_payment(
         raise HTTPException(status_code=400, detail="Сумма должна быть больше нуля")
 
     already_paid = await get_executor_paid_total(db, order_id)
-    remaining = order_budget - already_paid
+    remaining = order_budget - already_paid  # Остаток к оплате
     if executor_amount > remaining:
         raise HTTPException(
             status_code=400,
@@ -209,8 +209,8 @@ async def create_escrow_payment(
     payment_url: Optional[str] = None
 
     if is_test:
-        transaction_id = f"TEST-{uuid.uuid4().hex[:12].upper()}"
-        initial_status = PAYMENT_STATUS_ESCROW
+        transaction_id = f"TEST-{uuid.uuid4().hex[:12].upper()}"  # Фиктивный ID
+        initial_status = PAYMENT_STATUS_ESCROW  # Сразу в эскроу
     else:
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
@@ -240,7 +240,7 @@ async def create_escrow_payment(
             ) from exc
 
         transaction_id = payment_data["PaymentId"]
-        payment_url = payment_data["PaymentUrl"]
+        payment_url = payment_data["PaymentUrl"]  # URL для редиректа
         initial_status = PAYMENT_STATUS_PENDING
 
     payment = Payment(
@@ -256,7 +256,7 @@ async def create_escrow_payment(
         status=initial_status,
     )
     if is_test:
-        payment.completed_at = func.now()
+        payment.completed_at = func.now()  # Тест сразу «оплачен»
 
     db.add(payment)
     await db.flush()
@@ -291,7 +291,7 @@ async def confirm_payment_callback(
     *,
     transaction_id: str,
     status: str,
-) -> Optional[Payment]:
+) -> Optional[Payment]:  # Webhook/callback подтверждения оплаты
     result = await db.execute(
         select(Payment).where(Payment.transaction_id == transaction_id)
     )
@@ -302,7 +302,7 @@ async def confirm_payment_callback(
     normalized = (status or "").lower()
     if normalized in {"paid", "succeeded", "success", PAYMENT_STATUS_ESCROW}:
         if payment.status == PAYMENT_STATUS_PENDING:
-            payment.status = PAYMENT_STATUS_ESCROW
+            payment.status = PAYMENT_STATUS_ESCROW  # Перевод в эскроу
             payment.completed_at = func.now()
             await notify_payment_event(
                 db,
@@ -328,7 +328,7 @@ async def release_payment_to_executor(
     order_id: int,
     payment_id: int,
     customer_id: int,
-) -> Payment:
+) -> Payment:  # Выплата исполнителю из эскроу
     result = await db.execute(
         select(Payment).where(
             and_(Payment.order_id == order_id, Payment.id == payment_id)
@@ -355,7 +355,7 @@ async def release_payment_to_executor(
     )
     bank_account = bank_result.scalar_one_or_none()
     if bank_account:
-        payment.executor_bank_account_id = bank_account.id
+        payment.executor_bank_account_id = bank_account.id  # Привязка счёта к выплате
 
     payment.status = PAYMENT_STATUS_RELEASED
     payment.payout_date = func.now()
@@ -375,7 +375,7 @@ async def release_payment_to_executor(
     return payment
 
 
-def _user_display_name(user: User | None) -> str:
+def _user_display_name(user: User | None) -> str:  # ФИО для админ-списка
     if not user:
         return ""
     return f"{user.first_name or ''} {user.last_name or ''}".strip()
@@ -385,7 +385,7 @@ async def get_payments_for_admin(
     db: AsyncSession,
     *,
     status: Optional[str] = None,
-) -> AdminPaymentsResponse:
+) -> AdminPaymentsResponse:  # Список платежей и агрегаты для админки
     from sqlalchemy.orm import aliased
 
     Customer = aliased(User)
@@ -399,7 +399,7 @@ async def get_payments_for_admin(
         .order_by(Payment.created_at.desc())
     )
     if status and status != "all":
-        stmt = stmt.where(Payment.status == status)
+        stmt = stmt.where(Payment.status == status)  # Фильтр по статусу
 
     result = await db.execute(stmt)
     rows = result.all()

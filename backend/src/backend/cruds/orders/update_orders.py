@@ -1,30 +1,30 @@
-from datetime import datetime
-import logging
+from datetime import datetime  # Метка updated_at заказа
+import logging  # Логирование обновлений
 
-from fastapi import HTTPException
-from sqlalchemy import and_, select, update
-from models.works_materials_models import CategoryWork
-from models.orders_models import (
+from fastapi import HTTPException  # HTTP-ошибки
+from sqlalchemy import and_, select, update  # SQL-операции
+from models.works_materials_models import CategoryWork  # Справочник категорий работ
+from models.orders_models import (  # Модели отмен и откликов
     CustomerOrderCancellation,
     ExecutorOrderCancellation,
     Order,
     OrderResponseExecutor,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
-from cruds.notifications_crud import (
+from cruds.notifications_crud import (  # Уведомления о заказе
     CANCEL_DECISION_NOTIFICATION_TYPE,
     ORDER_UPDATED_NOTIFICATION_TYPE,
     format_cancel_decision_detail,
     notify_customer_executor_response,
     notify_order_event_safe,
 )
-from cruds.orders.create_orders import (
+from cruds.orders.create_orders import (  # Применение согласованных отмен
     apply_executor_cancel_agreed,
     apply_in_progress_customer_cancel_agreed,
 )
-from cruds.orders.read_orders import get_order
-from schemas.orders_schemas import (
+from cruds.orders.read_orders import get_order  # READ заказа после обновления
+from schemas.orders_schemas import (  # Входные/выходные схемы
     CustomerDecisionSchema,
     ExecutorDecisionSchema,
     OrderReadSchema,
@@ -32,13 +32,13 @@ from schemas.orders_schemas import (
     OrderUpdateSchema,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # Логгер модуля
 
 
 async def resolve_category_work_id(
     db: AsyncSession,
     order_update: OrderUpdateSchema,
-) -> int:
+) -> int:  # ID категории работ по id или имени
     if order_update.category_work_id:
         result = await db.execute(
             select(CategoryWork.id).where(
@@ -72,7 +72,7 @@ async def update_order_customer(
         category_work_id = await resolve_category_work_id(db, order_customer)
 
         result = await db.execute(
-            update(Order)
+            update(Order)  # UPDATE полей заказа
             .where(
                 and_(Order.customer_id == user_id, Order.id == order_id),
             )
@@ -105,7 +105,7 @@ async def update_order_customer(
         )
         await db.commit()
 
-        return await get_order(db=db, order_id=order_id)
+        return await get_order(db=db, order_id=order_id)  # Свежие данные заказа
 
     except HTTPException:
         await db.rollback()
@@ -140,7 +140,7 @@ async def update_order_response_executor(
         if not row:
             raise HTTPException(status_code=404, detail="Запись не найдена")
 
-        row.proposed_price = order_response_executor.proposed_price
+        row.proposed_price = order_response_executor.proposed_price  # Обновляем отклик
         row.budget_type = order_response_executor.budget_type
         row.currency = order_response_executor.currency
         row.estimated_time = order_response_executor.estimated_time
@@ -150,7 +150,7 @@ async def update_order_response_executor(
         await db.execute(
             update(Order)
             .where(Order.id == order_id)
-            .values(updated_at=datetime.utcnow())
+            .values(updated_at=datetime.utcnow())  # Помечаем заказ изменённым
         )
 
         await notify_customer_executor_response(
@@ -192,13 +192,13 @@ async def put_customer_decision(
         customer_decision = result.scalar_one_or_none()
 
         if not customer_decision:
-            return None
+            return None  # Запись отмены не найдена
 
         customer_decision.status = customer_decision_schema.status
         customer_decision.customer_comment = customer_decision_schema.customer_comment
 
         if customer_decision_schema.status == "agree":
-            await apply_executor_cancel_agreed(
+            await apply_executor_cancel_agreed(  # Применяем согласованную отмену
                 db,
                 order_id=customer_decision_schema.order_id,
                 customer_id=customer_decision_schema.customer_id,

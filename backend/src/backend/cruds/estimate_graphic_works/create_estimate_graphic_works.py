@@ -1,33 +1,33 @@
-from decimal import Decimal
-import logging
-from sqlite3 import IntegrityError
-from fastapi import HTTPException
-from sqlalchemy import and_, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from decimal import Decimal  # Точная арифметика количества и стоимости
+import logging  # Логирование создания записей
+from sqlite3 import IntegrityError  # Дубликат уникального ключа
+from fastapi import HTTPException  # HTTP-ошибки
+from sqlalchemy import and_, func, select  # SQL-операции
+from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
-from cruds.notifications_crud import (
+from cruds.notifications_crud import (  # Уведомления
     ESTIMATE_UPDATED_NOTIFICATION_TYPE,
     SCHEDULE_UPDATED_NOTIFICATION_TYPE,
     notify_order_event,
 )
-from models.works_materials_models import Work, WorkMasterMyself
-from models.estimate_graphic_works_models import (
+from models.works_materials_models import Work, WorkMasterMyself  # Справочники работ и цен
+from models.estimate_graphic_works_models import (  # ORM сметы и графика
     GraphicWork,
     MaterialEstimate,
     WorkEstimate,
 )
-from schemas.estimate_graphic_works_schemas import (
+from schemas.estimate_graphic_works_schemas import (  # Входные схемы
     GraphicWorksSchema,
     MaterialEstimateSchema,
     WorkEstimateSchema,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # Логгер модуля
 
 
 async def _notify_estimate_updated(
     db: AsyncSession, order_id: int, user_id: int
-) -> None:
+) -> None:  # Безопасное уведомление об изменении сметы
     try:
         await notify_order_event(
             db,
@@ -41,7 +41,7 @@ async def _notify_estimate_updated(
 
 async def _notify_schedule_updated(
     db: AsyncSession, order_id: int, user_id: int
-) -> None:
+) -> None:  # Безопасное уведомление об изменении графика
     try:
         await notify_order_event(
             db,
@@ -136,7 +136,7 @@ async def add_material_for_work_into_estimate(
                     MaterialEstimate.quantity == material_estimate_schema.quantity,
                 )
             )
-        )
+        )  # Поиск дубликата материала
         existing_material_estimate = (
             result_existing_material_estimate.scalar_one_or_none()
         )
@@ -161,7 +161,7 @@ async def add_material_for_work_into_estimate(
             await db.refresh(existing_material_estimate)
             return existing_material_estimate
 
-        material_estimate = MaterialEstimate(
+        material_estimate = MaterialEstimate(  # Новый материал
             work_estimate_id=material_estimate_schema.work_estimate_id,
             name_material=material_estimate_schema.name_material,
             unit_measurement=material_estimate_schema.unit_measurement,
@@ -270,7 +270,7 @@ async def add_work_into_graphic_works(
         if existing_estimate_work:
             if total_work_qty > existing_estimate_work.quantity:
                 old_estimate_qty = existing_estimate_work.quantity
-                existing_estimate_work.quantity = total_work_qty
+                existing_estimate_work.quantity = total_work_qty  # Смета не меньше графика
                 logger.info(
                     f"💰 СМЕТА ↑: '{existing_estimate_work.name_work}' {old_estimate_qty} → {total_work_qty}"
                 )
@@ -287,21 +287,21 @@ async def add_work_into_graphic_works(
                     select(Work).where(
                         Work.name_work == work_graphic_works_schema.name_work
                     )
-                )
+                )  # Цена из общего справочника
                 existing_work = work_result.scalar_one_or_none()
                 work_myself_result = await db.execute(
                     select(WorkMasterMyself).where(
                         WorkMasterMyself.name_work
                         == work_graphic_works_schema.name_work
                     )
-                )
+                )  # Цена из личного справочника
                 existing_work_myself = work_myself_result.scalar_one_or_none()
                 if existing_work:
                     cost_work_unit = existing_work.cost
                 elif existing_work_myself:
                     cost_work_unit = existing_work_myself.cost
 
-            new_estimate_work = WorkEstimate(
+            new_estimate_work = WorkEstimate(  # Автосоздание строки сметы
                 user_id=work_graphic_works_schema.user_id,
                 order_id=work_graphic_works_schema.order_id,
                 name_work=work_graphic_works_schema.name_work,

@@ -1,80 +1,139 @@
-import React, { useState, useEffect, useCallback } from "react";
-import Select from "react-select";
-import { API, apiFetch, formatApiDetail } from "../../../utils/api.js";
-import { Link } from "react-router-dom";
-import { createPortal } from "react-dom";
+import React, { useState, useEffect, useCallback } from "react"; // хуки React
+import Select from "react-select"; // Select страны/региона
+import CreatableSelect from "react-select/creatable"; // город: список + свой ввод
+import { API, apiFetch, formatApiDetail } from "../../../utils/api.js"; // baseURL + fetch + detail
+import { Link } from "react-router-dom"; // ссылки на /legal/*
+import { createPortal } from "react-dom"; // модалка в body
 import {
-  fetchRegionsList,
-  fetchTownsList,
-  getFallbackRegistrationGeography,
-  loadDefaultRegistrationGeography,
+  createTownByUser,
+  fetchRegionsList, // регионы по countryId
+  fetchTownsList, // города по regionId
+  getFallbackRegistrationGeography, // дефолт без API
+  loadDefaultRegistrationGeography, // дефолт с API
 } from "../../../utils/geographyApi";
-import "./registration_modal.css";
+import {
+  normalizeTownName,
+  validateTownName,
+} from "../../../utils/townNameValidation.js";
+import "./registration_modal.css"; // стили формы
+import PasswordField from "./PasswordField.jsx"; // пароль + глаз
+import RulesDisclosure from "./RulesDisclosure.jsx";
 
-import { uiAlert } from "../../UiDialog/uiDialog.js";
+import { uiAlert, uiWarn } from "../../UiDialog/uiDialog.js"; // всплывающие предупреждения / успех
 
+/** Строка формы: label + control + hint. */
 function FieldRow({ label, htmlFor, hint, children }) {
   return (
     <div className="reg-modal__row">
+      {" "}
+      {/* одна строка сетки */}
       <label className="reg-modal__label" htmlFor={htmlFor}>
+        {" "}
+        {/* связка с inputId */}
         {label}
       </label>
-      <div className="reg-modal__control">{children}</div>
-      {hint ? <span className="reg-modal__hint">{hint}</span> : <span />}
+      <div className="reg-modal__control">{children}</div>{" "}
+      {/* поле ввода / Select */}
+      {hint ? <span className="reg-modal__hint">{hint}</span> : <span />}{" "}
+      {/* подсказка или пустой слот */}
     </div>
   );
 }
 
+/** Найти option по id для controlled Select. */
 function findOption(options, id) {
-  if (id === "" || id == null) return null;
-  return options.find((item) => String(item.value) === String(id)) || null;
+  if (id === "" || id == null) return null; // пустой выбор
+  return options.find((item) => String(item.value) === String(id)) || null; // option или null
 }
 
-const geoSelectStyles = {
-  menuPortal: (base) => ({ ...base, zIndex: 4000 }),
-  control: (base, state) => ({
-    ...base,
-    minHeight: 42,
-    borderRadius: 10,
-    borderColor: state.isFocused ? "#2563eb" : "#e2e8f0",
-    backgroundColor: "#f8fafc",
-    boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : "none",
-    "&:hover": { borderColor: state.isFocused ? "#2563eb" : "#cbd5e1" },
-  }),
-  valueContainer: (base) => ({ ...base, padding: "0 12px" }),
-  indicatorsContainer: (base) => ({ ...base, paddingRight: 6 }),
-  menu: (base) => ({ ...base, zIndex: 4000 }),
-};
+/** Стили react-select: меню поверх overlay, фиксированная высота (без дёрганья). */
+function buildGeoSelectStyles(invalid = false) {
+  return {
+    menuPortal: (base) => ({ ...base, zIndex: 4000 }), // портал меню
+    control: (base, state) => ({
+      ...base,
+      minHeight: 34,
+      height: 34,
+      borderRadius: 8,
+      borderColor: invalid
+        ? state.isFocused
+          ? "#dc2626"
+          : "#f87171"
+        : state.isFocused
+          ? "#2563eb"
+          : "#e2e8f0",
+      backgroundColor: invalid ? "#fef2f2" : "#f8fafc",
+      boxShadow: state.isFocused
+        ? invalid
+          ? "0 0 0 3px rgba(220, 38, 38, 0.15)"
+          : "0 0 0 3px rgba(37, 99, 235, 0.12)"
+        : "none",
+      "&:hover": {
+        borderColor: invalid
+          ? "#ef4444"
+          : state.isFocused
+            ? "#2563eb"
+            : "#cbd5e1",
+      },
+      fontSize: "0.8125rem",
+    }),
+    valueContainer: (base) => ({
+      ...base,
+      padding: "0 12px",
+      height: 32,
+      fontSize: "0.8125rem",
+    }),
+    indicatorsContainer: (base) => ({
+      ...base,
+      height: 32,
+      paddingRight: 6,
+    }),
+    dropdownIndicator: (base) => ({ ...base, padding: "0 6px" }),
+    loadingIndicator: (base) => ({ ...base, padding: "0 4px" }),
+    indicatorSeparator: () => ({ display: "none" }),
+    singleValue: (base) => ({
+      ...base,
+      margin: 0,
+      maxWidth: "100%",
+      fontSize: "0.8125rem",
+    }),
+    placeholder: (base) => ({ ...base, margin: 0, fontSize: "0.8125rem" }),
+    input: (base) => ({ ...base, margin: 0, padding: 0, fontSize: "0.8125rem" }),
+    option: (base) => ({ ...base, fontSize: "0.8125rem" }),
+    menu: (base) => ({ ...base, zIndex: 4000 }),
+  };
+}
 
 export default function RegisterModal({ isOpen, onClose }) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [agreeTerms, setAgreeTerms] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [firstName, setFirstName] = useState(""); // имя
+  const [lastName, setLastName] = useState(""); // фамилия
+  const [email, setEmail] = useState(""); // логин
+  const [password, setPassword] = useState(""); // пароль (≥6)
+  const [agreeTerms, setAgreeTerms] = useState(false); // согласие с офертой
+  const [loading, setLoading] = useState(false); // идёт POST /register
+  const [invalidFields, setInvalidFields] = useState({}); // подсветка пустых полей
 
-  const [countries, setCountries] = useState([]);
-  const [regions, setRegions] = useState([]);
-  const [towns, setTowns] = useState([]);
-  const [countryId, setCountryId] = useState("");
-  const [regionId, setRegionId] = useState("");
-  const [townId, setTownId] = useState("");
-  const [geoLoading, setGeoLoading] = useState(false);
+  const [countries, setCountries] = useState([]); // options стран
+  const [regions, setRegions] = useState([]); // options регионов
+  const [towns, setTowns] = useState([]); // options городов
+  const [countryId, setCountryId] = useState(""); // value страны
+  const [regionId, setRegionId] = useState(""); // value региона
+  const [townId, setTownId] = useState(""); // value города
+  const [geoLoading, setGeoLoading] = useState(false); // загрузка справочников
 
+  /** Подтянуть дефолтную географию при открытии. */
   const loadGeographyDefaults = useCallback(async () => {
     try {
-      setGeoLoading(true);
-      const geo = await loadDefaultRegistrationGeography();
+      setGeoLoading(true); // спиннер Select
+      const geo = await loadDefaultRegistrationGeography(); // API
       setCountries(geo.countries);
       setRegions(geo.regions);
       setTowns(geo.towns);
-      setCountryId(geo.countryId);
+      setCountryId(geo.countryId); // предвыбор
       setRegionId(geo.regionId);
       setTownId(geo.townId);
     } catch {
-      const geo = getFallbackRegistrationGeography();
+      const geo = getFallbackRegistrationGeography(); // офлайн-заглушка
       setCountries(geo.countries);
       setRegions(geo.regions);
       setTowns(geo.towns);
@@ -88,47 +147,76 @@ export default function RegisterModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
+      // только когда модалка открыта
+      setInvalidFields({});
       loadGeographyDefaults();
     }
   }, [isOpen, loadGeographyDefaults]);
 
-  if (!isOpen) return null;
+  if (!isOpen) return null; // не рендерить portal
 
+  const clearInvalid = (key) => {
+    setInvalidFields((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const fieldClass = (key) =>
+    invalidFields[key]
+      ? "reg-modal__input reg-modal__input--invalid"
+      : "reg-modal__input";
+
+  /** Сброс полей после успешной регистрации. */
   const resetForm = () => {
     setFirstName("");
     setLastName("");
-    setCountryId("");
+    setCountryId(""); // сброс гео-выбора
     setRegionId("");
     setTownId("");
-    setRegions([]);
+    setRegions([]); // списки тоже чистим
     setTowns([]);
     setEmail("");
     setPassword("");
     setAgreeTerms(false);
-    setError("");
+    setInvalidFields({});
   };
 
+  /** Страна → сброс региона/города → fetch регионов (+ авто 1). */
   const handleCountryChange = async (option) => {
     const nextCountryId = option ? String(option.value) : "";
     setCountryId(nextCountryId);
-    setRegionId("");
+    clearInvalid("countryId");
+    setRegionId(""); // каскадный сброс
     setTownId("");
     setRegions([]);
     setTowns([]);
+    setInvalidFields((prev) => {
+      const next = { ...prev };
+      delete next.regionId;
+      delete next.townId;
+      return next;
+    });
 
-    if (!nextCountryId) return;
+    if (!nextCountryId) return; // очистили — стоп
 
     try {
       setGeoLoading(true);
       const nextRegions = await fetchRegionsList(nextCountryId);
       setRegions(nextRegions);
       if (nextRegions.length === 1) {
+        // единственный регион
         const onlyRegionId = String(nextRegions[0].value);
         setRegionId(onlyRegionId);
+        clearInvalid("regionId");
         const nextTowns = await fetchTownsList(onlyRegionId);
         setTowns(nextTowns);
         if (nextTowns.length === 1) {
+          // единственный город
           setTownId(String(nextTowns[0].value));
+          clearInvalid("townId");
         }
       }
     } catch {
@@ -138,11 +226,14 @@ export default function RegisterModal({ isOpen, onClose }) {
     }
   };
 
+  /** Регион → сброс города → fetch городов (+ авто 1). */
   const handleRegionChange = async (option) => {
     const nextRegionId = option ? String(option.value) : "";
     setRegionId(nextRegionId);
+    clearInvalid("regionId");
     setTownId("");
     setTowns([]);
+    clearInvalid("townId");
 
     if (!nextRegionId) return;
 
@@ -152,6 +243,7 @@ export default function RegisterModal({ isOpen, onClose }) {
       setTowns(nextTowns);
       if (nextTowns.length === 1) {
         setTownId(String(nextTowns[0].value));
+        clearInvalid("townId");
       }
     } catch {
       setTowns([]);
@@ -160,88 +252,146 @@ export default function RegisterModal({ isOpen, onClose }) {
     }
   };
 
-  const getSelectedLabel = (options, id) =>
-    options.find((item) => String(item.value) === String(id))?.label || "";
+  /** Создать город в выбранном регионе (если нет в списке). */
+  const handleCreateTown = async (inputValue) => {
+    const name = normalizeTownName(inputValue);
+    const nameError = validateTownName(name);
+    if (nameError) {
+      await uiWarn(nameError);
+      return;
+    }
+    if (!regionId || !/^\d+$/.test(String(regionId))) {
+      await uiWarn("Сначала выберите регион из справочника");
+      return;
+    }
 
+    setGeoLoading(true);
+    try {
+      const created = await createTownByUser(regionId, name);
+      setTowns((prev) => {
+        if (prev.some((t) => String(t.value) === String(created.value))) {
+          return prev;
+        }
+        return [...prev, created];
+      });
+      setTownId(String(created.value));
+      clearInvalid("townId");
+    } catch (err) {
+      await uiAlert(err.message || "Не удалось добавить город");
+    } finally {
+      setGeoLoading(false);
+    }
+  };
+
+  /** Валидация → POST /register → reset + alert «войдите». */
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+    e.preventDefault(); // не перезагружать страницу
+
+    const nextInvalid = {};
+    if (!firstName.trim()) nextInvalid.firstName = true;
+    if (!lastName.trim()) nextInvalid.lastName = true;
+    if (!countryId) nextInvalid.countryId = true;
+    if (!regionId) nextInvalid.regionId = true;
+    if (!townId) nextInvalid.townId = true;
+    if (!email.trim()) nextInvalid.email = true;
+    if (!password) nextInvalid.password = true;
+    if (!agreeTerms) nextInvalid.agreeTerms = true;
+
+    setInvalidFields(nextInvalid);
 
     if (
-      !firstName.trim() ||
-      !lastName.trim() ||
-      !countryId ||
-      !regionId ||
-      !townId ||
-      !email.trim() ||
-      !password
+      nextInvalid.firstName ||
+      nextInvalid.lastName ||
+      nextInvalid.countryId ||
+      nextInvalid.regionId ||
+      nextInvalid.townId ||
+      nextInvalid.email ||
+      nextInvalid.password
     ) {
-      setError(
-        "Заполните все обязательные поля и выберите местоположение из списка.",
+      await uiWarn(
+        "Заполните все обязательные поля. Город можно выбрать из списка или ввести свой.",
       );
       return;
     }
 
-    if (!agreeTerms) {
-      setError(
+    if (nextInvalid.agreeTerms) {
+      // чекбокс обязателен
+      await uiWarn(
         "Подтвердите согласие с условиями и политикой конфиденциальности.",
       );
       return;
     }
 
     if (!email.includes("@") || email.trim().length < 5) {
-      setError("Укажите корректный email, например name@example.com");
+      // грубая проверка email
+      setInvalidFields({ email: true });
+      await uiWarn("Укажите корректный email, например name@example.com");
       return;
     }
 
     if (password.length < 6) {
-      setError("Пароль должен содержать минимум 6 символов");
+      // минимум как на бэке/UX
+      setInvalidFields({ password: true });
+      await uiWarn("Пароль должен содержать минимум 6 символов");
       return;
     }
 
-    setLoading(true);
+    if (password.length > 128) {
+      setInvalidFields({ password: true });
+      await uiWarn("Пароль не должен быть длиннее 128 символов");
+      return;
+    }
+
+    if (!password.trim()) {
+      setInvalidFields({ password: true });
+      await uiWarn("Пароль не должен состоять только из пробелов");
+      return;
+    }
+
+    setInvalidFields({});
+    setLoading(true); // disabled полей
 
     try {
       const response = await apiFetch(`${API.baseURL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          first_name: firstName.trim(),
+          first_name: firstName.trim(), // схема Register на бэке
           last_name: lastName.trim(),
-          country: getSelectedLabel(countries, countryId),
-          region: getSelectedLabel(regions, regionId),
-          town: getSelectedLabel(towns, townId),
+          town_id: Number(townId),
           email: email.trim(),
-          password: password,
+          password: password, // уйдёт в hash на сервере
         }),
       });
 
-      const data = await response.json().catch(() => ({}));
+      const data = await response.json().catch(() => ({})); // JSON или {}
 
       if (!response.ok) {
+        // email занят и т.п.
         throw new Error(
           formatApiDetail(data.detail, "Не удалось зарегистрироваться"),
         );
       }
 
-      resetForm();
-      onClose();
-      await uiAlert("Регистрация успешна! Теперь войдите в аккаунт.");
+      resetForm(); // очистить форму
+      onClose(); // закрыть модалку
+      await uiAlert("Регистрация успешна! Теперь войдите в аккаунт."); // без авто-логина
     } catch (err) {
-      setError(err.message || "Ошибка регистрации");
+      await uiAlert(err.message || "Ошибка регистрации");
     } finally {
       setLoading(false);
     }
   };
 
-  const fieldsDisabled = loading;
-  const inputClass = "reg-modal__input";
+  const fieldsDisabled = loading; // блокировка на время запроса
 
   return createPortal(
     <div className="reg-modal-overlay" onClick={onClose} role="presentation">
+      {" "}
+      {/* фон = закрыть */}
       <div
         className="reg-modal"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()} // клик по карточке не закрывает
         role="dialog"
         aria-modal="true"
         aria-labelledby="registerModalTitle"
@@ -259,31 +409,51 @@ export default function RegisterModal({ isOpen, onClose }) {
             className="reg-modal__close"
             onClick={onClose}
             aria-label="Закрыть"
-            disabled={loading}
+            disabled={loading} // во время регистрации крестик off
           >
             ×
           </button>
         </header>
 
-        <form className="reg-modal__form" onSubmit={handleSubmit} noValidate>
+        <form
+          className="reg-modal__form"
+          onSubmit={handleSubmit}
+          noValidate
+          autoComplete="off"
+        >
           <div className="reg-modal__body">
-            {error && (
-              <p className="reg-modal__error" role="alert">
-                {error}
-              </p>
-            )}
-
+            {/* Ловушка для менеджера паролей Firefox/Chrome — не трогать */}
+            <div className="reg-modal__autofill-trap" aria-hidden="true">
+              <input
+                type="text"
+                tabIndex={-1}
+                autoComplete="username"
+                defaultValue=""
+                readOnly
+              />
+              <input
+                type="password"
+                tabIndex={-1}
+                autoComplete="current-password"
+                defaultValue=""
+                readOnly
+              />
+            </div>
             <div className="reg-modal__fields">
               <FieldRow label="Имя *" htmlFor="reg-first-name">
                 <input
                   id="reg-first-name"
                   type="text"
-                  className={inputClass}
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  className={fieldClass("firstName")}
+                  value={firstName} // controlled
+                  onChange={(e) => {
+                    setFirstName(e.target.value);
+                    clearInvalid("firstName");
+                  }}
                   autoComplete="given-name"
                   disabled={fieldsDisabled}
                   placeholder="Иван"
+                  aria-invalid={Boolean(invalidFields.firstName)}
                 />
               </FieldRow>
 
@@ -291,47 +461,51 @@ export default function RegisterModal({ isOpen, onClose }) {
                 <input
                   id="reg-last-name"
                   type="text"
-                  className={inputClass}
+                  className={fieldClass("lastName")}
                   value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  onChange={(e) => {
+                    setLastName(e.target.value);
+                    clearInvalid("lastName");
+                  }}
                   autoComplete="family-name"
                   disabled={fieldsDisabled}
                   placeholder="Иванов"
+                  aria-invalid={Boolean(invalidFields.lastName)}
                 />
               </FieldRow>
 
               <FieldRow
                 label="Страна *"
                 htmlFor="reg-country"
-                hint="из справочника"
               >
                 <Select
                   inputId="reg-country"
                   classNamePrefix="reg-geo"
                   options={countries}
                   value={findOption(countries, countryId)}
-                  onChange={handleCountryChange}
+                  onChange={handleCountryChange} // каскад регионов
                   isDisabled={fieldsDisabled || countries.length === 0}
                   isLoading={geoLoading && countries.length === 0}
                   isClearable={false}
                   placeholder={
                     countries.length === 0
                       ? geoLoading
-                        ? "Загрузка…"
-                        : "Нет стран в справочнике"
+                        ? "Загрузка…" // ещё грузим
+                        : "Нет стран в справочнике" // API пустой
                       : "Выберите страну"
                   }
                   noOptionsMessage={() => "Нет вариантов"}
-                  menuPortalTarget={document.body}
+                  menuPortalTarget={document.body} // меню вне overflow
                   menuPosition="fixed"
-                  styles={geoSelectStyles}
+                  styles={buildGeoSelectStyles(Boolean(invalidFields.countryId))}
+                  aria-invalid={Boolean(invalidFields.countryId)}
                 />
               </FieldRow>
 
               <FieldRow
                 label="Регион *"
                 htmlFor="reg-region"
-                hint={!countryId ? "сначала страна" : ""}
+                hint={!countryId ? "сначала страна" : "\u00a0"}
               >
                 <Select
                   inputId="reg-region"
@@ -340,9 +514,9 @@ export default function RegisterModal({ isOpen, onClose }) {
                   value={findOption(regions, regionId)}
                   onChange={handleRegionChange}
                   isDisabled={
-                    fieldsDisabled || !countryId || regions.length === 0
+                    fieldsDisabled || !countryId || geoLoading || regions.length === 0
                   }
-                  isLoading={geoLoading && Boolean(countryId) && regions.length === 0}
+                  isLoading={false}
                   isClearable={false}
                   placeholder={
                     !countryId
@@ -354,81 +528,153 @@ export default function RegisterModal({ isOpen, onClose }) {
                   noOptionsMessage={() => "Нет вариантов"}
                   menuPortalTarget={document.body}
                   menuPosition="fixed"
-                  styles={geoSelectStyles}
+                  styles={buildGeoSelectStyles(Boolean(invalidFields.regionId))}
+                  aria-invalid={Boolean(invalidFields.regionId)}
                 />
               </FieldRow>
 
               <FieldRow
                 label="Город *"
                 htmlFor="reg-town"
-                hint={!regionId ? "сначала регион" : ""}
+                hint={!regionId ? "сначала регион" : "см. правила"}
               >
-                <Select
+                <CreatableSelect
                   inputId="reg-town"
                   classNamePrefix="reg-geo"
                   options={towns}
                   value={findOption(towns, townId)}
-                  onChange={(option) =>
-                    setTownId(option ? String(option.value) : "")
+                  onChange={(option) => {
+                    setTownId(option ? String(option.value) : "");
+                    clearInvalid("townId");
+                  }}
+                  onCreateOption={handleCreateTown}
+                  isValidNewOption={(inputValue) =>
+                    Boolean(regionId) && Boolean(normalizeTownName(inputValue))
                   }
-                  isDisabled={fieldsDisabled || !regionId || towns.length === 0}
-                  isLoading={geoLoading && Boolean(regionId) && towns.length === 0}
+                  formatCreateLabel={(inputValue) =>
+                    `Добавить город «${normalizeTownName(inputValue)}»`
+                  }
+                  isDisabled={fieldsDisabled || !regionId || geoLoading}
+                  isLoading={false}
                   isClearable={false}
                   placeholder={
                     !regionId
                       ? "Сначала выберите регион"
-                      : towns.length === 0
-                        ? "Нет городов"
-                        : "Выберите город"
+                      : "Выберите или введите город"
                   }
-                  noOptionsMessage={() => "Нет вариантов"}
+                  noOptionsMessage={({ inputValue }) =>
+                    inputValue
+                      ? "Нет совпадений — проверьте правила названия"
+                      : "Нет городов — можно ввести свой"
+                  }
                   menuPortalTarget={document.body}
                   menuPosition="fixed"
-                  styles={geoSelectStyles}
+                  styles={buildGeoSelectStyles(Boolean(invalidFields.townId))}
+                  aria-describedby="reg-town-rules"
+                  aria-invalid={Boolean(invalidFields.townId)}
                 />
               </FieldRow>
+
+              <RulesDisclosure id="reg-town-rules" title="Правила названия города">
+                <ul>
+                  <li>название начинается с заглавной буквы (например: Минск);</li>
+                  <li>только русский язык (кириллица);</li>
+                  <li>пишите название правильно, без опечаток;</li>
+                  <li>
+                    если города нет в списке — введите название и выберите
+                    «Добавить город».
+                  </li>
+                </ul>
+              </RulesDisclosure>
 
               <FieldRow label="Email *" htmlFor="reg-email" hint="для входа">
                 <input
                   id="reg-email"
-                  type="email"
-                  className={inputClass}
+                  name="fixer_reg_contact"
+                  type="text"
+                  inputMode="email"
+                  className={fieldClass("email")}
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearInvalid("email");
+                  }}
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-form-type="other"
                   disabled={fieldsDisabled}
                   placeholder="name@example.com"
+                  aria-invalid={Boolean(invalidFields.email)}
                 />
               </FieldRow>
 
               <FieldRow
                 label="Пароль *"
                 htmlFor="reg-password"
-                hint="не короче 6 симв."
+                hint="см. правила"
               >
-                <input
+                <PasswordField
                   id="reg-password"
-                  type="password"
-                  className={inputClass}
+                  name="fixer_reg_secret"
+                  className={fieldClass("password")}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    clearInvalid("password");
+                  }}
                   autoComplete="new-password"
                   disabled={fieldsDisabled}
-                  placeholder="••••••••"
+                  maxLength={128}
+                  aria-describedby="reg-password-rules"
                 />
               </FieldRow>
+
+              <RulesDisclosure
+                id="reg-password-rules"
+                title="Требования к паролю"
+                drop="up"
+              >
+                <ul>
+                  <li>от 6 до 128 символов;</li>
+                  <li>не может состоять только из пробелов;</li>
+                  <li>
+                    буквы (латиница или кириллица), цифры и спецсимволы
+                    разрешены;
+                  </li>
+                  <li>заглавные буквы и цифры не обязательны.</li>
+                </ul>
+              </RulesDisclosure>
             </div>
 
-            <label className="reg-modal__terms">
+            <label
+              className={
+                invalidFields.agreeTerms
+                  ? "reg-modal__terms reg-modal__terms--invalid"
+                  : "reg-modal__terms"
+              }
+            >
+              {" "}
+              {/* чекбокс оферты */}
               <input
                 type="checkbox"
                 checked={agreeTerms}
-                onChange={(e) => setAgreeTerms(e.target.checked)}
+                onChange={(e) => {
+                  setAgreeTerms(e.target.checked);
+                  clearInvalid("agreeTerms");
+                }}
                 disabled={loading}
               />
               <span>
                 Согласен с{" "}
-                <Link to="/legal/terms" target="_blank" rel="noopener noreferrer">
+                <Link
+                  to="/legal/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {" "}
+                  {/* новая вкладка */}
                   пользовательским соглашением
                 </Link>{" "}
                 и{" "}
@@ -442,12 +688,11 @@ export default function RegisterModal({ isOpen, onClose }) {
               </span>
             </label>
           </div>
-
           <footer className="reg-modal__footer">
             <button
               type="submit"
               className="reg-modal__submit"
-              disabled={loading || geoLoading}
+              disabled={loading || geoLoading} // пока грузится гео — не слать
             >
               {loading ? "Регистрируем…" : "Зарегистрироваться"}
             </button>
@@ -455,6 +700,6 @@ export default function RegisterModal({ isOpen, onClose }) {
         </form>
       </div>
     </div>,
-    document.body,
+    document.body, // корень портала
   );
 }

@@ -12,7 +12,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from core.database import Base
-from models.geography_models import Town
 from models.works_materials_models import CategoryWork, Work, Material
 
 
@@ -23,9 +22,7 @@ class User(Base):
     )  # Уникальный идентификатор пользователя
     first_name = Column(String(100), nullable=False)  # Имя пользователя
     last_name = Column(String(100), nullable=False)  # Фамилия пользователя
-    country = Column(String(100), nullable=False)  # Страна
-    region = Column(String(100), nullable=False)  # Регион
-    town = Column(String(100), nullable=False)  # Город
+    town_id = Column(Integer, ForeignKey("towns.id"), nullable=True)
 
     email = Column(
         String(255), unique=True, nullable=False
@@ -48,6 +45,7 @@ class User(Base):
 
     warnings_count = Column(Integer, default=0)  # Счетчик предупреждений
 
+    town = relationship("Town", foreign_keys=[town_id])
     works = relationship("Work", back_populates="user")
     materials = relationship("Material", back_populates="user")
     business_info = relationship("UserBusiness", uselist=False, back_populates="user")

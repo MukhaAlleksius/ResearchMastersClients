@@ -17,7 +17,7 @@ const ORDER_STATUS = {
   DRAFT: "Не предложенные исполнителям",
 };
 
-export default function MyselfExecutor({ order, onBack, onOrderUpdated, onOrderDeleted, userId, listActivity }) {
+export default function MyselfExecutor({ order, onBack, onOrderUpdated, onOrderDeleted }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("customer_self_execution");
 
   const tabs = useMemo(
@@ -142,16 +142,6 @@ export default function MyselfExecutor({ order, onBack, onOrderUpdated, onOrderD
       title={currentOrder?.title || "Самостоятельное выполнение"}
       backLabel="Назад к заказам"
       onBack={onBack || (() => navigate(-1))}
-      activityConfig={
-        userId && orderId
-          ? {
-              userId,
-              orderId,
-              presetKey: "customer_self_execution",
-              activity: listActivity ?? order?.activity,
-            }
-          : undefined
-      }
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}

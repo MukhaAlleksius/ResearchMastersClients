@@ -1,22 +1,22 @@
-import logging
-from typing import Optional
-from fastapi import HTTPException
-from sqlalchemy import and_, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+import logging  # Логирование операций с договорами
+from typing import Optional  # Необязательный результат
+from fastapi import HTTPException  # HTTP-ошибки
+from sqlalchemy import and_, select  # Условия и SELECT
+from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
+from sqlalchemy.orm import aliased  # Алиасы для JOIN одной таблицы дважды
 
-from models.contracts_models import Contract
-from cruds.notifications_crud import (
+from models.contracts_models import Contract  # ORM-модель договора
+from cruds.notifications_crud import (  # Уведомления о договоре
     CONTRACT_SIGNED_NOTIFICATION_TYPE,
     CONTRACT_UPDATED_NOTIFICATION_TYPE,
     notify_order_event_safe,
 )
-from models.users_models import User
+from models.users_models import User  # Пользователи (заказчик/исполнитель)
 from schemas.contracts_schemas import (
-    ContractCreate,
-    ContractResponse,
+    ContractCreate,  # Схема создания/обновления
+    ContractResponse,  # Схема ответа
 )
-from models.geography_models import Country, Region, Town
+from models.geography_models import Country, Region, Town  # География (legacy-методы в файле)
 from schemas.geography_schemas import (
     CountrySchema,
     RegionReadSchema,
@@ -25,13 +25,13 @@ from schemas.geography_schemas import (
     TownSchema,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # Логгер модуля
 
 
-async def add_contract(db: AsyncSession, contract_schema: ContractCreate):
+async def add_contract(db: AsyncSession, contract_schema: ContractCreate):  # Создание или обновление договора
     try:
         result = await db.execute(
-            select(Contract).where(
+            select(Contract).where(  # Ищем существующий договор по тройке ключей
                 and_(
                     Contract.order_id == contract_schema.order_id,
                     Contract.customer_id == contract_schema.customer_id,
@@ -41,7 +41,7 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):
         )
         existing_contract = result.scalar_one_or_none()
         if existing_contract:
-            existing_contract.address_work = contract_schema.address_work
+            existing_contract.address_work = contract_schema.address_work  # Обновляем поля
             existing_contract.title_work = contract_schema.title_work
             existing_contract.name_work = contract_schema.name_work
             existing_contract.budget_type = contract_schema.budget_type
@@ -51,7 +51,7 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):
             existing_contract.date_end_work = contract_schema.date_end_work
             existing_contract.subscribe_customer = contract_schema.subscribe_customer
             existing_contract.subscribe_executor = contract_schema.subscribe_executor
-            await db.flush()
+            await db.flush()  # Сохраняем изменения в транзакции
             await notify_order_event_safe(
                 db,
                 order_id=contract_schema.order_id,
@@ -63,7 +63,7 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):
             await db.refresh(existing_contract)
             return existing_contract
 
-        contract = Contract(
+        contract = Contract(  # Новый договор
             order_id=contract_schema.order_id,
             customer_id=contract_schema.customer_id,
             executor_id=contract_schema.executor_id,
@@ -98,7 +98,7 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):
 
 async def update_contract_subscribe_customer(
     db: AsyncSession, order_id: int, subscribe_customer: bool
-):
+):  # Подпись договора заказчиком
     try:
         result = await db.execute(
             select(Contract).where(
@@ -110,7 +110,7 @@ async def update_contract_subscribe_customer(
 
             existing_contract.subscribe_customer = subscribe_customer
             await db.flush()
-            if subscribe_customer:
+            if subscribe_customer:  # Уведомление при подписании
                 await notify_order_event_safe(
                     db,
                     order_id=order_id,
@@ -122,7 +122,7 @@ async def update_contract_subscribe_customer(
             await db.refresh(existing_contract)
             return existing_contract
 
-        return existing_contract
+        return existing_contract  # Договор не найден — None
     except Exception as e:
         logger.error(f"add_country error: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
@@ -130,7 +130,7 @@ async def update_contract_subscribe_customer(
 
 async def update_contract_subscribe_executor(
     db: AsyncSession, order_id: int, subscribe_executor: bool
-):
+):  # Подпись договора исполнителем
     try:
         result = await db.execute(
             select(Contract).where(
@@ -142,7 +142,7 @@ async def update_contract_subscribe_executor(
 
             existing_contract.subscribe_executor = subscribe_executor
             await db.flush()
-            if subscribe_executor:
+            if subscribe_executor:  # Уведомление при подписании
                 await notify_order_event_safe(
                     db,
                     order_id=order_id,
@@ -160,7 +160,7 @@ async def update_contract_subscribe_executor(
         raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
 
 
-async def edit_country(db: AsyncSession, country_schema: CountrySchema):
+async def edit_country(db: AsyncSession, country_schema: CountrySchema):  # Переименование страны (legacy)
     try:
         result = await db.execute(
             select(Country).where(Country.id == country_schema.country_id)
@@ -177,11 +177,11 @@ async def edit_country(db: AsyncSession, country_schema: CountrySchema):
         raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
 
 
-async def get_contract(db: AsyncSession, order_id: int) -> Optional[ContractResponse]:
+async def get_contract(db: AsyncSession, order_id: int) -> Optional[ContractResponse]:  # READ договора по заказу
     try:
         # ✅ Алиасы для разных User
-        customer_user = aliased(User)
-        executor_user = aliased(User)
+        customer_user = aliased(User)  # Заказчик
+        executor_user = aliased(User)  # Исполнитель
 
         result = await db.execute(
             select(Contract, customer_user, executor_user)
@@ -192,7 +192,7 @@ async def get_contract(db: AsyncSession, order_id: int) -> Optional[ContractResp
 
         row = result.first()
         if not row:
-            return None
+            return None  # Договор не найден
 
         # ✅ Правильная распаковка
         contract, customer_user, executor_user = row
@@ -214,7 +214,7 @@ async def get_contract(db: AsyncSession, order_id: int) -> Optional[ContractResp
             budget_type=contract.budget_type,
             subscribe_customer=contract.subscribe_customer,
             subscribe_executor=contract.subscribe_executor,
-            created_at=contract.created_at.strftime("%d.%m.%Y %H:%M"),
+            created_at=contract.created_at.strftime("%d.%m.%Y %H:%M"),  # Формат для UI
         )
 
     except Exception as e:
@@ -222,7 +222,7 @@ async def get_contract(db: AsyncSession, order_id: int) -> Optional[ContractResp
         raise HTTPException(status_code=500, detail="Ошибка сервера")
 
 
-async def add_region_for_country(db: AsyncSession, region_schema: RegionSchema):
+async def add_region_for_country(db: AsyncSession, region_schema: RegionSchema):  # CREATE региона (legacy)
     try:
         result = await db.execute(
             select(Region).where(
@@ -232,7 +232,7 @@ async def add_region_for_country(db: AsyncSession, region_schema: RegionSchema):
         )
         existing_region = result.scalar_one_or_none()
         if existing_region:
-            return existing_region
+            return existing_region  # Уже существует
         region = Region(
             country_id=region_schema.country_id,
             name_region=region_schema.name_region,
@@ -246,7 +246,7 @@ async def add_region_for_country(db: AsyncSession, region_schema: RegionSchema):
         raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
 
 
-async def edit_region_for_country(db: AsyncSession, region_schema: RegionSchema):
+async def edit_region_for_country(db: AsyncSession, region_schema: RegionSchema):  # UPDATE региона (legacy)
     try:
         result = await db.execute(
             select(Region).where(Region.id == region_schema.region_id)
@@ -265,7 +265,7 @@ async def edit_region_for_country(db: AsyncSession, region_schema: RegionSchema)
 
 async def get_regions_for_country(
     db: AsyncSession, country_id: int
-) -> list[RegionReadSchema]:
+) -> list[RegionReadSchema]:  # READ регионов страны (legacy)
     try:
         result = await db.execute(select(Region).where(Region.country_id == country_id))
         regions = result.scalars().all()
@@ -279,7 +279,7 @@ async def get_regions_for_country(
         )
 
 
-async def add_town_for_region(db: AsyncSession, town_schema: TownSchema):
+async def add_town_for_region(db: AsyncSession, town_schema: TownSchema):  # CREATE города (legacy)
     try:
         result = await db.execute(
             select(Town).where(
@@ -303,7 +303,7 @@ async def add_town_for_region(db: AsyncSession, town_schema: TownSchema):
         raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")
 
 
-async def edit_town_for_region(db: AsyncSession, town_schema: TownSchema):
+async def edit_town_for_region(db: AsyncSession, town_schema: TownSchema):  # UPDATE города (legacy)
     try:
         result = await db.execute(select(Town).where(Town.id == town_schema.town_id))
         town = result.scalar_one_or_none()
@@ -321,7 +321,7 @@ async def edit_town_for_region(db: AsyncSession, town_schema: TownSchema):
 
 async def get_towns_for_region(
     db: AsyncSession, region_id: int
-) -> list[TownReadSchema]:
+) -> list[TownReadSchema]:  # READ городов региона (legacy)
     try:
         result = await db.execute(select(Town).where(Town.region_id == region_id))
         towns = result.scalars().all()

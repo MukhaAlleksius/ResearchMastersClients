@@ -19,7 +19,7 @@ const FALLBACK_ORDER = {
   location: "Москва, ул. Ленина, д.10",
 };
 
-export default function ExecuteWorkServiceInfo({ service, onBack, userId, listActivity }) {
+export default function ExecuteWorkServiceInfo({ service, onBack }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("executor_execute");
   const [customerId, setCustomerId] = useState(service?.customer_id ?? null);
   const [orderDetails, setOrderDetails] = useState(null);
@@ -72,16 +72,6 @@ export default function ExecuteWorkServiceInfo({ service, onBack, userId, listAc
       title={order.title}
       backLabel="Назад к услугам"
       onBack={onBack || (() => navigate(-1))}
-      activityConfig={
-        userId && orderId
-          ? {
-              userId,
-              orderId,
-              presetKey: "executor_execute",
-              activity: listActivity ?? service?.activity,
-            }
-          : undefined
-      }
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}

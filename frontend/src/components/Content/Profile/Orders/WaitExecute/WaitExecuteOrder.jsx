@@ -29,7 +29,6 @@ export default function WaitExecuteOrder({
   onOrderDeleted,
   onOrderStatusChanged,
   userId,
-  listActivity,
 }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("customer_wait_execute");
   const [orderData, setOrderData] = useState(null);
@@ -154,16 +153,6 @@ export default function WaitExecuteOrder({
       title={currentOrder.title || "Ожидание выполнения"}
       backLabel="Назад к заказам"
       onBack={onBack || (() => navigate(-1))}
-      activityConfig={
-        userId && orderId
-          ? {
-              userId,
-              orderId,
-              presetKey: "customer_wait_execute",
-              activity: listActivity ?? order?.activity,
-            }
-          : undefined
-      }
       meta={
         <>
           <span>

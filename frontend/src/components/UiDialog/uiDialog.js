@@ -20,7 +20,7 @@ function inferAlertVariant(message) {
 /**
  * Show a designed alert modal (single OK button).
  * @param {string} message
- * @param {{ title?: string, variant?: 'info'|'success'|'error' }} [options]
+ * @param {{ title?: string, variant?: 'info'|'warning'|'success'|'error' }} [options]
  * @returns {Promise<void>}
  */
 export function uiAlert(message, options = {}) {
@@ -34,6 +34,11 @@ export function uiAlert(message, options = {}) {
     title: options.title,
     variant: options.variant || inferAlertVariant(message),
   });
+}
+
+/** Предупреждение для форм регистрации (заголовок «Предупреждение»). */
+export function uiWarn(message) {
+  return uiAlert(message, { title: "Предупреждение", variant: "warning" });
 }
 
 /**

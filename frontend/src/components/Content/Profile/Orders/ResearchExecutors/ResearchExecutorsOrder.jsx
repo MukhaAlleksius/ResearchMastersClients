@@ -20,7 +20,7 @@ const ORDER_STATUS = {
   SEARCH: "В поиске исполнителя",
 };
 
-export default function ResearchExecutor({ order, onBack, onOrderUpdated, onOrderDeleted, userId, listActivity }) {
+export default function ResearchExecutor({ order, onBack, onOrderUpdated, onOrderDeleted }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("customer_search");
   const [responsesCount, setResponsesCount] = useState(0);
   const [orderData, setOrderData] = useState(null);
@@ -259,16 +259,6 @@ export default function ResearchExecutor({ order, onBack, onOrderUpdated, onOrde
       title={currentOrder?.title || "Поиск исполнителя"}
       backLabel="Назад к заказам"
       onBack={onBack || (() => navigate(-1))}
-      activityConfig={
-        userId && orderId
-          ? {
-              userId,
-              orderId,
-              presetKey: "customer_search",
-              activity: listActivity ?? order?.activity,
-            }
-          : undefined
-      }
       headerExtra={
         <button
           type="button"

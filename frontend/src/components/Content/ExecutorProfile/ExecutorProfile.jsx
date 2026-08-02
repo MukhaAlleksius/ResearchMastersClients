@@ -694,13 +694,21 @@ export default function ExecutorProfile({ openModal }) {
       );
       const imagesData = await imagesResponse.json();
 
-      const projectsWithImages = portfolioStructure.map((project) => ({
-        ...project,
-        description: project.description || "Описание работы",
-        images:
-          imagesData.projects.find((p) => p.title === project.title)?.images ||
-          [],
-      }));
+      const projectsWithImages = portfolioStructure.map((project) => {
+        const projectId = project.portfolio_item_id ?? project.id;
+        const matchedImages =
+          imagesData.projects.find(
+            (p) => (p.portfolio_item_id ?? p.id) === projectId,
+          )?.images || [];
+
+        return {
+          ...project,
+          id: projectId,
+          portfolio_item_id: projectId,
+          description: project.description || "Описание работы",
+          images: matchedImages,
+        };
+      });
 
       setPortfolioData(projectsWithImages);
     } catch (error) {
@@ -930,7 +938,7 @@ export default function ExecutorProfile({ openModal }) {
                 <div className="ep-portfolio-list">
                   {portfolioData.map((project, index) => (
                     <PortfolioItem
-                      key={project.id || project.title || index}
+                      key={project.portfolio_item_id || project.id || project.title || index}
                       project={project}
                       onOpenLightbox={openPhotoViewer}
                     />

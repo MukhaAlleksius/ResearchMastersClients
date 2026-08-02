@@ -21,9 +21,8 @@ export default function StatusFilterTabs({
   onChange,
   allTab,
   getCount,
-  getUpdatesCount,
 }) {
-  const renderItem = (id, label, count, _updatesCount, variant, iconKey) => {
+  const renderItem = (id, label, count, variant, iconKey) => {
     const isActive = activeId === id;
 
     return (
@@ -58,7 +57,6 @@ export default function StatusFilterTabs({
             allTab.id,
             allTab.label,
             allTab.count,
-            allTab.updatesCount || 0,
             TAB_VARIANTS.all,
             "all",
           )}
@@ -67,7 +65,6 @@ export default function StatusFilterTabs({
             tab.id,
             tab.shortLabel || tab.label,
             getCount(tab.statusKey),
-            getUpdatesCount?.(tab.statusKey) || 0,
             TAB_VARIANTS[tab.id] || "muted",
             tab.id,
           ),

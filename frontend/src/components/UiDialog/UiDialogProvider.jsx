@@ -5,6 +5,7 @@ import "./uiDialog.css";
 
 const DEFAULT_TITLES = {
   info: "Сообщение",
+  warning: "Предупреждение",
   success: "Готово",
   error: "Ошибка",
   confirm: "Подтверждение",
@@ -12,7 +13,9 @@ const DEFAULT_TITLES = {
 
 function iconFor(variant) {
   if (variant === "success") return "✓";
-  if (variant === "error" || variant === "danger") return "!";
+  if (variant === "error" || variant === "danger" || variant === "warning") {
+    return "!";
+  }
   if (variant === "confirm") return "?";
   return "i";
 }

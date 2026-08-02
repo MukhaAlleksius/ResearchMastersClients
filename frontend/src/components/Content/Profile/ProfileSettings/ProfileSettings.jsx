@@ -58,9 +58,7 @@ export default function ProfileSettings() {
     user_id: localStorage.getItem("user_id"),
     first_name: firstName,
     last_name: lastName,
-    country: geoCountry ? geoCountry.label : null,
-    region: geoRegion ? geoRegion.label : null,
-    town: geoTown ? geoTown.label : null,
+    town_id: geoTown ? Number(geoTown.value) : null,
   };
 
   const userBusinessCustomizationData = {
@@ -166,9 +164,11 @@ export default function ProfileSettings() {
       }));
 
       setCountries(formattedCountries);
+      return formattedCountries;
     } catch (error) {
       console.log("Ошибка: ", error);
       setCountries([]);
+      return [];
     }
   };
 
@@ -212,10 +212,12 @@ export default function ProfileSettings() {
       }));
 
       setRegions(formattedRegions);
+      return formattedRegions;
     } catch (error) {
       console.log("Ошибка: ", error);
       setRegions([]);
       setTowns([]);
+      return [];
     }
   };
 
@@ -247,7 +249,7 @@ export default function ProfileSettings() {
   const fetchTownsRegion = async (regionId) => {
     if (!regionId) {
       setTowns([]);
-      return;
+      return [];
     }
     try {
       const response_towns = await apiFetch(
@@ -262,9 +264,11 @@ export default function ProfileSettings() {
       }));
 
       setTowns(formattedTowns);
+      return formattedTowns;
     } catch (error) {
       setTowns([]);
       console.log("Ошибка: ", error);
+      return [];
     }
   };
 
@@ -387,37 +391,43 @@ export default function ProfileSettings() {
 
   useEffect(() => {
     const loadData = async () => {
-      await fetchCountries();
+      const loadedCountries = await fetchCountries();
       await fetchCountriesForOrders();
 
       const common = await fetchUserCustomization("profile");
       setFirstName(common?.first_name || "");
       setLastName(common?.last_name || "");
 
-      if (common?.country) {
-        setGeoCountry({
-          value: common.country,
-          label: common.country,
-        });
+      const countryOpt =
+        (common?.country &&
+          loadedCountries.find((c) => c.label === common.country)) ||
+        null;
+      if (countryOpt) {
+        setGeoCountry(countryOpt);
+        const loadedRegions = await fetchRegionsCountry(countryOpt.value);
+        const regionOpt =
+          (common?.region &&
+            loadedRegions.find((r) => r.label === common.region)) ||
+          null;
+        if (regionOpt) {
+          setGeoRegion(regionOpt);
+          const loadedTowns = await fetchTownsRegion(regionOpt.value);
+          const townOpt =
+            (common?.town_id &&
+              loadedTowns.find(
+                (t) => Number(t.value) === Number(common.town_id),
+              )) ||
+            (common?.town &&
+              loadedTowns.find((t) => t.label === common.town)) ||
+            null;
+          setGeoTown(townOpt);
+        } else {
+          setGeoRegion(null);
+          setGeoTown(null);
+        }
       } else {
         setGeoCountry(null);
-      }
-
-      if (common?.region) {
-        setGeoRegion({
-          value: common.region,
-          label: common.region,
-        });
-      } else {
         setGeoRegion(null);
-      }
-
-      if (common?.town) {
-        setGeoTown({
-          value: common.town,
-          label: common.town,
-        });
-      } else {
         setGeoTown(null);
       }
 

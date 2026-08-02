@@ -9,7 +9,6 @@ export default function OrderServiceCard({
   statusLabel,
   partyLabel,
   partyName,
-  updateInfo,
   onClick,
   to,
   linkState,

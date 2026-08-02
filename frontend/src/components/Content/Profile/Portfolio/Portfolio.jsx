@@ -47,13 +47,19 @@ function resolveImageUrl(path) {
 
 function enrichProjectsWithImages(projects, imageProjects) {
   const imageMap = new Map(
-    (imageProjects || []).map((item) => [item.title, item.images || []]),
+    (imageProjects || []).map((item) => {
+      const id = item.portfolio_item_id ?? item.id;
+      return [id, item.images || []];
+    }),
   );
 
   return projects.map((project) => {
-    const images = imageMap.get(project.title) || [];
+    const id = project.portfolio_item_id ?? project.id;
+    const images = (id != null ? imageMap.get(id) : null) || [];
     return {
       ...project,
+      id,
+      portfolio_item_id: id,
       images,
       coverImage: images[0] || null,
       imageCount: images.length,
@@ -325,7 +331,11 @@ export default function Portfolio() {
 
             return (
               <article
-                key={project.id ?? `${project.title}-${project.category_work}`}
+                key={
+                  project.portfolio_item_id ??
+                  project.id ??
+                  `${project.title}-${project.category_work}`
+                }
                 className="pf-card"
                 onClick={() => setSelectedProject(project)}
                 role="button"

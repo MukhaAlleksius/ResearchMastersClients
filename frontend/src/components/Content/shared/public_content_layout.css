@@ -57,11 +57,11 @@
 }
 
 .public-content-narrow.catalog-page {
-  padding: 0 0 3rem;
+  padding: 0 0 2rem;
 }
 
 .public-content-narrow.catalog-page .catalog-container {
-  padding: 1.5rem var(--public-content-side) 2.5rem;
+  padding: 0.75rem var(--public-content-side) 1.5rem;
   background: transparent;
   overflow: visible;
 }
@@ -124,24 +124,60 @@
   border-radius: 0;
 }
 
-/* Шапка каталога + кнопка фильтров в одной строке */
-.catalog-top {
+/* Панель управления списком: в той же ширине, что и сетка */
+.catalog-list-toolbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2rem;
+  padding: 0.35rem 0;
+  margin: 0;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.catalog-top .catalog-hero {
-  flex: 1;
-  min-width: 0;
+.catalog-list-toolbar__meta {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
 }
 
-.catalog-top .filters-bar {
+.catalog-list-toolbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.catalog-list-toolbar .filters-bar {
   position: relative;
   flex-shrink: 0;
-  margin-top: 0.125rem;
   z-index: 10;
+}
+
+.catalog-reset-filters {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #fff;
+  color: #64748b;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.catalog-reset-filters:hover {
+  border-color: #bfdbfe;
+  color: #2563eb;
+  background: #f8fafc;
 }
 
 /* ─── Фильтры: иконка + выпадающая панель ─── */

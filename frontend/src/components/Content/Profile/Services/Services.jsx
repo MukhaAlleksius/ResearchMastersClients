@@ -10,16 +10,8 @@ import OrderServiceCard from "../Common/OrderServiceCard";
 import RefusedByCustomerWork from "./RefusedByCustomer/RefusedByCustomerWork";
 import StatusFilterTabs from "../Common/StatusFilterTabs";
 import WaitExecuteWorkServiceInfo from "./WaitExecuteWork/WaitExecuteWork";
-import { getExecutorServicePresetKey } from "../Common/workDetailTabs";
 import { IconInbox, IconCalendar } from "../ProfileIcons.jsx";
 import "./services.css";
-import {
-  enrichListItemWithUpdates,
-  LIST_ACTIVITY_POLL_MS,
-  syncSeenCancelAck,
-  syncSeenActivityBaseline,
-  syncSeenOnRoleStatusChange,
-} from "../../../../utils/orderActivity.js";
 
 const statusTabs = [
   {
@@ -97,52 +89,11 @@ export default function Services() {
   const servicesExecutorRef = useRef(servicesExecutor);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [seenRevision, setSeenRevision] = useState(0);
 
   const [userId, setUserId] = useState(() => getStoredUserId());
 
-  const enrichedServices = useMemo(
-    () =>
-      servicesExecutor.map((service) =>
-        enrichListItemWithUpdates(
-          service,
-          userId,
-          getExecutorServicePresetKey(service.status_service_executor),
-        ),
-      ),
-    [servicesExecutor, userId, seenRevision],
-  );
-
   const applyServicesData = useCallback(
     (data) => {
-      let seenChanged = false;
-
-      data.forEach((service) => {
-        if (userId && service.activity) {
-          if (syncSeenCancelAck(userId, service.id, service.activity)) {
-            seenChanged = true;
-          }
-          if (syncSeenActivityBaseline(userId, service.id, service.activity)) {
-            seenChanged = true;
-          }
-          if (
-            syncSeenOnRoleStatusChange(
-              userId,
-              service.id,
-              service.activity,
-              "executor",
-              service.status_service_executor,
-            )
-          ) {
-            seenChanged = true;
-          }
-        }
-      });
-
-      if (seenChanged) {
-        setSeenRevision((value) => value + 1);
-      }
-
       setServicesExecutor(data.filter((service) => !isSelfExecutionService(service)));
 
       const byStatus = data.reduce((acc, service) => {
@@ -159,7 +110,7 @@ export default function Services() {
       });
       setServicesByStatus(statusMap);
     },
-    [userId],
+    [],
   );
 
   const fetchServicesExecutor = useCallback(
@@ -218,47 +169,21 @@ export default function Services() {
     }
   }, [location.state?.activeStatusTab, navigate]);
 
-  useEffect(() => {
-    if (selectedService) return undefined;
-
-    const timerId = setInterval(() => {
-      fetchServicesExecutor({ silent: true });
-    }, LIST_ACTIVITY_POLL_MS);
-
-    return () => clearInterval(timerId);
-  }, [selectedService, fetchServicesExecutor]);
-
   const currentServices = useMemo(() => {
-    if (activeStatusTab === "all") return enrichedServices;
+    if (activeStatusTab === "all") return servicesExecutor;
     if (activeStatusTab === "graphicOrders") return [];
 
     const statusKey = statusTabs.find(
       (tab) => tab.id === activeStatusTab,
     )?.statusKey;
-    return enrichedServices.filter(
+    return servicesExecutor.filter(
       (service) => (service.status_service_executor || "Без статуса") === statusKey,
     );
-  }, [activeStatusTab, enrichedServices]);
+  }, [activeStatusTab, servicesExecutor]);
 
   const getStatusCount = useCallback(
     (statusKey) => servicesByStatus[statusKey]?.length || 0,
     [servicesByStatus],
-  );
-
-  const getUpdatesCount = useCallback(
-    (statusKey) =>
-      enrichedServices.filter(
-        (service) =>
-          (service.status_service_executor || "Без статуса") === statusKey &&
-          service.updateInfo?.hasUpdates,
-      ).length,
-    [enrichedServices],
-  );
-
-  const totalUpdatesCount = useMemo(
-    () =>
-      enrichedServices.filter((service) => service.updateInfo?.hasUpdates).length,
-    [enrichedServices],
   );
 
   const handleSelectService = useCallback((service) => {
@@ -324,13 +249,11 @@ export default function Services() {
   if (selectedService) {
     const handleBack = () => {
       setSelectedService(null);
-      setSeenRevision((value) => value + 1);
       fetchServicesExecutor();
     };
     const backProps = {
       onBack: handleBack,
       userId,
-      listActivity: selectedService.activity,
     };
 
     return (
@@ -439,10 +362,8 @@ export default function Services() {
               id: "all",
               label: "Все услуги",
               count: servicesExecutor.length,
-              updatesCount: totalUpdatesCount,
             }}
             getCount={getStatusCount}
-            getUpdatesCount={getUpdatesCount}
           />
         )}
 
@@ -492,7 +413,6 @@ export default function Services() {
                     statusLabel={service.status_service_executor}
                     partyLabel="Заказчик"
                     partyName={service.customer_name}
-                    updateInfo={service.updateInfo}
                     onClick={() => handleSelectService(service)}
                   />
                 ))

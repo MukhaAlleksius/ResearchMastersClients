@@ -20,7 +20,6 @@ export default function WaitExecuteWorkServiceInfo({
   orderId,
   onBack,
   userId,
-  listActivity,
   onServiceStatusChanged,
 }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("executor_wait_execute");
@@ -143,16 +142,6 @@ export default function WaitExecuteWorkServiceInfo({
         title={order?.title || "Ожидание выполнения"}
         backLabel="Назад к услугам"
         onBack={onBack || (() => navigate(-1))}
-        activityConfig={
-          userId && orderIdFinal
-            ? {
-                userId,
-                orderId: orderIdFinal,
-                presetKey: "executor_wait_execute",
-                activity: listActivity,
-              }
-            : undefined
-        }
         headerExtra={
           <div className="work-detail__header-action">
             <button

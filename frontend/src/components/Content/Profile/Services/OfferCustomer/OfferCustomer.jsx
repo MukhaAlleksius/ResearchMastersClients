@@ -9,7 +9,7 @@ import {
   useWorkDetailInitialTab,
 } from "../../Common/workDetailTabs";
 
-export default function OfferCustomer({ orderId, onBack, userId, listActivity }) {
+export default function OfferCustomer({ orderId, onBack }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("executor_offer");
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,16 +50,6 @@ export default function OfferCustomer({ orderId, onBack, userId, listActivity })
       title={order?.title || "Предложение заказчика"}
       backLabel="Назад к услугам"
       onBack={onBack || (() => navigate(-1))}
-      activityConfig={
-        userId && orderIdFinal
-          ? {
-              userId,
-              orderId: orderIdFinal,
-              presetKey: "executor_offer",
-              activity: listActivity,
-            }
-          : undefined
-      }
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}

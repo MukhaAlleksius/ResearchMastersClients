@@ -23,7 +23,7 @@ const FALLBACK_ORDER = {
   category_work_id: 1,
 };
 
-export default function ContinueExecuteWorkServiceInfo({ orderId, onBack, userId, listActivity }) {
+export default function ContinueExecuteWorkServiceInfo({ orderId, onBack }) {
   const [activeTab, setActiveTab] = useWorkDetailInitialTab("executor_in_progress");
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,16 +78,6 @@ export default function ContinueExecuteWorkServiceInfo({ orderId, onBack, userId
       title={currentOrder.title || "Выполнение работы"}
       backLabel="Назад к услугам"
       onBack={onBack || (() => navigate(-1))}
-      activityConfig={
-        userId && orderIdFinal
-          ? {
-              userId,
-              orderId: orderIdFinal,
-              presetKey: "executor_in_progress",
-              activity: listActivity,
-            }
-          : undefined
-      }
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
