@@ -204,6 +204,7 @@ async def dedupe_geography() -> None:
 
 async def seed_default_geography() -> bool:
     """Ensure default countries/regions/towns exist without creating duplicates."""
+    load_all_models()  # Town.created_by → User; без этого mapper падает при seed
     await dedupe_geography()
 
     changed = False
