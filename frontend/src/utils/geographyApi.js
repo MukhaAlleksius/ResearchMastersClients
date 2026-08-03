@@ -96,7 +96,7 @@ export async function fetchTownsList(regionId) {
   return Array.isArray(data) ? data.map(formatTown) : [];
 }
 
-/** Создать город пользователем (регистрация), если его нет в справочнике. */
+/** Создать город пользователем (регистрация / профиль), если его нет в справочнике. */
 export async function createTownByUser(regionId, nameTown) {
   const response = await apiFetch(`${API.baseURL}/add_town_by_user`, {
     method: "POST",

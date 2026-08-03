@@ -292,8 +292,11 @@ async def add_town_for_region(
 
 
 async def add_town_by_user(
-    db: AsyncSession, payload: UserTownCreateSchema
-) -> Town:  # город от пользователя при регистрации
+    db: AsyncSession,
+    payload: UserTownCreateSchema,
+    *,
+    created_by_user_id: int | None = None,
+) -> Town:  # город от пользователя (регистрация / профиль)
     town_schema = TownSchema(
         region_id=payload.region_id,
         name_town=payload.name_town,
@@ -303,7 +306,7 @@ async def add_town_by_user(
         town_schema,
         source="user",
         is_verified=False,
-        created_by_user_id=None,
+        created_by_user_id=created_by_user_id,
     )
 
 

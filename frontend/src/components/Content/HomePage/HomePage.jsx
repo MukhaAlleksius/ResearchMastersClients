@@ -47,26 +47,6 @@ export default function HomePage({ openModal }) {
                   Стать исполнителем
                 </button>
               </div>
-              <div className="hero-stats">
-                <div className="stat-item stat-item--support">
-                  <span className="stat-item__icon" aria-hidden="true">
-                    🕐
-                  </span>
-                  <div className="stat-item__body">
-                    <strong>24/7</strong>
-                    <span>Поддержка клиентов</span>
-                  </div>
-                </div>
-                <div className="stat-item stat-item--secure">
-                  <span className="stat-item__icon" aria-hidden="true">
-                    🛡️
-                  </span>
-                  <div className="stat-item__body">
-                    <strong>100%</strong>
-                    <span>Безопасные сделки</span>
-                  </div>
-                </div>
-              </div>
             </div>
 
             <aside className="hero-aside hero-aside--no-visual">

@@ -11,6 +11,12 @@ import {
   IconMap,
   IconDoc,
 } from "../ProfileIcons.jsx";
+import { createTownByUser } from "../../../../utils/geographyApi.js";
+import {
+  normalizeTownName,
+  validateTownName,
+} from "../../../../utils/townNameValidation.js";
+import { uiAlert, uiWarn } from "../../../UiDialog/uiDialog.js";
 import "./profile_settings.css";
 const selectMenuProps = {
   menuPortalTarget: document.body,
@@ -139,6 +145,58 @@ export default function ProfileSettings() {
       await fetchTownsRegionForOrders(selectedOption.value);
     } else {
       setTownsOrders([]);
+    }
+  };
+
+  /** Создать город в справочнике (адрес профиля), если его нет в списке. */
+  const handleCreateTown = async (inputValue) => {
+    const name = normalizeTownName(inputValue);
+    const nameError = validateTownName(name);
+    if (nameError) {
+      await uiWarn(nameError);
+      return;
+    }
+    if (!geoRegion?.value) {
+      await uiWarn("Сначала выберите регион из справочника");
+      return;
+    }
+    try {
+      const created = await createTownByUser(geoRegion.value, name);
+      setTowns((prev) => {
+        if (prev.some((t) => String(t.value) === String(created.value))) {
+          return prev;
+        }
+        return [...prev, created];
+      });
+      setGeoTown(created);
+    } catch (err) {
+      await uiAlert(err.message || "Не удалось добавить город");
+    }
+  };
+
+  /** Создать город в справочнике (география работ), если его нет в списке. */
+  const handleCreateTownForOrders = async (inputValue) => {
+    const name = normalizeTownName(inputValue);
+    const nameError = validateTownName(name);
+    if (nameError) {
+      await uiWarn(nameError);
+      return;
+    }
+    if (!geoRegionOrder?.value) {
+      await uiWarn("Сначала выберите регион из справочника");
+      return;
+    }
+    try {
+      const created = await createTownByUser(geoRegionOrder.value, name);
+      setTownsOrders((prev) => {
+        if (prev.some((t) => String(t.value) === String(created.value))) {
+          return prev;
+        }
+        return [...prev, created];
+      });
+      setGeoTownOrder(created);
+    } catch (err) {
+      await uiAlert(err.message || "Не удалось добавить город");
     }
   };
 
@@ -651,19 +709,32 @@ export default function ProfileSettings() {
               </div>
               <div className="ps-select-wrap">
                 <span className="ps-label">Город</span>
-                <Select
+                <CreatableSelect
                   {...selectMenuProps}
                   options={townOptions}
                   value={geoTown}
                   onChange={setGeoTown}
+                  onCreateOption={handleCreateTown}
+                  isValidNewOption={(inputValue) =>
+                    Boolean(geoRegion) && Boolean(normalizeTownName(inputValue))
+                  }
+                  formatCreateLabel={(inputValue) =>
+                    `Добавить город «${normalizeTownName(inputValue)}»`
+                  }
                   isClearable
                   styles={selectStyles}
-                  placeholder="Выберите город"
-                  isDisabled={!geoRegion}
-                  noOptionsMessage={() =>
+                  placeholder={
                     geoRegion
-                      ? "Нет городов для выбранной области"
-                      : "Выберите город"
+                      ? "Выберите или введите город"
+                      : "Сначала выберите область"
+                  }
+                  isDisabled={!geoRegion}
+                  noOptionsMessage={({ inputValue }) =>
+                    !geoRegion
+                      ? "Сначала выберите область"
+                      : inputValue
+                        ? "Нет совпадений — можно добавить свой город"
+                        : "Нет городов — можно ввести свой"
                   }
                 />
               </div>
@@ -870,18 +941,32 @@ export default function ProfileSettings() {
               </div>
               <div className="ps-select-wrap">
                 <span className="ps-label">Город</span>
-                <Select
+                <CreatableSelect
                   {...selectMenuProps}
                   isClearable
                   options={townOrderOptions}
                   value={geoTownOrder}
                   onChange={(newValue) => setGeoTownOrder(newValue)}
-                  placeholder="Выберите город"
-                  isDisabled={!geoRegionOrder}
-                  noOptionsMessage={() =>
+                  onCreateOption={handleCreateTownForOrders}
+                  isValidNewOption={(inputValue) =>
+                    Boolean(geoRegionOrder) &&
+                    Boolean(normalizeTownName(inputValue))
+                  }
+                  formatCreateLabel={(inputValue) =>
+                    `Добавить город «${normalizeTownName(inputValue)}»`
+                  }
+                  placeholder={
                     geoRegionOrder
-                      ? "Нет городов для выбранной области"
-                      : "Выберите город"
+                      ? "Выберите или введите город"
+                      : "Сначала выберите область"
+                  }
+                  isDisabled={!geoRegionOrder}
+                  noOptionsMessage={({ inputValue }) =>
+                    !geoRegionOrder
+                      ? "Сначала выберите область"
+                      : inputValue
+                        ? "Нет совпадений — можно добавить свой город"
+                        : "Нет городов — можно ввести свой"
                   }
                   styles={selectStyles}
                 />
