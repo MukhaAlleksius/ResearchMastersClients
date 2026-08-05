@@ -25,11 +25,11 @@ class UserSchema(UserBaseSchema):
 
     @field_validator("password")
     @classmethod
-    def pawword_not_blank(cls, value: str) -> str:
-        if not value or value.strip():
+    def password_not_blank(cls, value: str) -> str:
+        if not value or not value.strip():
             raise ValueError("Пароль не может состоять только из пробелов")
         if len(value) < 6:
-            raise ValueError("Пароль должен содержать мимнимум 6 символов")
+            raise ValueError("Пароль должен содержать минимум 6 символов")
         return value  # trim не делать - пробелы внутри пароля ok
 
 
