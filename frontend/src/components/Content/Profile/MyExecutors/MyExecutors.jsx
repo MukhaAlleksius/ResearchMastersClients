@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { API, apiFetch } from "../../../../utils/api.js";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import ExecutorInfo from "../Orders/CommonComponents/CustomerOrderInfo/ExecutorInfo";
 import { getExecutorProfileLink } from "../../../../utils/executorProfile";
+import "../Services/services.css";
 import "./my_executors.css";
 const getInitials = (name) => {
   if (!name || name === "—") return "?";
@@ -13,6 +14,7 @@ const getInitials = (name) => {
 };
 
 export default function MyExecutors() {
+  const navigate = useNavigate();
   const [executors, setExecutors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -98,6 +100,13 @@ export default function MyExecutors() {
   if (loading) {
     return (
       <div className="my-executors">
+        <button
+          type="button"
+          className="btn-list-back"
+          onClick={() => navigate("/profile/orders")}
+        >
+          ← Назад к заказам
+        </button>
         <div className="my-executors__state">
           <div className="my-executors__spinner" aria-hidden="true" />
           <p>Загрузка исполнителей…</p>
@@ -109,6 +118,13 @@ export default function MyExecutors() {
   if (error) {
     return (
       <div className="my-executors">
+        <button
+          type="button"
+          className="btn-list-back"
+          onClick={() => navigate("/profile/orders")}
+        >
+          ← Назад к заказам
+        </button>
         <div className="my-executors__state my-executors__state--error">
           <p>{error}</p>
           <button type="button" className="my-executors__retry" onClick={fetchExecutors}>
@@ -121,6 +137,13 @@ export default function MyExecutors() {
 
   return (
     <div className="my-executors">
+      <button
+        type="button"
+        className="btn-list-back"
+        onClick={() => navigate("/profile/orders")}
+      >
+        ← Назад к заказам
+      </button>
       <header className="my-executors__header">
         <div>
           <h1 className="my-executors__title">Мои исполнители</h1>

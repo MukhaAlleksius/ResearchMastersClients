@@ -131,13 +131,22 @@ export default function Orders() {
               : "Создайте первый заказ"}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn-list-primary btn-list-header"
-          onClick={() => setAddOrder(true)}
-        >
-          + Добавить заказ в черновик
-        </button>
+        <div className="list-page__actions">
+          <button
+            type="button"
+            className="btn-list-primary btn-list-header"
+            onClick={() => navigate("/profile/my_executors")}
+          >
+            Мои исполнители
+          </button>
+          <button
+            type="button"
+            className="btn-list-primary btn-list-header"
+            onClick={() => setAddOrder(true)}
+          >
+            + Добавить заказ в черновик
+          </button>
+        </div>
       </header>
 
       {error && (

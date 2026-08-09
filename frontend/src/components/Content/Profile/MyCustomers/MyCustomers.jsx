@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { API, apiFetch } from "../../../../utils/api.js";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import CustomerInfo from "../Services/CommonComponent/InformationAboutCustomer/InformationAboutCustomer";
 import { getCustomerProfileLink } from "../../../../utils/executorProfile";
+import "../Services/services.css";
 import "./my_customers.css";
 
 const getInitials = (name) => {
@@ -14,6 +15,7 @@ const getInitials = (name) => {
 };
 
 export default function MyCustomers() {
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -99,6 +101,13 @@ export default function MyCustomers() {
   if (loading) {
     return (
       <div className="my-customers">
+        <button
+          type="button"
+          className="btn-list-back"
+          onClick={() => navigate("/profile/services")}
+        >
+          ← Назад к услугам
+        </button>
         <div className="my-customers__state">
           <div className="my-customers__spinner" aria-hidden="true" />
           <p>Загрузка заказчиков…</p>
@@ -110,6 +119,13 @@ export default function MyCustomers() {
   if (error) {
     return (
       <div className="my-customers">
+        <button
+          type="button"
+          className="btn-list-back"
+          onClick={() => navigate("/profile/services")}
+        >
+          ← Назад к услугам
+        </button>
         <div className="my-customers__state my-customers__state--error">
           <p>{error}</p>
           <button
@@ -126,6 +142,13 @@ export default function MyCustomers() {
 
   return (
     <div className="my-customers">
+      <button
+        type="button"
+        className="btn-list-back"
+        onClick={() => navigate("/profile/services")}
+      >
+        ← Назад к услугам
+      </button>
       <header className="my-customers__header">
         <div>
           <h1 className="my-customers__title">Мои заказчики</h1>

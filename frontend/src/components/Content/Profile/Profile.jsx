@@ -5,12 +5,10 @@ import "./profile.css";
 
 const baseTabs = [
   { id: "main_page", label: "Моя страница" },
-  { id: "orders", label: "Мои заказы" },
-  { id: "my_executors", label: "Исполнители" },
-  { id: "services", label: "Мои услуги" },
-  { id: "my_customers", label: "Заказчики" },
-  { id: "specialization", label: "Специализация" },
   { id: "executor", label: "Профиль" },
+  { id: "specialization", label: "Специализация" },
+  { id: "orders", label: "Мои заказы" },
+  { id: "services", label: "Мои услуги" },
   { id: "portfolio", label: "Портфолио" },
   { id: "analytics", label: "Аналитика" },
   // { id: "executor_bank_account", label: "Счёт" },
@@ -31,10 +29,16 @@ export default function ProfilePage() {
 
   const activeTab = useMemo(() => {
     const section = location.pathname.split("/")[2];
-    if (!section || section === "orders") {
+    if (!section) {
+      return "main_page";
+    }
+    if (section === "my_executors") {
       return "orders";
     }
-    return profileSections.has(section) ? section : "orders";
+    if (section === "my_customers") {
+      return "services";
+    }
+    return profileSections.has(section) ? section : "main_page";
   }, [location.pathname, profileSections]);
 
   const handleMenuClick = (tabId) => {

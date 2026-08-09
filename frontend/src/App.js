@@ -20,7 +20,6 @@ import ContinueExecuteWorkServiceInfo from "./components/Content/Profile/Service
 import CustomerOrderView from "./components/Content/Profile/Orders/CustomerOrderView/CustomerOrderView.jsx";
 import ExecuteWorkServiceInfo from "./components/Content/Profile/Services/ExecuteWork/ExecuteWork.jsx";
 import ExecutorBankAccount from "./components/Content/Profile/ExecutorBankAccount/ExecutorBankAccount.jsx";
-import ExecutorModal from "./components/Modals/ExecutorsRegistration/ExecutorRegistrationModal.jsx";
 import ExecutorProfile from "./components/Content/ExecutorProfile/ExecutorProfile.jsx";
 import Footer from "./components/Footer/Footer.jsx";
 import Header from "./components/Header/Header.jsx";
@@ -59,7 +58,7 @@ import WaitExecuteWorkServiceInfo from "./components/Content/Profile/Services/Wa
 import UiDialogProvider from "./components/UiDialog/UiDialogProvider.jsx";
 import "./index.css";
 function App() {
-  const [modal, setModal] = useState(null); // null или "executorModal", "registerModal", "loginModal"
+  const [modal, setModal] = useState(null); // null | "registerModal" | "loginModal"
 
   const [isLoggedIn, setIsLoggedIn] = useState(
     localStorage.getItem("access_token"),
@@ -133,7 +132,10 @@ function App() {
 
               {/* ✅ ЛИЧНЫЙ КАБИНЕТ — маршруты заказов явно в App.js */}
               <Route element={<ProfilePage />}>
-                <Route path="/profile" element={<Orders />} />
+                <Route
+                  path="/profile"
+                  element={<Navigate to="/profile/main_page" replace />}
+                />
                 <Route path="/profile/orders" element={<Orders />} />
                 <Route
                   path="/profile/orders/:orderId"
@@ -301,10 +303,6 @@ function App() {
             </Routes>
           </div>
           <Footer />
-          {modal === "executorModal" && (
-            <ExecutorModal isOpen={true} onClose={closeModal} />
-          )}
-
           {modal === "loginModal" && (
             <LoginModal
               onLogin={handleLoggedIn}

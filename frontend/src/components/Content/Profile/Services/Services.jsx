@@ -326,14 +326,23 @@ export default function Services() {
           </p>
         </div>
         {!isGraphicTab && (
-          <button
-            type="button"
-            className="btn-list-primary btn-list-header"
-            onClick={openWorksCalendar}
-          >
-            <IconCalendar width={18} height={18} />
-            Календарь работ
-          </button>
+          <div className="list-page__actions">
+            <button
+              type="button"
+              className="btn-list-primary btn-list-header"
+              onClick={() => navigate("/profile/my_customers")}
+            >
+              Мои заказчики
+            </button>
+            <button
+              type="button"
+              className="btn-list-primary btn-list-header"
+              onClick={openWorksCalendar}
+            >
+              <IconCalendar width={18} height={18} />
+              Календарь работ
+            </button>
+          </div>
         )}
       </header>
 
