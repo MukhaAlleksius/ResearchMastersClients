@@ -169,7 +169,7 @@
   color: var(--rw-text);
 }
 
-.rw-filters__section-head i {
+.rw-filters__section-icon {
   width: 28px;
   height: 28px;
   display: inline-flex;
@@ -178,7 +178,7 @@
   border-radius: 8px;
   background: var(--rw-primary-light);
   color: var(--rw-primary);
-  font-size: 0.75rem;
+  flex-shrink: 0;
 }
 
 .rw-filters__segmented {

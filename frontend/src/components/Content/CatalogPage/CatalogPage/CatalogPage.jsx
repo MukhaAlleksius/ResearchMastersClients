@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import CatalogPagination from "../../shared/CatalogPagination";
 import FiltersShell from "../../shared/FiltersShell";
 import { CATALOG_PAGE_SIZE, getCatalogPageFromSearch } from "../../../../utils/pagination";
+import { formatGeoAddress } from "../../../../utils/geoAddress.js";
 import { IconPin } from "../../Profile/ProfileIcons.jsx";
 import "../../shared/public_content_layout.css";
 import "./catalog_page.css";
@@ -629,8 +630,7 @@ function ExecutorsGrid({
               <div className="executor-location">
                 <IconPin width={14} height={14} />
                 <span>
-                  {[executor.town, executor.region].filter(Boolean).join(", ") ||
-                    "Локация не указана"}
+                  {formatGeoAddress(executor, "Локация не указана")}
                 </span>
               </div>
               <div className="executor-rating">

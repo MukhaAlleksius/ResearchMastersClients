@@ -1,8 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { API, apiFetch } from "../../../../../../utils/api.js";
+import OrderCustomer from "../../../../Orders/OrderCustomer.jsx";
 import ExecutorResponseDisplay from "./ExecutorResponseDisplay";
-import { OrderDetailsGrid, OrderInfoEmpty } from "./OrderInfoContent";
+import { OrderInfoEmpty } from "./OrderInfoContent";
 import "./customer_order_info.css";
+import "../../../../Orders/order_customer.css";
+
 /**
  * Просмотр заказа исполнителем с подвкладками «Детали заказа» и «Мой ответ» (только чтение).
  */
@@ -63,67 +66,57 @@ export default function OrderInfoWithMyResponse({
     );
   }
 
-  const { id, title, category_work } = order;
-
   return (
     <div
-      className={`order-info ${embedded ? "order-info--embedded" : ""}`.trim()}
+      className={`order-info order-info--with-catalog-card ${
+        embedded ? "order-info--embedded" : ""
+      }`.trim()}
     >
-      <article className="order-info__shell">
-        {!embedded && (
-          <header className="order-info__hero">
-            <span className="order-info__badge">Заказ</span>
-            <h2 className="order-info__title">{title || "Заказ"}</h2>
-            <p className="order-info__subtitle">
-              {category_work ? `${category_work} · ` : ""}№{id}
+      <nav className="order-info__tabs" aria-label="Разделы заказа">
+        <button
+          type="button"
+          className={`order-info__tab ${activeTab === "order" ? "order-info__tab--active" : ""}`}
+          onClick={() => setActiveTab("order")}
+        >
+          Детали заказа
+        </button>
+        <button
+          type="button"
+          className={`order-info__tab ${activeTab === "response" ? "order-info__tab--active" : ""}`}
+          onClick={() => setActiveTab("response")}
+        >
+          Мой ответ
+        </button>
+      </nav>
+
+      {activeTab === "order" && (
+        <OrderCustomer
+          order={order}
+          embedded
+          showOfferActions={false}
+          footer={footer}
+        />
+      )}
+
+      {activeTab === "response" && (
+        <div className="order-info__panel">
+          {loading ? (
+            <p className="order-info__loading">Загрузка ответа…</p>
+          ) : error ? (
+            <p className="order-info__response-empty">{error}</p>
+          ) : executorResponse ? (
+            <ExecutorResponseDisplay
+              response={executorResponse}
+              title="Ваше предложение"
+              showExecutorName={false}
+            />
+          ) : (
+            <p className="order-info__response-empty">
+              Ответ на этот заказ не найден или был удалён.
             </p>
-          </header>
-        )}
-
-        <nav className="order-info__tabs" aria-label="Разделы заказа">
-          <button
-            type="button"
-            className={`order-info__tab ${activeTab === "order" ? "order-info__tab--active" : ""}`}
-            onClick={() => setActiveTab("order")}
-          >
-            Детали заказа
-          </button>
-          <button
-            type="button"
-            className={`order-info__tab ${activeTab === "response" ? "order-info__tab--active" : ""}`}
-            onClick={() => setActiveTab("response")}
-          >
-            Мой ответ
-          </button>
-        </nav>
-
-        {activeTab === "order" && (
-          <>
-            <OrderDetailsGrid order={order} embedded={embedded} />
-            {footer && <div className="order-info__footer">{footer}</div>}
-          </>
-        )}
-
-        {activeTab === "response" && (
-          <div className="order-info__panel">
-            {loading ? (
-              <p className="order-info__loading">Загрузка ответа…</p>
-            ) : error ? (
-              <p className="order-info__response-empty">{error}</p>
-            ) : executorResponse ? (
-              <ExecutorResponseDisplay
-                response={executorResponse}
-                title="Ваше предложение"
-                showExecutorName={false}
-              />
-            ) : (
-              <p className="order-info__response-empty">
-                Ответ на этот заказ не найден или был удалён.
-              </p>
-            )}
-          </div>
-        )}
-      </article>
+          )}
+        </div>
+      )}
     </div>
   );
 }

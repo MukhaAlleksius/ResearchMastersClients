@@ -284,7 +284,8 @@
   border: 1px solid #e2e8f0;
   border-radius: 16px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-  overflow: hidden;
+  /* visible: иначе position:sticky у шапки сметы не работает */
+  overflow: visible;
 }
 
 /* Горизонтальные вкладки (десктоп и мобильные) */
@@ -462,7 +463,8 @@
   max-width: 960px;
   margin: 0 auto;
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow-x: auto;
+  min-width: 0;
 }
 
 /* Вкладки кроме сметы — ширина как у «Информация о заказе» */
@@ -522,16 +524,41 @@
 
 .work-detail__panel-body .form-field--wide,
 .work-detail__panel-body .form-field--action {
-  grid-column: 1;
+  grid-column: 1 / -1;
+}
+
+.work-detail__panel-body .form-field-row--metrics {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.work-detail__panel-body .form-field--action {
+  justify-content: flex-start;
+}
+
+.work-detail__panel-body .form-field--action .btn-add {
+  width: auto;
 }
 
 @media (min-width: 640px) {
   .work-detail__panel-body .estimate-form-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
   .work-detail__panel-body .form-field--wide {
     grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 520px) {
+  .work-detail__panel-body .form-field-row--metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .work-detail__panel-body .form-field--action .btn-add {
+    width: 100%;
   }
 }
 
@@ -544,6 +571,7 @@
 .work-detail__panel-body .table-wrapper--estimate {
   min-width: 0;
   max-width: 100%;
+  width: 100%;
 }
 
 /* Десктоп: вкладки в 1–2 ряда, без прокрутки */

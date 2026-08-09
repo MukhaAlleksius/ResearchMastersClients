@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import { API, apiFetch } from "../../../../../../utils/api.js";
 import CreatableSelect from "react-select/creatable";
 import { uiAlert, uiConfirm } from "../../../../../UiDialog/uiDialog.js";
+import { IconEdit, IconTrash } from "../../../ProfileIcons.jsx";
 
 const selectStyles = {
   control: (base, state) => ({
@@ -335,7 +336,7 @@ export default function AddWorksModal({
                     title="Редактировать"
                     aria-label="Редактировать"
                   >
-                    <i className="fas fa-pen" aria-hidden="true" />
+                    <IconEdit width={14} height={14} />
                   </button>
                   <button
                     type="button"
@@ -345,7 +346,7 @@ export default function AddWorksModal({
                     title="Удалить"
                     aria-label="Удалить"
                   >
-                    <i className="fas fa-trash-alt" aria-hidden="true" />
+                    <IconTrash width={14} height={14} />
                   </button>
                 </div>
               </div>

@@ -76,10 +76,10 @@ class UserBusinessSchema(UserBusinessReadSchema):
 
 class UserProfileSchema(BaseModel):
     user_id: int
-    avatar_url: str = Field(None, max_length=500)
-    bio: Optional[str]
-    short_review_master: Optional[str]
-    operating_mode: str = Field(None, max_length=100)
+    avatar_url: Optional[str] = Field(None, max_length=500)
+    bio: Optional[str] = None
+    short_review_master: Optional[str] = None
+    operating_mode: Optional[str] = Field(None, max_length=100)
 
 
 # Контакты пользователя
@@ -179,6 +179,7 @@ class UserProfileReadSchema(BaseModel):
     bio: Optional[str] = Field(None)
     short_review_master: Optional[str] = Field(None)
     operating_mode: Optional[str] = Field(None, max_length=100)
+    created_at: Optional[datetime] = None
 
 
 class UserProfileForCardSchema(UserProfileReadSchema):

@@ -1,8 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { fetchOrderExecutorResponse } from "../../../../../../utils/api.js";
+import OrderCustomer from "../../../../Orders/OrderCustomer.jsx";
 import ExecutorResponseDisplay from "./ExecutorResponseDisplay";
-import { OrderDetailsGrid, OrderInfoEmpty } from "./OrderInfoContent";
+import { OrderInfoEmpty } from "./OrderInfoContent";
 import "./customer_order_info.css";
+import "../../../../Orders/order_customer.css";
+
 export default function OrderInfoWithExecutorResponse({
   order,
   executorId,
@@ -60,75 +63,67 @@ export default function OrderInfoWithExecutorResponse({
     );
   }
 
-  const { id, title, category_work } = order;
   const hasResponse = Boolean(executorResponse);
   const canShowResponseTab = showExecutorResponseTab || hasResponse || loading;
 
   return (
     <div
-      className={`order-info ${embedded ? "order-info--embedded" : ""}`.trim()}
+      className={`order-info order-info--with-catalog-card ${
+        embedded ? "order-info--embedded" : ""
+      }`.trim()}
     >
-      <article className="order-info__shell">
-        {!embedded && (
-          <header className="order-info__hero">
-            <span className="order-info__badge">Заказ</span>
-            <h2 className="order-info__title">{title || "Заказ"}</h2>
-            <p className="order-info__subtitle">
-              {category_work ? `${category_work} · ` : ""}№{id}
-            </p>
-          </header>
-        )}
+      <nav className="order-info__tabs" aria-label="Разделы заказа">
+        <button
+          type="button"
+          className={`order-info__tab ${activeTab === "order" ? "order-info__tab--active" : ""}`}
+          onClick={() => setActiveTab("order")}
+        >
+          Детали заказа
+        </button>
 
-        <nav className="order-info__tabs" aria-label="Разделы заказа">
+        {canShowResponseTab && (
           <button
             type="button"
-            className={`order-info__tab ${activeTab === "order" ? "order-info__tab--active" : ""}`}
-            onClick={() => setActiveTab("order")}
+            className={`order-info__tab ${activeTab === "response" ? "order-info__tab--active" : ""}`}
+            onClick={() => setActiveTab("response")}
           >
-            Детали заказа
+            Ответ исполнителя
           </button>
+        )}
+      </nav>
 
-          {canShowResponseTab && (
-            <button
-              type="button"
-              className={`order-info__tab ${activeTab === "response" ? "order-info__tab--active" : ""}`}
-              onClick={() => setActiveTab("response")}
-            >
-              Ответ исполнителя
-            </button>
+      {activeTab === "order" && (
+        <OrderCustomer
+          order={order}
+          embedded
+          showOfferActions={false}
+          showCustomerSection={false}
+          footer={footer}
+        />
+      )}
+
+      {activeTab === "response" && (
+        <div className="order-info__panel">
+          {loading ? (
+            <p className="order-info__loading">Загрузка ответа…</p>
+          ) : error ? (
+            <p className="order-info__response-empty">{error}</p>
+          ) : hasResponse ? (
+            <ExecutorResponseDisplay
+              response={executorResponse}
+              title="Предложение исполнителя"
+            />
+          ) : !executorId ? (
+            <p className="order-info__response-empty">
+              Исполнитель ещё не назначен на этот заказ.
+            </p>
+          ) : (
+            <p className="order-info__response-empty">
+              Ответ исполнителя для этого заказа не найден.
+            </p>
           )}
-        </nav>
-
-        {activeTab === "order" && (
-          <>
-            <OrderDetailsGrid order={order} embedded={embedded} />
-            {footer && <div className="order-info__footer">{footer}</div>}
-          </>
-        )}
-
-        {activeTab === "response" && (
-          <div className="order-info__panel">
-            {loading ? (
-              <p className="order-info__loading">Загрузка ответа…</p>
-            ) : error ? (
-              <p className="order-info__response-empty">{error}</p>
-            ) : hasResponse ? (
-              <ExecutorResponseDisplay
-                response={executorResponse}
-                title="Предложение исполнителя"
-              />
-            ) : !executorId ? (
-              <p className="order-info__response-empty">
-                Исполнитель ещё не назначен на этот заказ.
-              </p>
-            ) : (
-              <p className="order-info__response-empty">
-                Ответ исполнителя для этого заказа не найден.
-              </p>
-            )}
-          </div>
-        )}
-      </article>
+        </div>
+      )}
     </div>
   );
 }

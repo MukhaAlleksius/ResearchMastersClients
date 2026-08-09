@@ -6,8 +6,10 @@ import {
   readApiError,
 } from "../../../../../../utils/api.js";
 import ExecutorResponseDisplay from "./ExecutorResponseDisplay";
-import { OrderInfoEmpty, OrderDetailsGrid } from "./OrderInfoContent";
+import { OrderInfoEmpty } from "./OrderInfoContent";
+import OrderCustomer from "../../../../Orders/OrderCustomer.jsx";
 import "./customer_order_info.css";
+import "../../../../Orders/order_customer.css";
 import { uiAlert, uiConfirm } from "../../../../../UiDialog/uiDialog.js";
 
 const budgetTypes = ["Фиксированная цена", "Почасовая оплата", "Договорная цена"];
@@ -649,79 +651,79 @@ export default function OrderInfoAnswerExecutor({
 
   return (
     <div
-      className={`order-info ${embedded ? "order-info--embedded" : ""}`.trim()}
+      className={`order-info order-info--with-catalog-card ${
+        embedded ? "order-info--embedded" : ""
+      }`.trim()}
     >
-      <article className="order-info__shell">
-        {!embedded && (
-          <header className="order-info__hero">
-            <span className="order-info__badge">Заказ</span>
+      {!embedded && (
+        <header className="order-info__hero">
+          <span className="order-info__badge">Заказ</span>
 
-            <h2 className="order-info__title">{title || "Заказ"}</h2>
+          <h2 className="order-info__title">{title || "Заказ"}</h2>
 
-            <p className="order-info__subtitle">
-              {category_work ? `${category_work} · ` : ""}№{id}
-            </p>
-          </header>
-        )}
+          <p className="order-info__subtitle">
+            {category_work ? `${category_work} · ` : ""}№{id}
+          </p>
+        </header>
+      )}
 
-        <nav className="order-info__tabs" aria-label="Разделы заказа">
-          <button
-            type="button"
-            className={`order-info__tab ${activeTab === "order" ? "order-info__tab--active" : ""}`}
-            onClick={() => setActiveTab("order")}
-          >
-            Детали заказа
-          </button>
+      <nav className="order-info__tabs" aria-label="Разделы заказа">
+        <button
+          type="button"
+          className={`order-info__tab ${activeTab === "order" ? "order-info__tab--active" : ""}`}
+          onClick={() => setActiveTab("order")}
+        >
+          Детали заказа
+        </button>
 
-          <button
-            type="button"
-            className={`order-info__tab ${activeTab === "response" ? "order-info__tab--active" : ""}`}
-            onClick={() => setActiveTab("response")}
-          >
-            Мой ответ
-          </button>
-        </nav>
+        <button
+          type="button"
+          className={`order-info__tab ${activeTab === "response" ? "order-info__tab--active" : ""}`}
+          onClick={() => setActiveTab("response")}
+        >
+          Мой ответ
+        </button>
+      </nav>
 
-        {activeTab === "order" && (
-          <OrderDetailsGrid order={order} embedded={embedded} />
-        )}
+      {activeTab === "order" && (
+        <OrderCustomer order={order} embedded showOfferActions={false} />
+      )}
 
-        {activeTab === "response" && (
-          <div className="order-info__panel">
-            {loading ? (
-              <p className="order-info__loading">Загрузка ответа…</p>
-            ) : orderResponseExecutor ? (
-              <ExecutorResponseDisplay
-                response={orderResponseExecutor}
-                title="Ваше предложение"
-                showExecutorName={false}
+      {activeTab === "response" && (
+        <div className="order-info__panel">
+          {loading ? (
+            <p className="order-info__loading">Загрузка ответа…</p>
+          ) : orderResponseExecutor ? (
+            <ExecutorResponseDisplay
+              response={orderResponseExecutor}
+              title="Ваше предложение"
+              showExecutorName={false}
+            >
+              <button
+                type="button"
+                className="order-info__btn-secondary"
+                onClick={() => setIsModalOpen(true)}
               >
-                <button
-                  type="button"
-                  className="order-info__btn-secondary"
-                  onClick={() => setIsModalOpen(true)}
-                >
-                  Редактировать ответ
-                </button>
-              </ExecutorResponseDisplay>
-            ) : (
-              <>
-                <p className="order-info__response-empty">
-                  Вы пока не отправляли ответ на этот заказ.
-                </p>
+                Редактировать ответ
+              </button>
+            </ExecutorResponseDisplay>
+          ) : (
+            <>
+              <p className="order-info__response-empty">
+                Вы пока не отправляли ответ на этот заказ.
+              </p>
 
-                <button
-                  type="button"
-                  className="order-info__btn-primary"
-                  onClick={openCreateModal}
-                >
-                  {offerButtonLabel}
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </article>
+              <button
+                type="button"
+                className="order-info__btn-primary"
+                onClick={openCreateModal}
+              >
+                {offerButtonLabel}
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {responseModal}
     </div>

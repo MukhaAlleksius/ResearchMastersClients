@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { API, apiFetch, buildApiUrl, resolveMediaUrl } from "../../../../utils/api.js";
 import {
+  formatGeoAddress,
+  hasGeoAddress,
+} from "../../../../utils/geoAddress.js";
+import {
   IconUser,
   IconDoc,
   IconImage,
@@ -33,6 +37,21 @@ function formatReviewsCount(count) {
     return `${n} отзыва`;
   }
   return `${n} отзывов`;
+}
+
+function formatMemberSince(value) {
+  if (!value) return "";
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const monthYear = date.toLocaleDateString("ru-RU", {
+      month: "long",
+      year: "numeric",
+    });
+    return `На сайте с ${monthYear}`;
+  } catch {
+    return "";
+  }
 }
 
 const REVIEW_AVATAR_VARIANTS = ["violet", "green", "rose"];
@@ -314,9 +333,8 @@ export default function MainPage() {
     fetchPortfolioData();
   }, []);
 
-  const addressLabel = [profileMaster?.country, profileMaster?.region, profileMaster?.town]
-    .filter(Boolean)
-    .join(", ");
+  const addressLabel = formatGeoAddress(profileMaster);
+  const hasAddress = hasGeoAddress(profileMaster);
 
   const averageRating = Number(reviewsSummary.average_rating) || 0;
   const reviewsCount = Number(reviewsSummary.reviews_count) || 0;
@@ -330,12 +348,21 @@ export default function MainPage() {
         <div className="mp-hero__inner">
           <div className="mp-hero__avatar-wrap">
             {hasAvatar ? (
-              <img
-                src={buildApiUrl(`/avatar/${userId}?t=${Date.now()}`)}
-                alt="Аватар профиля"
-                className="mp-hero__avatar"
-                onError={() => setHasAvatar(false)}
-              />
+              <button
+                type="button"
+                className="mp-hero__avatar-btn"
+                onClick={() =>
+                  setModalImage(buildApiUrl(`/avatar/${userId}?t=${Date.now()}`))
+                }
+                aria-label="Открыть фото профиля"
+              >
+                <img
+                  src={buildApiUrl(`/avatar/${userId}?t=${Date.now()}`)}
+                  alt="Аватар профиля"
+                  className="mp-hero__avatar"
+                  onError={() => setHasAvatar(false)}
+                />
+              </button>
             ) : (
               <div
                 className="mp-hero__avatar mp-hero__avatar--placeholder"
@@ -378,7 +405,7 @@ export default function MainPage() {
               ))}
             </div>
 
-            {addressLabel && (
+            {hasAddress && (
               <div className="mp-hero__location">
                 <span className="mp-hero__location-item">
                   <IconPin width={14} height={14} />
@@ -491,37 +518,27 @@ export default function MainPage() {
           <div className="mp-card mp-sidebar__card">
             <div className="mp-sidebar__section">
               <h3 className="mp-sidebar__title">Контакты</h3>
-              <ul className="mp-info-list">
-                {addressLabel && (
-                  <li className="mp-info-item">
-                    <span className="mp-info-item__icon" aria-hidden="true">
-                      <IconPin />
-                    </span>
-                    <span>{addressLabel}</span>
-                  </li>
-                )}
-                <li className="mp-info-item">
-                  <span className="mp-info-item__icon" aria-hidden="true">
-                    <IconCalendar />
-                  </span>
-                  <span>На сайте с 2020 г.</span>
-                </li>
-                {contacts.map((contact, index) => (
-                  <li
-                    key={contact.contact_id || contact.id || index}
-                    className="mp-info-item"
-                  >
-                    <span className="mp-info-item__icon" aria-hidden="true">
-                      {contactTypeIcon(contact.name_contact)}
-                    </span>
-                    <span>
-                      <strong>{contact.name_contact}</strong>
-                      <br />
-                      {contact.contact}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              {contacts.length > 0 ? (
+                <ul className="mp-info-list">
+                  {contacts.map((contact, index) => (
+                    <li
+                      key={contact.contact_id || contact.id || index}
+                      className="mp-info-item"
+                    >
+                      <span className="mp-info-item__icon" aria-hidden="true">
+                        {contactTypeIcon(contact.name_contact)}
+                      </span>
+                      <span>
+                        <strong>{contact.name_contact}</strong>
+                        <br />
+                        {contact.contact}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mp-geo-empty">Контактов пока нет</p>
+              )}
             </div>
 
             <div className="mp-sidebar__section">
@@ -529,23 +546,18 @@ export default function MainPage() {
               <GeographySidebar data={userGeographyExecuteOrder} />
             </div>
 
-            <div className="mp-sidebar__section">
-              <h3 className="mp-sidebar__title">Статистика</h3>
-              <div className="mp-stats">
-                <div className="mp-stat-row">
-                  <span className="mp-stat-row__label">Выполнено заказов</span>
-                  <span className="mp-stat-row__value">247</span>
-                </div>
-                <div className="mp-stat-row">
-                  <span className="mp-stat-row__label">Повторных клиентов</span>
-                  <span className="mp-stat-row__value">68%</span>
-                </div>
-                <div className="mp-stat-row">
-                  <span className="mp-stat-row__label">Время отклика</span>
-                  <span className="mp-stat-row__value">&lt; 1 ч</span>
-                </div>
+            {formatMemberSince(profileMaster?.created_at) && (
+              <div className="mp-sidebar__section">
+                <ul className="mp-info-list">
+                  <li className="mp-info-item">
+                    <span className="mp-info-item__icon" aria-hidden="true">
+                      <IconCalendar />
+                    </span>
+                    <span>{formatMemberSince(profileMaster.created_at)}</span>
+                  </li>
+                </ul>
               </div>
-            </div>
+            )}
           </div>
         </aside>
       </div>

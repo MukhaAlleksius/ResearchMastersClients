@@ -22,6 +22,7 @@ import {
 import "./estimate_works_materials.css";
 
 import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+import { useEstimateTablePan } from "../../../../../../hooks/useDragScroll.js";
 
 const unitsList = ["м2", "шт", "кг", "м3", "пог.м"];
 
@@ -113,6 +114,7 @@ export default function EstimateWorks({ order_id, category_work_id }) {
   const [isConvertingCurrency, setIsConvertingCurrency] = useState(false);
   const priceAnchorsRef = useRef(rebuildPriceAnchors([]));
   const workCostAnchorRef = useRef(null);
+  const tableScrollRef = useEstimateTablePan();
 
   const handleKeyDown = (e) => {
     const allowedKeys = [
@@ -644,6 +646,9 @@ export default function EstimateWorks({ order_id, category_work_id }) {
       saveEstimateCurrency(user_id, orderId, normalizeCurrencyCode(currency));
 
       await uiAlert("Работа добавлена в смету!");
+      if (category_work_id) {
+        await fetchPersonalWorksForCategoryWork(category_work_id);
+      }
     } catch (error) {
       console.error(error);
       await uiAlert("Ошибка соединения с сервером");
@@ -916,7 +921,12 @@ export default function EstimateWorks({ order_id, category_work_id }) {
         <div className="estimate-card-head">
           <h3 className="estimate-section-title">Список работ</h3>
         </div>
-        <div className="table-wrapper table-wrapper--estimate" role="region" aria-label="Таблица сметы, прокрутка по горизонтали">
+        <div
+          ref={tableScrollRef}
+          className="table-wrapper table-wrapper--estimate"
+          role="region"
+          aria-label="Таблица сметы: зажмите мышь и тяните для прокрутки"
+        >
           <table className="estimate-table">
             <thead>
               <tr>
@@ -1047,64 +1057,65 @@ export default function EstimateWorks({ order_id, category_work_id }) {
             </div>
           </div>
 
-          <div className="form-field">
-            <label className="field-label">Ед. изм.</label>
-            <div className="unit-select">
-              <CreatableSelect
-                isClearable
-                value={unitMeasurement}
-                menuPortalTarget={document.body}
-                menuPosition="fixed"
-                onChange={setUnitMeasurement}
-                options={unitsList.map((unit) => ({
-                  value: unit,
-                  label: unit,
-                }))}
-                placeholder="Выберите или введите ед. изм."
-                formatCreateLabel={(inputValue) =>
-                  inputValue.trim()
-                    ? `Добавить «${inputValue.trim()}»`
-                    : "Введите единицу"
-                }
-                isValidNewOption={(inputValue) => Boolean(inputValue?.trim())}
-                noOptionsMessage={() => "Введите единицу измерения"}
-                styles={customStyles}
+          <div className="form-field-row form-field-row--metrics">
+            <div className="form-field">
+              <label className="field-label">Ед. изм.</label>
+              <div className="unit-select">
+                <CreatableSelect
+                  isClearable
+                  value={unitMeasurement}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  onChange={setUnitMeasurement}
+                  options={unitsList.map((unit) => ({
+                    value: unit,
+                    label: unit,
+                  }))}
+                  placeholder="Выберите или введите ед. изм."
+                  formatCreateLabel={(inputValue) =>
+                    inputValue.trim()
+                      ? `Добавить «${inputValue.trim()}»`
+                      : "Введите единицу"
+                  }
+                  isValidNewOption={(inputValue) => Boolean(inputValue?.trim())}
+                  noOptionsMessage={() => "Введите единицу измерения"}
+                  styles={customStyles}
+                />
+              </div>
+            </div>
+
+            <div className="form-field">
+              <label className="field-label" htmlFor="work-quantity">
+                Количество
+              </label>
+              <input
+                id="work-quantity"
+                type="text"
+                placeholder="0.00"
+                value={workQuantity}
+                onChange={(e) => setWorkQuantity(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="estimate-input"
+              />
+            </div>
+
+            <div className="form-field">
+              <label className="field-label" htmlFor="work-cost">
+                Цена за ед. ({currency})
+              </label>
+              <input
+                id="work-cost"
+                type="text"
+                placeholder="0.00"
+                value={workCost}
+                onChange={(e) => handleWorkCostChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="estimate-input"
               />
             </div>
           </div>
 
-          <div className="form-field">
-            <label className="field-label" htmlFor="work-quantity">
-              Количество
-            </label>
-            <input
-              id="work-quantity"
-              type="text"
-              placeholder="0.00"
-              value={workQuantity}
-              onChange={(e) => setWorkQuantity(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="estimate-input"
-            />
-          </div>
-
-          <div className="form-field">
-            <label className="field-label" htmlFor="work-cost">
-              Цена за ед. ({currency})
-            </label>
-            <input
-              id="work-cost"
-              type="text"
-              placeholder="0.00"
-              value={workCost}
-              onChange={(e) => handleWorkCostChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="estimate-input"
-            />
-          </div>
-
           <div className="form-field form-field--action">
-            <span className="field-label field-label--invisible">Добавить</span>
             <button
               type="button"
               className="btn-add"

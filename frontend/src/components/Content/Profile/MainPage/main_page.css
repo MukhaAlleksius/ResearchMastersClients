@@ -74,6 +74,28 @@
   flex-shrink: 0;
 }
 
+.mp-hero__avatar-btn {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+  border-radius: 20px;
+  line-height: 0;
+}
+
+.mp-hero__avatar-btn:hover .mp-hero__avatar,
+.mp-hero__avatar-btn:focus-visible .mp-hero__avatar {
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.2),
+    0 0 0 3px rgba(255, 255, 255, 0.45);
+}
+
+.mp-hero__avatar-btn:focus-visible {
+  outline: none;
+}
+
 .mp-hero__avatar {
   width: 112px;
   height: 112px;
@@ -82,6 +104,8 @@
   object-fit: cover;
   background: rgba(255, 255, 255, 0.15);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+  display: block;
+  transition: box-shadow 0.15s ease;
 }
 
 .mp-hero__avatar--placeholder {

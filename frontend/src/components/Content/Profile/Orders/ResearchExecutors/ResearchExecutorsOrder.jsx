@@ -3,11 +3,12 @@ import { API, apiFetch } from "../../../../../utils/api.js";
 import { useNavigate, useParams } from "react-router-dom";
 import ClearOrderDataAfterRefusalButton from "../CommonComponents/DeleteOrder/ClearOrderDataAfterRefusalButton";
 import MoveToDraftModal from "../CommonComponents/MoveToDraft/MoveToDraftModal";
-import OrderInfo from "../../Services/CommonComponent/CustomerOrderInfo/OrderInfo";
+import OrderCustomer from "../../../Orders/OrderCustomer.jsx";
 import OrderResponsesExecutors from "../CommonComponents/OrdersResponsesExecutors/OrderResponsesExecutors";
 import SelfExecutionModal from "../CommonComponents/SelfExecution/SelfExecutionModal";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
 import { OrderDeleteFooterActions } from "../CommonComponents/DeleteOrder/DeleteOrderButton";
+import "../../../Orders/order_customer.css";
 import "../../Services/CommonComponent/CustomerOrderInfo/customer_order_info.css";
 import {
   getWorkDetailTabs,
@@ -284,9 +285,11 @@ export default function ResearchExecutor({ order, onBack, onOrderUpdated, onOrde
       onDismissError={() => setError(null)}
     >
       {activeTab === "orderInfo" && currentOrder && (
-        <OrderInfo
+        <OrderCustomer
           order={currentOrder}
           embedded
+          showOfferActions={false}
+          showCustomerSection={false}
           footer={
             <OrderDeleteFooterActions
               orderId={currentOrder.id}

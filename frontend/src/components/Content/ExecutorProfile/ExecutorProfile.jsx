@@ -5,6 +5,10 @@ import MakeOrderExecutorModal from "./MakeOrderExecutor/MakeOrderExecutorModal";
 import { dedupeOrdersById } from "../../../utils/orders.js";
 import { formatMoney } from "../../../utils/currency";
 import {
+  formatGeoAddress,
+  hasGeoAddress,
+} from "../../../utils/geoAddress.js";
+import {
   IconUser,
   IconDoc,
   IconImage,
@@ -55,6 +59,21 @@ function formatReviewsCount(count) {
     return `${n} отзыва`;
   }
   return `${n} отзывов`;
+}
+
+function formatMemberSince(value) {
+  if (!value) return "";
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const monthYear = date.toLocaleDateString("ru-RU", {
+      month: "long",
+      year: "numeric",
+    });
+    return `На сайте с ${monthYear}`;
+  } catch {
+    return "";
+  }
 }
 
 const REVIEW_AVATAR_VARIANTS = ["violet", "green", "rose"];
@@ -531,6 +550,10 @@ export default function ExecutorProfile({ openModal }) {
       return;
     }
 
+    if (!categoriesWorksMaster.length) {
+      return;
+    }
+
     try {
       const params = new URLSearchParams({
         exclude_offered_to_executor_id: String(executorId),
@@ -748,12 +771,12 @@ export default function ExecutorProfile({ openModal }) {
     fetchCategoriesWorksMaster();
   }, [executorId]);
 
-  const addressLabel = [profileMaster?.country, profileMaster?.region, profileMaster?.town]
-    .filter(Boolean)
-    .join(", ");
+  const addressLabel = formatGeoAddress(profileMaster);
+  const hasAddress = hasGeoAddress(profileMaster);
 
   const displayTags = categoriesWorksMaster.map(getCategoryLabel).slice(0, 6);
   const showContactCta = !isOwnProfile;
+  const hasSpecializations = categoriesWorksMaster.length > 0;
   const averageRating = Number(reviewsSummary.average_rating) || 0;
   const reviewsCount = Number(reviewsSummary.reviews_count) || 0;
   const ratingLabel =
@@ -768,12 +791,24 @@ export default function ExecutorProfile({ openModal }) {
           <div className="ep-hero__profile">
             <div className="ep-hero__avatar-wrap">
               {hasAvatar && executorId ? (
-                <img
-                  src={buildApiUrl(`/avatar/${executorId}`, { t: Date.now() })}
-                  alt="Аватар мастера"
-                  className="ep-hero__avatar"
-                  onError={() => setHasAvatar(false)}
-                />
+                <button
+                  type="button"
+                  className="ep-hero__avatar-btn"
+                  onClick={() =>
+                    openPhotoViewer(
+                      [buildApiUrl(`/avatar/${executorId}`, { t: Date.now() })],
+                      0,
+                    )
+                  }
+                  aria-label="Открыть фото профиля"
+                >
+                  <img
+                    src={buildApiUrl(`/avatar/${executorId}`, { t: Date.now() })}
+                    alt="Аватар мастера"
+                    className="ep-hero__avatar"
+                    onError={() => setHasAvatar(false)}
+                  />
+                </button>
               ) : (
                 <div
                   className="ep-hero__avatar ep-hero__avatar--placeholder"
@@ -815,7 +850,7 @@ export default function ExecutorProfile({ openModal }) {
                 </div>
               )}
 
-              {addressLabel && (
+              {hasAddress && (
                 <div className="ep-hero__location">
                   <span className="ep-hero__location-item">
                     <IconPin width={14} height={14} />
@@ -826,7 +861,7 @@ export default function ExecutorProfile({ openModal }) {
             </div>
           </div>
 
-          {isLoggedIn && showContactCta && (
+          {isLoggedIn && showContactCta && hasSpecializations && (
             <button
               type="button"
               className="ep-btn ep-btn--cta"
@@ -996,37 +1031,27 @@ export default function ExecutorProfile({ openModal }) {
           <div className="ep-card ep-sidebar__card">
             <div className="ep-sidebar__section">
               <h3 className="ep-sidebar__title">Контакты</h3>
-              <ul className="ep-info-list">
-                {profileMaster && addressLabel && (
-                  <li className="ep-info-item">
-                    <span className="ep-info-item__icon" aria-hidden="true">
-                      <IconPin />
-                    </span>
-                    <span>{addressLabel}</span>
-                  </li>
-                )}
-                <li className="ep-info-item">
-                  <span className="ep-info-item__icon" aria-hidden="true">
-                    <IconCalendar />
-                  </span>
-                  <span>На сайте с 2020 г.</span>
-                </li>
-                {contacts.map((contact, index) => (
-                  <li
-                    key={contact.contact_id || contact.id || index}
-                    className="ep-info-item"
-                  >
-                    <span className="ep-info-item__icon" aria-hidden="true">
-                      {contactTypeIcon(contact.name_contact)}
-                    </span>
-                    <span>
-                      <strong>{contact.name_contact}</strong>
-                      <br />
-                      {contact.contact}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              {contacts.length > 0 ? (
+                <ul className="ep-info-list">
+                  {contacts.map((contact, index) => (
+                    <li
+                      key={contact.contact_id || contact.id || index}
+                      className="ep-info-item"
+                    >
+                      <span className="ep-info-item__icon" aria-hidden="true">
+                        {contactTypeIcon(contact.name_contact)}
+                      </span>
+                      <span>
+                        <strong>{contact.name_contact}</strong>
+                        <br />
+                        {contact.contact}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="ep-empty">Контактов пока нет</p>
+              )}
             </div>
 
             <div className="ep-sidebar__section">
@@ -1034,23 +1059,18 @@ export default function ExecutorProfile({ openModal }) {
               <GeographySidebar data={userGeographyExecuteOrder} />
             </div>
 
-            <div className="ep-sidebar__section">
-              <h3 className="ep-sidebar__title">Статистика</h3>
-              <div className="ep-stats">
-                <div className="ep-stat-row">
-                  <span className="ep-stat-row__label">Выполнено заказов</span>
-                  <span className="ep-stat-row__value">247</span>
-                </div>
-                <div className="ep-stat-row">
-                  <span className="ep-stat-row__label">Повторных клиентов</span>
-                  <span className="ep-stat-row__value">68%</span>
-                </div>
-                <div className="ep-stat-row">
-                  <span className="ep-stat-row__label">Время отклика</span>
-                  <span className="ep-stat-row__value">&lt; 1 ч</span>
-                </div>
+            {formatMemberSince(profileMaster?.created_at) && (
+              <div className="ep-sidebar__section">
+                <ul className="ep-info-list">
+                  <li className="ep-info-item">
+                    <span className="ep-info-item__icon" aria-hidden="true">
+                      <IconCalendar />
+                    </span>
+                    <span>{formatMemberSince(profileMaster.created_at)}</span>
+                  </li>
+                </ul>
               </div>
-            </div>
+            )}
           </div>
         </aside>
       </div>

@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import Select from "react-select";
+import { IconBriefcase, IconCalendar } from "../../../../ProfileIcons.jsx";
 import { isoToDisplayDate, selectStyles } from "./reportUtils";
 
 function DatePickerField({ label, value, onChange, min, max }) {
@@ -49,7 +50,7 @@ function DatePickerField({ label, value, onChange, min, max }) {
           tabIndex={-1}
           aria-hidden="true"
         >
-          <i className="fas fa-calendar-alt" />
+          <IconCalendar width={14} height={14} />
         </button>
       </div>
     </label>
@@ -80,7 +81,9 @@ export default function ReportFilters({
     <div className="rw-filters">
       <div className="rw-filters__section">
         <div className="rw-filters__section-head">
-          <i className="fas fa-calendar-alt" aria-hidden="true" />
+          <span className="rw-filters__section-icon" aria-hidden="true">
+            <IconCalendar width={14} height={14} />
+          </span>
           <span>Период</span>
         </div>
 
@@ -132,7 +135,9 @@ export default function ReportFilters({
 
       <div className="rw-filters__section">
         <div className="rw-filters__section-head">
-          <i className="fas fa-briefcase" aria-hidden="true" />
+          <span className="rw-filters__section-icon" aria-hidden="true">
+            <IconBriefcase width={14} height={14} />
+          </span>
           <span>{variant === "chart" ? "Работа" : "Работы"}</span>
         </div>
 

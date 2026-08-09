@@ -55,6 +55,7 @@ from schemas.users_schemas import (  # Pydantic-схемы API пользова�
     UserBusinessSchema,
     UserCardForAdminSchema,
     UserCategoryWork,
+    UserCommonReadSchema,
     UserCommonSchema,
     UserContactReadSchema,
     UserContactSchema,
@@ -231,17 +232,29 @@ async def get_user(
 
 async def add_user_common(
     db: AsyncSession, user: UserCommonSchema
-):  # Обновление общих полей пользователя
+) -> UserCommonReadSchema:  # Обновление общих полей пользователя
     existing_user = await db.get(User, user.user_id)  # Загрузка по PK
-    if existing_user:  # Пользователь найден
-        existing_user.first_name = user.first_name  # имя
-        existing_user.last_name = user.last_name  # фамилия
-        if user.town_id is not None:
-            await _ensure_town_exists(db, user.town_id)
-            existing_user.town_id = user.town_id
-        await db.commit()  # commit
-        await db.refresh(existing_user)  # актуальные данные
-        return existing_user  # обновлённый User
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    existing_user.first_name = user.first_name  # имя
+    existing_user.last_name = user.last_name  # фамилия
+    if user.town_id is not None:
+        await _ensure_town_exists(db, user.town_id)
+        existing_user.town_id = user.town_id
+    await db.commit()  # commit
+    await db.refresh(existing_user)  # актуальные данные
+
+    country, region, town = await _geo_names_for_town_id(db, existing_user.town_id)
+    return UserCommonReadSchema(
+        first_name=existing_user.first_name,
+        last_name=existing_user.last_name,
+        town_id=existing_user.town_id,
+        country=country or None,
+        region=region or None,
+        town=town or None,
+        location=None,
+    )
 
 
 async def add_profile_user(
@@ -300,6 +313,7 @@ async def get_profile_user(
                 User.first_name,
                 User.last_name,
                 User.town_id,
+                User.created_at,
                 Country.name_country,
                 Region.name_region,
                 Town.name_town,
@@ -335,6 +349,7 @@ async def get_profile_user(
             bio=row.bio,  # био
             short_review_master=row.short_review_master,  # краткий отзыв
             operating_mode=row.operating_mode,  # режим работы
+            created_at=row.created_at,  # дата регистрации
         )
         return user_profile  # схема профиля
 
@@ -531,6 +546,10 @@ async def get_profiles_executors_for_cards_user(  # Карточки испол�
 async def add_user_business(
     db: AsyncSession, user_business: UserBusinessSchema
 ):  # Бизнес-настройки пользователя
+    # Без выбранной ОПФ бизнес-блок не сохраняем — иначе срывается сохранение био/профиля.
+    if not (user_business.business_form_name or "").strip():
+        return None
+
     result = await db.execute(  # id формы бизнеса по названию
         select(BusinessForm.id).where(
             BusinessForm.name == user_business.business_form_name

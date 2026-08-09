@@ -71,6 +71,28 @@
   flex-shrink: 0;
 }
 
+.ep-hero__avatar-btn {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+  border-radius: 20px;
+  line-height: 0;
+}
+
+.ep-hero__avatar-btn:hover .ep-hero__avatar,
+.ep-hero__avatar-btn:focus-visible .ep-hero__avatar {
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.2),
+    0 0 0 3px rgba(255, 255, 255, 0.45);
+}
+
+.ep-hero__avatar-btn:focus-visible {
+  outline: none;
+}
+
 .ep-hero__avatar {
   width: 112px;
   height: 112px;
@@ -79,6 +101,8 @@
   object-fit: cover;
   background: rgba(255, 255, 255, 0.12);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+  display: block;
+  transition: box-shadow 0.15s ease;
 }
 
 .ep-hero__avatar--placeholder {

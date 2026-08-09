@@ -18,7 +18,15 @@ function formatUserLocation(user) {
   return [user.country, user.region, user.town].filter(Boolean).join(", ");
 }
 
-export default function OrderCustomer({ order, onBack, openModal }) {
+export default function OrderCustomer({
+  order,
+  onBack,
+  openModal,
+  embedded = false,
+  footer = null,
+  showOfferActions = true,
+  showCustomerSection = true,
+}) {
   const userId = localStorage.getItem("user_id");
   const isLoggedIn = Boolean(localStorage.getItem("access_token"));
 
@@ -31,13 +39,18 @@ export default function OrderCustomer({ order, onBack, openModal }) {
     return String(order.customer_id) === String(userId);
   }, [order?.customer_id, userId]);
 
-  const canOfferService = isLoggedIn && Boolean(userId) && !isOwnOrder;
-  const showGuestOfferHint = !isLoggedIn && !isOwnOrder;
+  const canOfferService =
+    showOfferActions && isLoggedIn && Boolean(userId) && !isOwnOrder;
+  const showGuestOfferHint =
+    showOfferActions && !isLoggedIn && !isOwnOrder;
+  const displayCustomerSection = showCustomerSection;
 
+  // Не грузим профиль заказчика, если блок скрыт («Мои заказы»)
   useEffect(() => {
-    if (!order?.customer_id) {
+    if (!displayCustomerSection || !order?.customer_id) {
       setCustomer(null);
       setCustomerAvatarOk(false);
+      setCustomerLoading(false);
       return;
     }
 
@@ -81,7 +94,7 @@ export default function OrderCustomer({ order, onBack, openModal }) {
     return () => {
       cancelled = true;
     };
-  }, [order?.customer_id]);
+  }, [order?.customer_id, displayCustomerSection]);
 
   const customerLocation = formatUserLocation(customer);
   const customerName = formatUserName(customer);
@@ -96,10 +109,16 @@ export default function OrderCustomer({ order, onBack, openModal }) {
   if (!order) return null;
 
   return (
-    <div className="order-customer-wrapper">
-      <button type="button" className="order-customer-back" onClick={onBack}>
-        ← Назад к списку
-      </button>
+    <div
+      className={`order-customer-wrapper${
+        embedded ? " order-customer-wrapper--embedded" : ""
+      }`}
+    >
+      {!embedded && onBack && (
+        <button type="button" className="order-customer-back" onClick={onBack}>
+          ← Назад к списку
+        </button>
+      )}
 
       <div className="order-customer-card">
         <div className="order-customer-header">
@@ -112,60 +131,62 @@ export default function OrderCustomer({ order, onBack, openModal }) {
 
         <p className="order-customer-description">{order.description}</p>
 
-        <div className="order-customer-section order-customer-user">
-          <h3>Заказчик</h3>
-          {customerLoading ? (
-            <p className="order-customer-user__loading">Загрузка данных…</p>
-          ) : customer ? (
-            <div className="order-customer-user__card">
-              <div className="order-customer-user__avatar-wrap">
-                {customerAvatarOk ? (
-                  <img
-                    src={buildApiUrl(`/avatar/${order.customer_id}`, {
-                      t: Date.now(),
-                    })}
-                    alt=""
-                    className="order-customer-user__avatar"
-                    onError={() => setCustomerAvatarOk(false)}
-                  />
-                ) : (
-                  <div
-                    className="order-customer-user__avatar order-customer-user__avatar--placeholder"
-                    aria-hidden="true"
-                  >
-                    <IconUser width={28} height={28} />
-                  </div>
-                )}
+        {displayCustomerSection && (
+          <div className="order-customer-section order-customer-user">
+            <h3>Заказчик</h3>
+            {customerLoading ? (
+              <p className="order-customer-user__loading">Загрузка данных…</p>
+            ) : customer ? (
+              <div className="order-customer-user__card">
+                <div className="order-customer-user__avatar-wrap">
+                  {customerAvatarOk ? (
+                    <img
+                      src={buildApiUrl(`/avatar/${order.customer_id}`, {
+                        t: Date.now(),
+                      })}
+                      alt=""
+                      className="order-customer-user__avatar"
+                      onError={() => setCustomerAvatarOk(false)}
+                    />
+                  ) : (
+                    <div
+                      className="order-customer-user__avatar order-customer-user__avatar--placeholder"
+                      aria-hidden="true"
+                    >
+                      <IconUser width={28} height={28} />
+                    </div>
+                  )}
+                </div>
+                <div className="order-customer-user__info">
+                  {customerProfileLink ? (
+                    <Link
+                      to={{
+                        pathname: customerProfileLink.pathname,
+                        search: customerProfileLink.search,
+                      }}
+                      state={customerProfileLink.state}
+                      className="order-customer-user__name order-customer-user__name--link"
+                    >
+                      {customerName}
+                    </Link>
+                  ) : (
+                    <p className="order-customer-user__name">{customerName}</p>
+                  )}
+                  {customerLocation ? (
+                    <p className="order-customer-user__location">
+                      <IconPin width={14} height={14} />
+                      {customerLocation}
+                    </p>
+                  ) : null}
+                </div>
               </div>
-              <div className="order-customer-user__info">
-                {customerProfileLink ? (
-                  <Link
-                    to={{
-                      pathname: customerProfileLink.pathname,
-                      search: customerProfileLink.search,
-                    }}
-                    state={customerProfileLink.state}
-                    className="order-customer-user__name order-customer-user__name--link"
-                  >
-                    {customerName}
-                  </Link>
-                ) : (
-                  <p className="order-customer-user__name">{customerName}</p>
-                )}
-                {customerLocation ? (
-                  <p className="order-customer-user__location">
-                    <IconPin width={14} height={14} />
-                    {customerLocation}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          ) : (
-            <p className="order-customer-user__empty">
-              Информация о заказчике недоступна
-            </p>
-          )}
-        </div>
+            ) : (
+              <p className="order-customer-user__empty">
+                Информация о заказчике недоступна
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="order-customer-section">
           <h3>География</h3>
@@ -237,6 +258,8 @@ export default function OrderCustomer({ order, onBack, openModal }) {
             />
           </div>
         )}
+
+        {footer && <div className="order-customer-footer">{footer}</div>}
       </div>
     </div>
   );

@@ -40,6 +40,16 @@
   width: 100%;
 }
 
+.order-customer-wrapper--embedded .order-customer-card {
+  box-shadow: none;
+}
+
+.order-customer-footer {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e2e8f0;
+}
+
 .order-customer-back {
   margin-bottom: 1rem;
   padding: 0.625rem 1rem;

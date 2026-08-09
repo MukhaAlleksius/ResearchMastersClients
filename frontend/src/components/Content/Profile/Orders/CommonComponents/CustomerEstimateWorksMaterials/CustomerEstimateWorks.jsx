@@ -3,6 +3,7 @@ import { API, apiFetch } from "../../../../../../utils/api.js";
 import CustomerViewMaterialsModal from "./CustomerViewMaterialsModal";
 import { normalizeCurrencyCode } from "../../../../../../utils/currency";
 import { resolveEstimateCurrency } from "../../../../../../utils/estimateStorage.js";
+import { useEstimateTablePan } from "../../../../../../hooks/useDragScroll.js";
 import "../../../Services/CommonComponent/EstimateWorksMaterials/estimate_works_materials.css";
 import "./customer_estimate_works_materials.css";
 const formatMoney = (value) =>
@@ -36,6 +37,7 @@ export default function CustomerEstimateWorks({ order_id, executor_id }) {
   const [orderId, setOrderId] = useState(order_id);
   const [selectedWorkId, setSelectedWorkId] = useState(null);
   const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
+  const tableScrollRef = useEstimateTablePan();
 
   useEffect(() => {
     setOrderId(order_id || null);
@@ -294,9 +296,10 @@ export default function CustomerEstimateWorks({ order_id, executor_id }) {
               <h3 className="estimate-section-title">Список работ</h3>
             </div>
             <div
+              ref={tableScrollRef}
               className="table-wrapper table-wrapper--estimate"
               role="region"
-              aria-label="Таблица сметы, прокрутка по горизонтали"
+              aria-label="Таблица сметы: зажмите мышь и тяните для прокрутки"
             >
               <table className="estimate-table">
                 <thead>

@@ -1,4 +1,6 @@
 import traceback  # Трассировка для отладки ошибок
+from typing import Optional  # Опциональные типы
+
 from fastapi import HTTPException  # HTTP-ошибки API
 from sqlalchemy import and_, select  # AND-условия и SELECT
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
@@ -487,38 +489,62 @@ async def get_works_master_from_admin_for_category_work(  # Работы мас�
 
 # Добавляем работу пользователя на сервер. Потльзователь добавляет себе на страницу
 # работу, которую выполняет как специалист
-async def add_work_master_myself(db: AsyncSession, work_master: WorkMasterMyselfSchema):  # Своя работа мастера
-    result = await db.execute(  # Дубликат по полному набору полей?
+async def ensure_work_master_myself(  # Upsert своей работы мастера (для сметы и каталога)
+    db: AsyncSession,
+    *,
+    master_id: int,
+    category_work_id: int,
+    name_work: str,
+    unit_measurement: str,
+    cost,
+    currency: Optional[str] = None,
+) -> WorkMasterMyself:
+    normalized_name = (name_work or "").strip()
+    normalized_unit = (unit_measurement or "").strip()
+    if not master_id or not category_work_id or not normalized_name or not normalized_unit:
+        raise ValueError("Недостаточно данных для сохранения работы мастера")
+
+    result = await db.execute(
         select(WorkMasterMyself).where(
             and_(
-                WorkMasterMyself.master_id == work_master.master_id,
-                WorkMasterMyself.category_work_id == work_master.category_work_id,
-                WorkMasterMyself.name_work == work_master.name_work,
-                WorkMasterMyself.unit_measurement == work_master.unit_measurement,
-                WorkMasterMyself.cost == work_master.cost,
+                WorkMasterMyself.master_id == master_id,
+                WorkMasterMyself.category_work_id == category_work_id,
+                WorkMasterMyself.name_work == normalized_name,
+                WorkMasterMyself.unit_measurement == normalized_unit,
             )
         )
     )
-    existing_work_master = result.scalar_one_or_none()
+    existing = result.scalar_one_or_none()
+    resolved_currency = currency or DEFAULT_CURRENCY
+    if existing:
+        existing.cost = cost
+        existing.currency = resolved_currency
+        return existing
 
-    if existing_work_master:  # Уже есть — возвращаем как есть
-        return existing_work_master
-
-    # Создаём новую работу для мастера
     db_work_master = WorkMasterMyself(
+        master_id=master_id,
+        category_work_id=category_work_id,
+        name_work=normalized_name,
+        unit_measurement=normalized_unit,
+        cost=cost,
+        currency=resolved_currency,
+    )
+    db.add(db_work_master)
+    return db_work_master
+
+
+async def add_work_master_myself(db: AsyncSession, work_master: WorkMasterMyselfSchema):  # Своя работа мастера
+    db_work_master = await ensure_work_master_myself(
+        db,
         master_id=work_master.master_id,
         category_work_id=work_master.category_work_id,
         name_work=work_master.name_work,
         unit_measurement=work_master.unit_measurement,
         cost=work_master.cost,
-        currency=work_master.currency or DEFAULT_CURRENCY,
+        currency=work_master.currency,
     )
-
-    # Добавляем и сохраняем в базе
-    db.add(db_work_master)
     await db.commit()
     await db.refresh(db_work_master)
-
     return db_work_master
 
 

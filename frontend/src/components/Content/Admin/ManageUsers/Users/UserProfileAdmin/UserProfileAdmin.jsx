@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import { API, apiFetch, normalizeListResponse, readApiError, resolveMediaUrl } from "../../../../../../utils/api.js";
 import { getExecutorProfileLink } from "../../../../../../utils/executorProfile.js";
+import { formatGeoAddress, hasGeoAddress } from "../../../../../../utils/geoAddress.js";
 import "./user_profile_admin.css";
 import "../manage_users.css";
 
@@ -511,15 +512,10 @@ export default function UserProfileAdmin() {
                   ✉ <strong>{userProfile.email}</strong>
                 </span>
               )}
-              {[userProfile.town, userProfile.region].filter(Boolean).length >
-                0 && (
+              {hasGeoAddress(userProfile) && (
                 <span className="admin-user-profile__meta-item">
                   📍{" "}
-                  <strong>
-                    {[userProfile.town, userProfile.region]
-                      .filter(Boolean)
-                      .join(", ")}
-                  </strong>
+                  <strong>{formatGeoAddress(userProfile)}</strong>
                 </span>
               )}
               <span className="admin-user-profile__meta-item">

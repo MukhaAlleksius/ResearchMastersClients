@@ -450,6 +450,14 @@
   background: transparent;
 }
 
+.order-info--with-catalog-card > .order-info__tabs {
+  margin-bottom: 1rem;
+}
+
+.order-info--with-catalog-card .order-customer-wrapper--embedded .order-customer-card {
+  border-radius: 14px;
+}
+
 .order-info__section {
   padding: 20px 0;
   border-bottom: 1px solid #eef2f7;

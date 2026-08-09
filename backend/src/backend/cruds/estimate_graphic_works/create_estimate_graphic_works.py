@@ -11,6 +11,7 @@ from cruds.notifications_crud import (  # Уведомления
     notify_order_event,
 )
 from models.works_materials_models import Work, WorkMasterMyself  # Справочники работ и цен
+from models.orders_models import Order  # Заказ (category_id)
 from models.estimate_graphic_works_models import (  # ORM сметы и графика
     GraphicWork,
     MaterialEstimate,
@@ -21,6 +22,7 @@ from schemas.estimate_graphic_works_schemas import (  # Входные схем�
     MaterialEstimateSchema,
     WorkEstimateSchema,
 )
+from cruds.works_materials_crud import ensure_work_master_myself  # works_masters_myself
 
 logger = logging.getLogger(__name__)  # Логгер модуля
 
@@ -53,6 +55,59 @@ async def _notify_schedule_updated(
         logger.warning("notify schedule_updated failed: %s", error)
 
 
+async def _save_work_to_master_myself(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    order_id: int,
+    name_work: str,
+    unit_measurement: str,
+    cost=None,
+    currency: str | None = None,
+) -> None:
+    """Сохраняет работу в works_masters_myself по категории заказа."""
+    order_result = await db.execute(select(Order).where(Order.id == order_id))
+    order = order_result.scalar_one_or_none()
+    category_work_id = getattr(order, "category_id", None) if order else None
+    if not category_work_id:
+        logger.warning(
+            "Не сохранено в works_masters_myself: нет category_id у заказа %s",
+            order_id,
+        )
+        return
+    try:
+        await ensure_work_master_myself(
+            db,
+            master_id=user_id,
+            category_work_id=int(category_work_id),
+            name_work=name_work,
+            unit_measurement=unit_measurement,
+            cost=0 if cost is None else cost,
+            currency=currency or "BYN",
+        )
+    except Exception as exc:
+        logger.warning(
+            "Не удалось сохранить '%s' в works_masters_myself: %s",
+            name_work,
+            exc,
+        )
+
+
+async def _save_estimate_work_to_master_myself(
+    db: AsyncSession, work_estimate_schema: WorkEstimateSchema
+) -> None:
+    """Сохраняет работу сметы в works_masters_myself."""
+    await _save_work_to_master_myself(
+        db,
+        user_id=work_estimate_schema.user_id,
+        order_id=work_estimate_schema.order_id,
+        name_work=work_estimate_schema.name_work,
+        unit_measurement=work_estimate_schema.unit_measurement,
+        cost=work_estimate_schema.cost_unit,
+        currency=work_estimate_schema.currency,
+    )
+
+
 # добавить работу в смету для заказа пользователем
 async def add_work_into_estimate(
     db: AsyncSession, work_estimate_schema: WorkEstimateSchema
@@ -75,6 +130,7 @@ async def add_work_into_estimate(
             existing_work.quantity += work_estimate_schema.quantity
             existing_work.cost_unit = work_estimate_schema.cost_unit
             existing_work.currency = work_estimate_schema.currency
+            await _save_estimate_work_to_master_myself(db, work_estimate_schema)
             await _notify_estimate_updated(
                 db,
                 work_estimate_schema.order_id,
@@ -98,6 +154,7 @@ async def add_work_into_estimate(
             currency=work_estimate_schema.currency,
         )
         db.add(new_work)
+        await _save_estimate_work_to_master_myself(db, work_estimate_schema)
         await _notify_estimate_updated(
             db,
             work_estimate_schema.order_id,
@@ -267,6 +324,9 @@ async def add_work_into_graphic_works(
         # Сумма из БД приводим к Decimal для корректного сравнения
         total_work_qty = Decimal(str(total_work_qty_result.scalar() or 0))
 
+        cost_work_unit = work_graphic_works_schema.cost_unit
+        myself_currency = "BYN"
+
         if existing_estimate_work:
             if total_work_qty > existing_estimate_work.quantity:
                 old_estimate_qty = existing_estimate_work.quantity
@@ -278,10 +338,11 @@ async def add_work_into_graphic_works(
                 existing_estimate_work.cost_unit = Decimal(
                     str(work_graphic_works_schema.cost_unit)
                 )
+            if cost_work_unit is None:
+                cost_work_unit = existing_estimate_work.cost_unit
+                myself_currency = existing_estimate_work.currency or "BYN"
         else:
-            if work_graphic_works_schema.cost_unit is not None:
-                cost_work_unit = work_graphic_works_schema.cost_unit
-            else:
+            if cost_work_unit is None:
                 cost_work_unit = 0
                 work_result = await db.execute(
                     select(Work).where(
@@ -298,8 +359,10 @@ async def add_work_into_graphic_works(
                 existing_work_myself = work_myself_result.scalar_one_or_none()
                 if existing_work:
                     cost_work_unit = existing_work.cost
+                    myself_currency = existing_work.currency or "BYN"
                 elif existing_work_myself:
                     cost_work_unit = existing_work_myself.cost
+                    myself_currency = existing_work_myself.currency or "BYN"
 
             new_estimate_work = WorkEstimate(  # Автосоздание строки сметы
                 user_id=work_graphic_works_schema.user_id,
@@ -308,10 +371,20 @@ async def add_work_into_graphic_works(
                 unit_measurement=work_graphic_works_schema.unit_measurement,
                 quantity=total_work_qty,
                 cost_unit=cost_work_unit,
-                currency="BYN",
+                currency=myself_currency,
             )
             db.add(new_estimate_work)
             logger.info(f"💰 Новая смета: {total_work_qty}")
+
+        await _save_work_to_master_myself(
+            db,
+            user_id=work_graphic_works_schema.user_id,
+            order_id=work_graphic_works_schema.order_id,
+            name_work=work_graphic_works_schema.name_work,
+            unit_measurement=work_graphic_works_schema.unit_measurement,
+            cost=cost_work_unit,
+            currency=myself_currency,
+        )
 
         await _notify_schedule_updated(
             db,

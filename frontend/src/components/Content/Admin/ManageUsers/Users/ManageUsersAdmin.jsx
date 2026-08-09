@@ -7,6 +7,7 @@ import {
   getCatalogPageFromSearch,
   getVisiblePageNumbers,
 } from "../../../../../utils/pagination.js";
+import { formatGeoAddress } from "../../../../../utils/geoAddress.js";
 import "./manage_users.css";
 
 const ROLE_LABELS = {
@@ -663,7 +664,7 @@ function UsersGrid({ onTotalChange }) {
           </div>
 
           <div className="manage-users-card__location">
-            {[user.town, user.region].filter(Boolean).join(", ") || "—"}
+            {formatGeoAddress(user, "—")}
           </div>
 
           <div className="manage-users-card__badges">

@@ -60,29 +60,28 @@ export default function ProfileSettings() {
   const [previewUrl, setPreviewUrl] = useState("");
 
   // Формируем данные для отправки
+  const userIdNum = Number(localStorage.getItem("user_id"));
   const userCommonCustomizationData = {
-    user_id: localStorage.getItem("user_id"),
+    user_id: userIdNum,
     first_name: firstName,
     last_name: lastName,
     town_id: geoTown ? Number(geoTown.value) : null,
   };
 
   const userBusinessCustomizationData = {
-    user_id: localStorage.getItem("user_id"),
+    user_id: userIdNum,
     business_form_name: businessFormName ? businessFormName.value : null,
     registration_number: registrationNumber,
     location: location,
   };
 
   const userProfileCustomizationData = {
-    user_id: localStorage.getItem("user_id"),
+    user_id: userIdNum,
     // Relative path works behind Docker nginx /api; never store absolute host URLs.
-    avatar_url: localStorage.getItem("user_id")
-      ? `/avatar/${localStorage.getItem("user_id")}`
-      : null,
+    avatar_url: userIdNum ? `/avatar/${userIdNum}` : null,
     bio: bio,
     short_review_master: shortReviewMaster,
-    operating_mode: operatingMode,
+    operating_mode: operatingMode || null,
   };
 
   const userContactsData = {
@@ -594,17 +593,26 @@ export default function ProfileSettings() {
         "add_user_common",
         userCommonCustomizationData,
       );
-      await handleAddUserCustomization(
-        "add_user_business",
-        userBusinessCustomizationData,
-      );
+
+      // Бизнес-блок опционален: без ОПФ не шлём запрос (раньше он валил всё сохранение).
+      if (businessFormName?.value) {
+        await handleAddUserCustomization(
+          "add_user_business",
+          userBusinessCustomizationData,
+        );
+      }
+
       await handleAddUserCustomization(
         "add_profile",
         userProfileCustomizationData,
       );
       await uploadAvatar();
+      await uiAlert("Профиль сохранён");
     } catch (error) {
       console.error("Ошибка при сохранении:", error);
+      await uiAlert(
+        error?.message || "Не удалось сохранить профиль. Попробуйте ещё раз.",
+      );
     }
   };
 
@@ -1093,13 +1101,37 @@ export default function ProfileSettings() {
 const selectStyles = {
   control: (base, state) => ({
     ...base,
-    minHeight: 40,
+    minHeight: 42,
+    height: 42,
     borderRadius: 10,
     borderColor: state.isFocused ? "#93c5fd" : "#e2e8f0",
     backgroundColor: "#f8fafc",
     boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : "none",
     fontSize: "0.875rem",
     "&:hover": { borderColor: "#93c5fd" },
+  }),
+  valueContainer: (base) => ({
+    ...base,
+    height: 40,
+    padding: "0 8px",
+    flexWrap: "nowrap",
+  }),
+  indicatorsContainer: (base) => ({
+    ...base,
+    height: 40,
+  }),
+  input: (base) => ({
+    ...base,
+    margin: 0,
+    padding: 0,
+  }),
+  singleValue: (base) => ({
+    ...base,
+    color: "#0f172a",
+    maxWidth: "calc(100% - 8px)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   }),
   menu: (base) => ({
     ...base,
@@ -1127,9 +1159,8 @@ const selectStyles = {
   placeholder: (base) => ({
     ...base,
     color: "#94a3b8",
-  }),
-  singleValue: (base) => ({
-    ...base,
-    color: "#0f172a",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   }),
 };
