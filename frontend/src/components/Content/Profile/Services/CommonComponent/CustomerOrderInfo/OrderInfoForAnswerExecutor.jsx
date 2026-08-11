@@ -3,9 +3,13 @@ import { API, apiFetch, buildApiUrl, ensureStoredUserId } from "../../../../../.
 import OrderInfoCard from "./OrderInfo";
 import "./customer_order_info.css";
 import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+import {
+  isFixedBudgetType,
+  OFFER_BUDGET_TYPES,
+} from "../../../../../../utils/budgetTypes.js";
 
-const budgetTypes = ["Фиксированная цена", "Почасовая оплата", "Договорная цена"];
-const currencies = ["BYN", "Dollar USA", "Euro"];
+const budgetTypes = OFFER_BUDGET_TYPES;
+const currencies = ["BYN", "USD", "EUR", "RUB"];
 
 const formatDateDDMMYY = (dateString) => {
   if (!dateString || dateString === "") return null;
@@ -48,10 +52,18 @@ function ResponseModal({ onClose, onSend, order }) {
       }
 
       const startDateFormatted = formatDateDDMMYY(startDateIso);
-      const parsedCost = cost ? parseFloat(cost) : null;
-      if (cost && (!Number.isFinite(parsedCost) || parsedCost <= 0)) {
-        setError("Укажите корректную стоимость");
+      if (!budgetType) {
+        setError("Выберите тип бюджета");
         return;
+      }
+
+      let parsedCost = null;
+      if (isFixedBudgetType(budgetType)) {
+        parsedCost = cost ? parseFloat(cost) : null;
+        if (!cost || !Number.isFinite(parsedCost) || parsedCost <= 0) {
+          setError("Укажите сумму для договорной цены");
+          return;
+        }
       }
 
       const response_executor_order = {
@@ -59,7 +71,7 @@ function ResponseModal({ onClose, onSend, order }) {
         executor_id: executorId,
         proposed_price: parsedCost,
         budget_type: budgetType || null,
-        currency: currency || null,
+        currency: isFixedBudgetType(budgetType) ? currency || "BYN" : "BYN",
         estimated_time: duration || null,
         start_time_work: startDateFormatted,
         message: message || null,
@@ -183,7 +195,13 @@ function ResponseModal({ onClose, onSend, order }) {
             <select
               className="oi-modal__select"
               value={budgetType}
-              onChange={(e) => setBudgetType(e.target.value)}
+              onChange={(e) => {
+                const nextType = e.target.value;
+                setBudgetType(nextType);
+                if (!isFixedBudgetType(nextType)) {
+                  setCost("");
+                }
+              }}
             >
               <option value="">Выберите тип бюджета</option>
               {budgetTypes.map((bt) => (
@@ -194,32 +212,41 @@ function ResponseModal({ onClose, onSend, order }) {
             </select>
           </label>
 
-          <label className="oi-modal__field">
-            <span className="oi-modal__field-label">Стоимость работ</span>
-            <input
-              type="text"
-              className="oi-modal__input"
-              placeholder="Введите стоимость"
-              value={cost}
-              onChange={(e) => setCost(e.target.value)}
-            />
-          </label>
+          {isFixedBudgetType(budgetType) ? (
+            <>
+              <label className="oi-modal__field">
+                <span className="oi-modal__field-label">Сумма</span>
+                <input
+                  type="text"
+                  className="oi-modal__input"
+                  placeholder="Введите стоимость"
+                  value={cost}
+                  onChange={(e) => setCost(e.target.value)}
+                />
+              </label>
 
-          <label className="oi-modal__field">
-            <span className="oi-modal__field-label">Валюта</span>
-            <select
-              className="oi-modal__select"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-            >
-              <option value="">Выберите валюту</option>
-              {currencies.map((cur) => (
-                <option key={cur} value={cur}>
-                  {cur}
-                </option>
-              ))}
-            </select>
-          </label>
+              <label className="oi-modal__field">
+                <span className="oi-modal__field-label">Валюта</span>
+                <select
+                  className="oi-modal__select"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                >
+                  {currencies.map((cur) => (
+                    <option key={cur} value={cur}>
+                      {cur}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : budgetType ? (
+            <p className="oi-modal__hint">
+              {budgetType === "Сметная цена"
+                ? "Сумму заранее указывать не нужно — итоговая стоимость будет по смете."
+                : "Сумму указывать не нужно."}
+            </p>
+          ) : null}
 
           <label className="oi-modal__field">
             <span className="oi-modal__field-label">Сообщение</span>

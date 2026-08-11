@@ -11,8 +11,12 @@ import OrderCustomer from "../../../../Orders/OrderCustomer.jsx";
 import "./customer_order_info.css";
 import "../../../../Orders/order_customer.css";
 import { uiAlert, uiConfirm } from "../../../../../UiDialog/uiDialog.js";
+import {
+  isFixedBudgetType,
+  OFFER_BUDGET_TYPES,
+} from "../../../../../../utils/budgetTypes.js";
 
-const budgetTypes = ["Фиксированная цена", "Почасовая оплата", "Договорная цена"];
+const budgetTypes = OFFER_BUDGET_TYPES;
 
 function OfferServiceIcon() {
   return (
@@ -189,15 +193,20 @@ export default function OrderInfoAnswerExecutor({
   }, [fetchResponseExecutorForOrder]);
 
   const validateForm = () => {
-    if (!formData.proposed_price || parseFloat(formData.proposed_price) <= 0) {
-      setError("Цена должна быть больше 0");
-
+    if (!formData.budget_type) {
+      setError("Выберите тип бюджета");
       return false;
+    }
+
+    if (isFixedBudgetType(formData.budget_type)) {
+      if (!formData.proposed_price || parseFloat(formData.proposed_price) <= 0) {
+        setError("Укажите сумму для договорной цены");
+        return false;
+      }
     }
 
     if (!formData.estimated_time.trim()) {
       setError("Укажите срок выполнения");
-
       return false;
     }
 
@@ -209,11 +218,13 @@ export default function OrderInfoAnswerExecutor({
 
     executor_id: parseInt(user_id, 10),
 
-    proposed_price: parseFloat(formData.proposed_price),
+    proposed_price: isFixedBudgetType(formData.budget_type)
+      ? parseFloat(formData.proposed_price)
+      : null,
 
     budget_type: formData.budget_type || null,
 
-    currency: formData.currency,
+    currency: formData.currency || "BYN",
 
     estimated_time: formData.estimated_time,
 
@@ -470,28 +481,21 @@ export default function OrderInfoAnswerExecutor({
           )}
 
           <label className="oi-modal__field">
-            <span className="oi-modal__field-label">
-              Предложенная цена ({formData.currency})
-            </span>
-
-            <input
-              type="text"
-              className="oi-modal__input"
-              placeholder="1500.00"
-              value={formData.proposed_price}
-              onChange={handlePriceChange}
-            />
-          </label>
-
-          <label className="oi-modal__field">
             <span className="oi-modal__field-label">Тип бюджета</span>
 
             <select
               className="oi-modal__select"
               value={formData.budget_type}
-              onChange={(e) =>
-                setFormData({ ...formData, budget_type: e.target.value })
-              }
+              onChange={(e) => {
+                const nextType = e.target.value;
+                setFormData({
+                  ...formData,
+                  budget_type: nextType,
+                  proposed_price: isFixedBudgetType(nextType)
+                    ? formData.proposed_price
+                    : "",
+                });
+              }}
             >
               <option value="">Выберите тип бюджета</option>
 
@@ -503,25 +507,46 @@ export default function OrderInfoAnswerExecutor({
             </select>
           </label>
 
-          <label className="oi-modal__field">
-            <span className="oi-modal__field-label">Валюта</span>
+          {isFixedBudgetType(formData.budget_type) ? (
+            <>
+              <label className="oi-modal__field">
+                <span className="oi-modal__field-label">
+                  Сумма ({formData.currency})
+                </span>
 
-            <select
-              className="oi-modal__select"
-              value={formData.currency}
-              onChange={(e) =>
-                setFormData({ ...formData, currency: e.target.value })
-              }
-            >
-              <option value="BYN">BYN</option>
+                <input
+                  type="text"
+                  className="oi-modal__input"
+                  placeholder="1500.00"
+                  value={formData.proposed_price}
+                  onChange={handlePriceChange}
+                />
+              </label>
 
-              <option value="USD">USD</option>
+              <label className="oi-modal__field">
+                <span className="oi-modal__field-label">Валюта</span>
 
-              <option value="EUR">EUR</option>
-
-              <option value="RUB">RUB</option>
-            </select>
-          </label>
+                <select
+                  className="oi-modal__select"
+                  value={formData.currency}
+                  onChange={(e) =>
+                    setFormData({ ...formData, currency: e.target.value })
+                  }
+                >
+                  <option value="BYN">BYN</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="RUB">RUB</option>
+                </select>
+              </label>
+            </>
+          ) : formData.budget_type ? (
+            <p className="oi-modal__hint">
+              {formData.budget_type === "Сметная цена"
+                ? "Сумму заранее указывать не нужно — итоговая стоимость будет по смете работ."
+                : "Сумму указывать не нужно."}
+            </p>
+          ) : null}
 
           <label className="oi-modal__field">
             <span className="oi-modal__field-label">Срок выполнения</span>
@@ -586,7 +611,12 @@ export default function OrderInfoAnswerExecutor({
             type="button"
             className="oi-modal__btn-submit"
             onClick={handleSubmitResponse}
-            disabled={submitting || !formData.proposed_price}
+            disabled={
+              submitting ||
+              !formData.budget_type ||
+              (isFixedBudgetType(formData.budget_type) &&
+                !formData.proposed_price)
+            }
           >
             {submitting
               ? "Сохранение…"

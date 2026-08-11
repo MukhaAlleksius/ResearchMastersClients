@@ -56,6 +56,7 @@ services:
       OPEN_ADMIN_ACCESS: "true"
       SQL_ECHO: "false"
       RUN_MIGRATIONS_ON_STARTUP: "true"
+      SEED_DEFAULT_WORKS: "true"
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       AVATARS_DIR: /app/avatars

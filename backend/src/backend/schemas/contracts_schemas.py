@@ -1,11 +1,5 @@
-from pydantic import BaseModel, Field, HttpUrl
-from typing import Optional, List
-from datetime import datetime
-
-
-# schemas.py
-from pydantic import BaseModel
-from datetime import date
+from pydantic import BaseModel, Field
+from typing import Optional
 from decimal import Decimal
 
 
@@ -16,9 +10,10 @@ class ContractCreate(BaseModel):
     address_work: str
     title_work: str
     name_work: str
-    date_start_work: str 
-    date_end_work: str | None 
-    budget: Decimal
+    date_start_work: str
+    date_end_work: str | None
+    # При сметной цене сумма может быть неизвестна → null
+    budget: Optional[Decimal] = Field(None, description="Сумма договора; null для сметной цены")
     currency: str = "BYN"
     budget_type: str | None = None
     subscribe_customer: bool = False
@@ -27,7 +22,7 @@ class ContractCreate(BaseModel):
 
 class ContractResponse(ContractCreate):
     id: int
-    customer_name: str  # Полное имя из relationship
+    customer_name: str
     executor_name: str
     created_at: str  # "12.02.2026 21:09"
 

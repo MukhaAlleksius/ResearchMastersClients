@@ -93,9 +93,7 @@ export default function EstimateWorks({ order_id, category_work_id }) {
   const [isEditWorkModalOpen, setIsEditWorkModalOpen] = useState(false);
   const [editingWork, setEditingWork] = useState(null);
 
-  const [estimateWorks, setEstimateWorks] = useState([]);
-
-  const [worksFromGraphicWorks, setWorksFromGraphicWorks] = useState([]);
+  const [, setEstimateWorks] = useState([]);
 
   const [materialsList] = useState([
     "Цемент",
@@ -326,49 +324,6 @@ export default function EstimateWorks({ order_id, category_work_id }) {
       setAddedWorks([]);
     }
   }, [orderId, user_id]);
-
-  const fetchWorksFromGraphicWorks = useCallback(async () => {
-    if (!orderId || !user_id) return;
-
-    try {
-      const url = `${API.baseURL}/works_from_graphic_works/${user_id}/${orderId}`;
-      console.log(
-        `🔄 Загружаем выполненные работы из графика работ: ${user_id}/${orderId}`,
-      );
-      const response = await apiFetch(url);
-
-      if (!response.ok) {
-        setWorksFromGraphicWorks([]);
-        return;
-      }
-
-      const data = await response.json();
-      console.log("✅ Общие работы:", data);
-      setWorksFromGraphicWorks(Array.isArray(data) ? data : []);
-
-      setAddedWorks((prev) =>
-        prev.map((work) => {
-          const matched = data.find(
-            (gw) => gw.work_id === work.id || gw.id === work.id,
-          );
-          return {
-            ...work,
-            doneQuantity: matched
-              ? Number(matched.done_quantity || matched.quantity || 0)
-              : Number(work.doneQuantity || 0),
-            currency: currency,
-            materials: (work.materials || []).map((mat) => ({
-              ...mat,
-              currency: currency,
-            })),
-          };
-        }),
-      );
-    } catch (error) {
-      console.error("❌ Ошибка общих работ:", error);
-      setWorksFromGraphicWorks([]);
-    }
-  }, [orderId, user_id, currency]);
 
   const fetchPersonalWorksForCategoryWork = useCallback(
     async (catId) => {
@@ -895,14 +850,14 @@ export default function EstimateWorks({ order_id, category_work_id }) {
           <span className="summary-value">{addedWorks.length}</span>
         </div>
         <div className="summary-card summary-card--primary">
-          <span className="summary-label">Работы</span>
+          <span className="summary-label">Всего заработок</span>
           <span className="summary-value">
             {formatMoney(totalWorkCost)}{" "}
             <span className="currency-inline">{currency}</span>
           </span>
         </div>
         <div className="summary-card summary-card--success">
-          <span className="summary-label">Выполнено</span>
+          <span className="summary-label">Уже сделано</span>
           <span className="summary-value">
             {formatMoney(totalDoneCost)}{" "}
             <span className="currency-inline">{currency}</span>
@@ -964,14 +919,14 @@ export default function EstimateWorks({ order_id, category_work_id }) {
             <p className="estimate-totals__heading">Итого</p>
             <div className="estimate-totals__grid">
               <div className="estimate-totals__item">
-                <span className="estimate-totals__label">Стоимость работ</span>
+                <span className="estimate-totals__label">Всего заработок</span>
                 <span className="estimate-totals__value">
                   {formatMoney(totalWorkCost)}{" "}
                   <span className="currency-inline">{currency}</span>
                 </span>
               </div>
               <div className="estimate-totals__item">
-                <span className="estimate-totals__label">Выполнено</span>
+                <span className="estimate-totals__label">Уже сделано</span>
                 <span className="estimate-totals__value estimate-totals__value--success">
                   {formatMoney(totalDoneCost)}{" "}
                   <span className="currency-inline">{currency}</span>

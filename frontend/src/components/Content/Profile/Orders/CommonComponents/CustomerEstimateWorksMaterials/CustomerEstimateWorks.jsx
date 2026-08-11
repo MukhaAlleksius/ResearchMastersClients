@@ -269,14 +269,14 @@ export default function CustomerEstimateWorks({ order_id, executor_id }) {
               <span className="summary-value">{addedWorks.length}</span>
             </div>
             <div className="summary-card summary-card--primary">
-              <span className="summary-label">Работы</span>
+              <span className="summary-label">Всего заработок</span>
               <span className="summary-value">
                 {formatMoney(totalWorkCost)}{" "}
                 <span className="currency-inline">{currency}</span>
               </span>
             </div>
             <div className="summary-card summary-card--success">
-              <span className="summary-label">Выполнено</span>
+              <span className="summary-label">Уже сделано</span>
               <span className="summary-value">
                 {formatMoney(totalDoneCost)}{" "}
                 <span className="currency-inline">{currency}</span>
@@ -342,7 +342,7 @@ export default function CustomerEstimateWorks({ order_id, executor_id }) {
                 <div className="estimate-totals__grid">
                   <div className="estimate-totals__item">
                     <span className="estimate-totals__label">
-                      Стоимость работ
+                      Всего заработок
                     </span>
                     <span className="estimate-totals__value">
                       {formatMoney(totalWorkCost)}{" "}
@@ -350,7 +350,7 @@ export default function CustomerEstimateWorks({ order_id, executor_id }) {
                     </span>
                   </div>
                   <div className="estimate-totals__item">
-                    <span className="estimate-totals__label">Выполнено</span>
+                    <span className="estimate-totals__label">Уже сделано</span>
                     <span className="estimate-totals__value estimate-totals__value--success">
                       {formatMoney(totalDoneCost)}{" "}
                       <span className="currency-inline">{currency}</span>

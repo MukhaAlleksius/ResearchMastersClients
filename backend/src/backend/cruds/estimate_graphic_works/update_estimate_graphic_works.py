@@ -22,8 +22,18 @@ from schemas.estimate_graphic_works_schemas import (  # Pydantic-схемы
     WorkEstimateSchema,
     WorkEstimateUpdateSchema,
 )
+from cruds.orders.sync_order_budget import sync_order_budget_from_deal
 
 logger = logging.getLogger(__name__)  # Логгер модуля
+
+
+async def _sync_budget_after_estimate(
+    db: AsyncSession, order_id: int
+) -> None:
+    try:
+        await sync_order_budget_from_deal(db, order_id)
+    except Exception as error:
+        logger.warning("sync order budget after estimate failed: %s", error)
 
 
 async def _notify_estimate_updated(
@@ -72,7 +82,7 @@ async def update_work_into_estimate_for_order(
                 GraphicWork.user_id == user_id,
                 GraphicWork.order_id == order_id,
             )
-        )  # Уже запланировано в графике
+        )  # Уже зафиксировано как выполненное
 
         quantity_work = result_graphic_works.scalar_one()
 
@@ -80,8 +90,8 @@ async def update_work_into_estimate_for_order(
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    f"Нельзя установить количество меньше, чем уже в графике: "
-                    f"{quantity_work}"
+                    f"Нельзя установить количество меньше, чем уже "
+                    f"зафиксировано выполненным: {quantity_work}"
                 ),
             )
 
@@ -105,6 +115,7 @@ async def update_work_into_estimate_for_order(
             raise HTTPException(status_code=404, detail="Запись не найдена")
 
         await _notify_estimate_updated(db, order_id, user_id)
+        await _sync_budget_after_estimate(db, order_id)
         await db.commit()
         return {"detail": "Работа успешно обновлена"}
 

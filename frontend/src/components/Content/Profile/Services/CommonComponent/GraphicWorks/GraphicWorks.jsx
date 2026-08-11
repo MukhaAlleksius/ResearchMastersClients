@@ -285,7 +285,7 @@ export default function GraphicWorks({ orderId, categoryWorkId }) {
           onClick={() => setMainTab("work")}
         >
           <i className="far fa-calendar-alt" aria-hidden="true" />
-          График работ
+          Выполненные работы
         </button>
         <button
           type="button"
@@ -398,26 +398,27 @@ export default function GraphicWorks({ orderId, categoryWorkId }) {
               </span>
               <span className="gw-cal__legend-item">
                 <span className="gw-cal__legend-dot gw-cal__legend-dot--work" />
-                Есть работы
+                Есть выполненные
               </span>
             </div>
           </div>
 
-          <section className="gw-day-panel" aria-label="Работы выбранного дня">
+          <section className="gw-day-panel" aria-label="Выполненные работы выбранного дня">
             <div className="gw-day-panel__head">
-              <h3 className="gw-day-panel__title">Работы</h3>
+              <h3 className="gw-day-panel__title">Выполнено за день</h3>
               <button
                 type="button"
                 className="gw-day-panel__action"
                 onClick={() => openDayModal(selectedDate)}
               >
-                {worksForSelectedDate.length > 0 ? "Изменить" : "Добавить"}
+                {worksForSelectedDate.length > 0 ? "Изменить" : "Зафиксировать"}
               </button>
             </div>
 
             {worksForSelectedDate.length === 0 ? (
               <p className="gw-day-panel__empty">
-                Работ пока нет. Нажмите «Добавить», чтобы запланировать задачи.
+                За этот день ещё ничего не зафиксировано. Нажмите
+                «Зафиксировать», чтобы отметить выполненные работы.
               </p>
             ) : (
               <ul className="gw-day-panel__list">

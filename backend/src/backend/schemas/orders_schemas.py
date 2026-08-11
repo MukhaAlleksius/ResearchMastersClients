@@ -14,6 +14,9 @@ class OrderServiceSchema(BaseModel):
     # status: str = Field(..., max_length=20, description="Статус заказа")
     budget: Optional[float]
     currency: Optional[str] = Field(default="BYN", max_length=100)
+    budget_type: Optional[str] = Field(
+        None, max_length=40, description="Тип суммы (фиксированная / сметная)"
+    )
     created_at: Optional[datetime]
 
 
@@ -51,7 +54,9 @@ class OrderCreateSchema(BaseModel):
     budget_type: Optional[str] = Field(
         None, max_length=20, description="Тип бюджета (fixed/hourly)"
     )  # ✅ Optional!
-    urgency_level: str = Field(..., max_length=20, description="Уровень срочности")
+    urgency_level: Optional[str] = Field(
+        default="", max_length=20, description="Уровень срочности (устарело)"
+    )
     country: str = Field(..., max_length=100, description="Страна")
     region: str = Field(..., max_length=100, description="Регион")
     town: str = Field(..., max_length=100, description="Город")
@@ -97,7 +102,7 @@ class OrderResponseExecutorSchema(BaseModel):
     order_id: int
     executor_id: int
     proposed_price: Optional[float] = Field(None, ge=0)
-    budget_type: Optional[str] = Field(None, max_length=20)
+    budget_type: Optional[str] = Field(None, max_length=50)
     currency: Optional[str] = Field(default="BYN", max_length=100)
     estimated_time: Optional[str] = Field(None)
     start_time_work: Optional[str] = Field(None, max_length=10)

@@ -9,6 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сес
 
 from models.estimate_graphic_works_models import GraphicWork, WorkEstimate  # Смета и график
 from models.orders_models import GraphicOrderMaster  # Мастер-запись графика заказа
+from cruds.orders.sync_order_budget import sync_order_budget_from_deal
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+async def _sync_budget_after_estimate(db: AsyncSession, order_id: int) -> None:
+    try:
+        await sync_order_budget_from_deal(db, order_id)
+    except Exception as error:
+        logger.warning("sync order budget after estimate failed: %s", error)
 
 
 async def clear_estimate_and_graphic_for_order(
@@ -84,6 +95,7 @@ async def delete_work_from_estimate_for_order(
             actor_user_id=user_id,
             notification_type=ESTIMATE_UPDATED_NOTIFICATION_TYPE,
         )
+        await _sync_budget_after_estimate(db, order_id)
         await db.commit()
 
         return {"detail": "Работа успешно удалена"}

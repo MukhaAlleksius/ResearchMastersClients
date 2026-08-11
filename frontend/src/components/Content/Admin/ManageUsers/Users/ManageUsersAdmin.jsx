@@ -586,7 +586,7 @@ function UsersGrid({ onTotalChange }) {
     } finally {
       setLoading(false);
     }
-  }, [location.search, onTotalChange]);
+  }, [location.search, onTotalChange, params]);
 
   useEffect(() => {
     fetchUsers();

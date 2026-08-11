@@ -30,6 +30,7 @@ from core.config import (
     LOG_LEVEL,
     LOG_VERBOSE_REQUESTS,
     PORTFOLIO_DIR,
+    SEED_DEFAULT_WORKS,
     SENTRY_DSN,
     SENTRY_TRACES_SAMPLE_RATE,
 )
@@ -81,6 +82,15 @@ async def lifespan(app: FastAPI):
         else:
             logger.info(
                 "AUTO_CREATE_DB=false; schema is managed by Alembic migrations."
+            )
+
+        if SEED_DEFAULT_WORKS:
+            from seed_works import seed_default_works
+
+            works_seeded = await seed_default_works()
+            logger.info(
+                "Default works catalog %s.",
+                "seeded" if works_seeded else "already present",
             )
 
         async with async_session_maker() as session:

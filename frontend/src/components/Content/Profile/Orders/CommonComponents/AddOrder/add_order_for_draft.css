@@ -104,6 +104,17 @@
   color: #dc2626;
 }
 
+.aod-budget-hint {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 0.875rem;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
 .aod-input,
 .aod-select,
 .aod-textarea {

@@ -44,7 +44,8 @@ class Contract(Base):
     date_end_work = Column(String(50), nullable=True)
 
     budget_type = Column(String(100), nullable=True)
-    budget = Column(Numeric(precision=12, scale=2), nullable=False)
+    # Nullable: при «Сметная цена» итоговая сумма может быть ещё неизвестна
+    budget = Column(Numeric(precision=12, scale=2), nullable=True)
     currency = Column(String(20), default="BYN", nullable=False)
 
     subscribe_customer = Column(Boolean)

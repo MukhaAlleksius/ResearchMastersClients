@@ -68,6 +68,11 @@ if IS_PRODUCTION and AUTO_CREATE_DB:  # В проде схема только ч
         "AUTO_CREATE_DB must be false in production. "
         "Apply schema changes with: alembic upgrade head"
     )
+
+# Сид категорий/работ из data/works_dictionary.json (dev по умолчанию; Docker entrypoint тоже читает флаг).
+SEED_DEFAULT_WORKS = _env_bool(
+    "SEED_DEFAULT_WORKS", "false" if IS_PRODUCTION else "true"
+)
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO" if IS_PRODUCTION else "DEBUG").upper()  # Уровень логов
 LOG_VERBOSE_REQUESTS = _env_bool("LOG_VERBOSE_REQUESTS", "false" if IS_PRODUCTION else "false")  # Подробные access-логи
 

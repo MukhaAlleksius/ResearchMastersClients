@@ -123,11 +123,17 @@ function formatDateToRu(dateString) {
 }
 
 export function formatContractFromServer(serverContract, orderId) {
-  const budgetDisplay = serverContract.budget
-    ? `${Number(serverContract.budget).toLocaleString()} ${
-        serverContract.currency || "BYN"
-      }${serverContract.budget_type ? ` (${serverContract.budget_type})` : ""}`
-    : "Не указана";
+  const isEstimate = String(serverContract.budget_type || "")
+    .toLowerCase()
+    .includes("сметн");
+  const budgetDisplay =
+    serverContract.budget != null && serverContract.budget !== ""
+      ? `${Number(serverContract.budget).toLocaleString()} ${
+          serverContract.currency || "BYN"
+        }${serverContract.budget_type ? ` (${serverContract.budget_type})` : ""}`
+      : isEstimate
+        ? "По смете"
+        : "Не указана";
 
   return {
     contractData: serverContract,

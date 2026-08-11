@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сес
 from cruds.orders.order_constants import (
     is_hidden_customer_executor_phone,
 )  # Скрытый телефон
+from cruds.orders.sync_order_budget import resolve_order_display_budget
 from schemas.orders_schemas import (  # Схемы ответов
     CancelOrderCustomerForAdminRead,  # Продолжение выражения
     CustomerOrderCancellationReadSchema,  # Продолжение выражения
@@ -141,6 +142,18 @@ async def get_orders_customer(  # Карточки заказов заказчи
             status_order_executor,
             user,
         ) in rows:  # Цикл по элементам
+            executor_id = (
+                status_order_executor.executor_id
+                if status_order_executor
+                else None
+            )
+            display_budget, display_currency, display_budget_type = (
+                await resolve_order_display_budget(
+                    db,
+                    order,
+                    preferred_executor_id=executor_id,
+                )
+            )
             list_orders.append(  # Карточка заказа
                 OrderUserSchema(  # Карточка заказа
                     id=order.id,  # Продолжение выражения
@@ -150,16 +163,15 @@ async def get_orders_customer(  # Карточки заказов заказчи
                     category_work_id=category.id,  # Категория работ
                     title=order.title,  # Заголовок
                     budget=(
-                        str(order.budget) if order.budget is not None else None
-                    ),  # Бюджет
-                    currency=order.currency or "BYN",  # Валюта
+                        float(display_budget)
+                        if display_budget is not None
+                        else None
+                    ),  # Договорённая / сметная / бюджет
+                    currency=display_currency or "BYN",  # Валюта
+                    budget_type=display_budget_type,  # Тип суммы
                     created_at=order.created_at,  # Дата создания
                     executor_name=user.first_name if user else None,  # Имя
-                    executor_id=(  # Данные исполнителя
-                        status_order_executor.executor_id  # Строка кода
-                        if status_order_executor  # Условная проверка
-                        else None  # Строка кода
-                    ),  # Продолжение выражения
+                    executor_id=executor_id,  # Данные исполнителя
                     status_order_customer=(  # Данные заказа
                         status_order_customer.status
                         if status_order_customer
@@ -301,6 +313,13 @@ async def get_services_executor(  # Карточки услуг исполнит
         for order, status_executor, category, customer in services:  # Цикл по элементам
             if order.customer_id == user_id:  # Свой заказ — не услуга
                 continue  # Пропуск итерации
+            display_budget, display_currency, display_budget_type = (
+                await resolve_order_display_budget(
+                    db,
+                    order,
+                    preferred_executor_id=user_id,
+                )
+            )
             list_services.append(  # Строка кода
                 ServiceUserSchema(  # Карточка услуги
                     id=order.id,  # Продолжение выражения
@@ -309,8 +328,13 @@ async def get_services_executor(  # Карточки услуг исполнит
                         category.name if category else None
                     ),  # Категория работ
                     title=order.title,  # Заголовок
-                    budget=order.budget,  # Бюджет
-                    currency=order.currency or "BYN",  # Валюта
+                    budget=(
+                        float(display_budget)
+                        if display_budget is not None
+                        else None
+                    ),  # Договорённая / сметная / бюджет
+                    currency=display_currency or "BYN",  # Валюта
+                    budget_type=display_budget_type,  # Тип суммы
                     created_at=order.created_at,  # Дата создания
                     customer_name=(  # Данные заказчика
                         f"{customer.first_name or ''} {customer.last_name or ''}".strip()  # Закрывающая скобка вызова

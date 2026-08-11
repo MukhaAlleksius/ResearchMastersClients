@@ -5,8 +5,10 @@ import Chat from "../CommonComponent/ChatOrderMaster/ChatOrderMaster";
 import CustomerInfo from "../CommonComponent/InformationAboutCustomer/InformationAboutCustomer";
 import EstimateWorks from "../CommonComponent/EstimateWorksMaterials/EstimateWorks";
 import OrderInfoWithMyResponse from "../CommonComponent/CustomerOrderInfo/OrderInfoWithMyResponse";
+import ContractExecutor from "../CommonComponent/CustomerExecutorContractOrder/ContractOrderCustomerExecutor";
 import ReportWorks from "../CommonComponent/GraphicWorks/Report/ReportWorks";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
+import { EstimateEarningsMeta } from "../../Common/EstimateEarningsSummary";
 import {
   getWorkDetailTabs,
   useWorkDetailInitialTab,
@@ -75,6 +77,14 @@ export default function ExecuteWorkServiceInfo({ service, onBack }) {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
+      meta={
+        <EstimateEarningsMeta
+          orderId={orderId}
+          estimateUserId={localStorage.getItem("user_id")}
+          orderBudget={order?.budget}
+          orderCurrency={order?.currency}
+        />
+      }
     >
       {activeTab === "estimateWorks" && (
         <EstimateWorks
@@ -84,6 +94,10 @@ export default function ExecuteWorkServiceInfo({ service, onBack }) {
       )}
 
       {activeTab === "schedule" && <ReportWorks />}
+
+      {activeTab === "customerExecutorContract" && (
+        <ContractExecutor order={order} />
+      )}
 
       {activeTab === "chat" && <Chat order_id={orderId} />}
 

@@ -13,7 +13,7 @@ const exampleOrder = {
   title: "Покраска стен в комнате",
   description: "Покраска стен белой краской, подготовка поверхности.",
   budget: 15000,
-  budgetType: "Фиксированная цена",
+  budgetType: "Договорная цена",
   urgencyLevel: "Средний",
   location: "Москва, ул. Ленина, д.10",
   town: "Москва",

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { API, apiFetch, buildApiUrl, resolveMediaUrl } from "../../../../utils/api.js";
+import React, { useState, useEffect, useCallback } from "react";
+import { apiFetch, buildApiUrl, resolveMediaUrl } from "../../../../utils/api.js";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import CatalogPagination from "../../shared/CatalogPagination";
 import FiltersShell from "../../shared/FiltersShell";
@@ -140,7 +140,7 @@ function MainFilters() {
     if (!isUserInteraction) return;
     const timer = setTimeout(() => setIsUserInteraction(false), 100);
     return () => clearTimeout(timer);
-  }, [selectedCategory]);
+  }, [selectedCategory, isUserInteraction]);
 
   const handleCategoryChange = (categoryName) => {
     setIsUserInteraction(true);
@@ -492,7 +492,7 @@ function ExecutorsGrid({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchProfilesExecutorsForCards = async () => {
+  const fetchProfilesExecutorsForCards = useCallback(async () => {
     try {
       setLoading(true);
       const frontendParams = new URLSearchParams(location.search);
@@ -533,11 +533,11 @@ function ExecutorsGrid({
     } finally {
       setLoading(false);
     }
-  };
+  }, [location.search, onTotalPagesChange]);
 
   useEffect(() => {
     fetchProfilesExecutorsForCards();
-  }, [location.search]);
+  }, [fetchProfilesExecutorsForCards]);
 
   if (loading) {
     return (

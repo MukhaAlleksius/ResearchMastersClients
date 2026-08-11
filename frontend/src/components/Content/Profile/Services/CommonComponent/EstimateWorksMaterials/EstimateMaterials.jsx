@@ -34,7 +34,7 @@ export default function ModalAddMaterials({
 
   const resolvedCurrency = normalizeCurrencyCode(estimateCurrency || "BYN");
 
-  const work = addedWorks.find((w) => w.id == workId);
+  const work = addedWorks.find((w) => String(w.id) === String(workId));
   const materials = work?.materials || [];
 
   const materialsTotal = materials.reduce(

@@ -4,6 +4,15 @@ import { getStatusColor } from "../styles/theme";
 import { formatMoney } from "../../../../utils/currency.js";
 import { IconUser, StatusIcon } from "../ProfileIcons.jsx";
 
+function formatCardBudget(item) {
+  const amount = item?.budget;
+  const hasAmount = amount != null && amount !== "" && Number(amount) > 0;
+  if (hasAmount) {
+    return formatMoney(amount, item.currency || "BYN");
+  }
+  return "Сумма неизвестна";
+}
+
 export default function OrderServiceCard({
   item,
   statusLabel,
@@ -41,11 +50,7 @@ export default function OrderServiceCard({
           <IconUser width={14} height={14} />
           {partyName || partyLabel}
         </span>
-        <span className="service-card__budget">
-          {item.budget != null && item.budget !== ""
-            ? formatMoney(item.budget, item.currency || "BYN")
-            : "Договорная"}
-        </span>
+        <span className="service-card__budget">{formatCardBudget(item)}</span>
       </div>
     </>
   );

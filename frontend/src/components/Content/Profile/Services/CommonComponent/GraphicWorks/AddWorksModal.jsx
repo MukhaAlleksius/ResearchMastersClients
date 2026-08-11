@@ -74,25 +74,33 @@ export default function AddWorksModal({
     [estimatePriceByWorkName, worksOptions],
   );
 
-  const handleWorkSelect = (newValue) => {
-    setSelectedWorkOption(newValue);
-    if (!newValue) {
-      setSelectedWorkId("");
-      setCostPerUnit("");
-      return;
-    }
-    const matched = worksOptions.find(
-      (opt) =>
-        opt.originalId &&
-        opt.label === newValue.label &&
-        String(opt.value) === String(newValue.value),
-    );
-    setSelectedWorkId(matched?.originalId || "");
-    if (matched?.unit_measurement) {
-      setUnit(matched.unit_measurement);
-    }
-    setCostPerUnit(resolveCostForWorkName(newValue.label));
-  };
+  const handleWorkSelect = useCallback(
+    (newValue) => {
+      setSelectedWorkOption(newValue);
+      if (!newValue) {
+        setSelectedWorkId("");
+        setCostPerUnit("");
+        return;
+      }
+      const matched = worksOptions.find(
+        (opt) =>
+          opt.originalId &&
+          opt.label === newValue.label &&
+          String(opt.value) === String(newValue.value),
+      );
+      setSelectedWorkId(matched?.originalId || "");
+      if (matched?.unit_measurement) {
+        setUnit(matched.unit_measurement);
+      }
+      setCostPerUnit(resolveCostForWorkName(newValue.label));
+    },
+    [
+      worksOptions,
+      setSelectedWorkOption,
+      setSelectedWorkId,
+      resolveCostForWorkName,
+    ],
+  );
 
   const resetEdit = useCallback(() => {
     setEditingWorkId(null);
@@ -115,7 +123,7 @@ export default function AddWorksModal({
       setUnit(work.unit_measurement || "шт");
       setCostPerUnit(resolveCostForWorkName(work.name_work));
     },
-    [resolveCostForWorkName, setQuantity],
+    [resolveCostForWorkName, setQuantity, handleWorkSelect],
   );
 
   const handleKeyDown = (e) => {
@@ -293,9 +301,9 @@ export default function AddWorksModal({
       >
         <header className="gw-modal__head">
           <div>
-            <p className="gw-modal__kicker">День в графике</p>
+            <p className="gw-modal__kicker">Фиксация за день</p>
             <h2 id="gw-modal-title" className="gw-modal__title">
-              Работы
+              Выполненные работы
             </h2>
           </div>
           <button
@@ -311,9 +319,9 @@ export default function AddWorksModal({
         <div className="gw-modal__list">
           {works.length === 0 ? (
             <p className="gw-modal__empty">
-              Работ пока нет.
+              За этот день ещё нет записей.
               <br />
-              Добавьте первую ниже.
+              Добавьте выполненную работу ниже.
             </p>
           ) : (
             works.map((work, index) => (
@@ -455,7 +463,7 @@ export default function AddWorksModal({
               ? "Сохранение…"
               : editingWorkId
                 ? "Сохранить"
-                : "Добавить работу"}
+                : "Зафиксировать работу"}
           </button>
         </footer>
       </div>

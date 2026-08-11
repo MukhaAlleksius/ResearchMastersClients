@@ -6,6 +6,7 @@ import GraphicWorks from "../../Services/CommonComponent/GraphicWorks/GraphicWor
 import MoveToDraftModal from "../CommonComponents/MoveToDraft/MoveToDraftModal";
 import OrderCustomer from "../../../Orders/OrderCustomer.jsx";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
+import { EstimateEarningsMeta } from "../../Common/EstimateEarningsSummary";
 import { OrderDeleteFooterActions } from "../CommonComponents/DeleteOrder/DeleteOrderButton";
 import "../../../Orders/order_customer.css";
 import "../../Services/CommonComponent/CustomerOrderInfo/customer_order_info.css";
@@ -146,6 +147,14 @@ export default function MyselfExecutor({ order, onBack, onOrderUpdated, onOrderD
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
+      meta={
+        <EstimateEarningsMeta
+          orderId={currentOrder?.id}
+          estimateUserId={localStorage.getItem("user_id")}
+          orderBudget={currentOrder?.budget}
+          orderCurrency={currentOrder?.currency}
+        />
+      }
       loading={loading}
       loadingText="Загрузка заказа..."
       error={layoutError}

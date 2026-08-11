@@ -1,0 +1,262 @@
+[
+  {
+    "name": "Программирование",
+    "slug": "programmirovanie",
+    "description": "Разработка сайтов, приложений и автоматизация",
+    "icon_name": "Программист",
+    "icon_color": "#45B7D1",
+    "access_users": true,
+    "works": [
+      {
+        "name_work": "Создание сайта",
+        "unit_measurement": "час",
+        "cost": 50,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Мобильное приложение",
+        "unit_measurement": "час",
+        "cost": 70,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Доработка и поддержка",
+        "unit_measurement": "час",
+        "cost": 40,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Настройка сервера / DevOps",
+        "unit_measurement": "час",
+        "cost": 55,
+        "currency": "BYN"
+      }
+    ]
+  },
+  {
+    "name": "Строительство",
+    "slug": "stroitelstvo",
+    "description": "Ремонт, отделка и строительные работы",
+    "icon_name": "Строитель",
+    "icon_color": "#E17055",
+    "access_users": true,
+    "works": [
+      {
+        "name_work": "Кирпичная кладка",
+        "unit_measurement": "м²",
+        "cost": 20,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Штукатурка",
+        "unit_measurement": "м²",
+        "cost": 15,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Укладка плитки",
+        "unit_measurement": "м²",
+        "cost": 25,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Монтаж гипсокартона",
+        "unit_measurement": "м²",
+        "cost": 18,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Поклейка обоев",
+        "unit_measurement": "м²",
+        "cost": 8,
+        "currency": "BYN"
+      }
+    ]
+  },
+  {
+    "name": "Электрика",
+    "slug": "elektrika",
+    "description": "Монтаж и ремонт электропроводки, розеток и освещения",
+    "icon_name": "Работа",
+    "icon_color": "#FDCB6E",
+    "access_users": true,
+    "works": [
+      {
+        "name_work": "Установка розетки / выключателя",
+        "unit_measurement": "шт",
+        "cost": 15,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Прокладка кабеля",
+        "unit_measurement": "м.п.",
+        "cost": 5,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Монтаж люстры / светильника",
+        "unit_measurement": "шт",
+        "cost": 25,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Сборка электрощита",
+        "unit_measurement": "шт",
+        "cost": 80,
+        "currency": "BYN"
+      }
+    ]
+  },
+  {
+    "name": "Сантехника",
+    "slug": "santehnika",
+    "description": "Установка и ремонт сантехнического оборудования",
+    "icon_name": "Работа",
+    "icon_color": "#00CEC9",
+    "access_users": true,
+    "works": [
+      {
+        "name_work": "Установка смесителя",
+        "unit_measurement": "шт",
+        "cost": 30,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка унитаза",
+        "unit_measurement": "шт",
+        "cost": 50,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка раковины",
+        "unit_measurement": "шт",
+        "cost": 40,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Прочистка засора",
+        "unit_measurement": "услуга",
+        "cost": 35,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Замена труб",
+        "unit_measurement": "м.п.",
+        "cost": 20,
+        "currency": "BYN"
+      }
+    ]
+  },
+  {
+    "name": "Дизайн",
+    "slug": "dizajn",
+    "description": "Графический дизайн, иллюстрации и оформление",
+    "icon_name": "Художник",
+    "icon_color": "#BB8FCE",
+    "access_users": true,
+    "works": [
+      {
+        "name_work": "Логотип",
+        "unit_measurement": "шт",
+        "cost": 100,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Баннер / макет",
+        "unit_measurement": "шт",
+        "cost": 40,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Фирменный стиль",
+        "unit_measurement": "проект",
+        "cost": 250,
+        "currency": "BYN"
+      }
+    ]
+  },
+  {
+    "name": "Красота и уход",
+    "slug": "krasota-i-uhod",
+    "description": "Парикмахерские и бьюти-услуги",
+    "icon_name": "Парикмахер",
+    "icon_color": "#FF9FF3",
+    "access_users": true,
+    "works": [
+      {
+        "name_work": "Стрижка",
+        "unit_measurement": "услуга",
+        "cost": 25,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Окрашивание",
+        "unit_measurement": "услуга",
+        "cost": 60,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Укладка",
+        "unit_measurement": "услуга",
+        "cost": 20,
+        "currency": "BYN"
+      }
+    ]
+  },
+  {
+    "name": "Перевозки",
+    "slug": "perevozki",
+    "description": "Грузоперевозки, переезды и доставка",
+    "icon_name": "Водитель",
+    "icon_color": "#54A0FF",
+    "access_users": true,
+    "works": [
+      {
+        "name_work": "Грузоперевозка по городу",
+        "unit_measurement": "час",
+        "cost": 35,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Междугородняя перевозка",
+        "unit_measurement": "км",
+        "cost": 1.5,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Помощь грузчиков",
+        "unit_measurement": "час",
+        "cost": 20,
+        "currency": "BYN"
+      }
+    ]
+  },
+  {
+    "name": "Кулинария",
+    "slug": "kulinariya",
+    "description": "Приготовление еды, кейтеринг и кулинарные услуги",
+    "icon_name": "Повар",
+    "icon_color": "#00B894",
+    "access_users": true,
+    "works": [
+      {
+        "name_work": "Приготовление обеда / ужина",
+        "unit_measurement": "час",
+        "cost": 30,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Торт на заказ",
+        "unit_measurement": "шт",
+        "cost": 80,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Кейтеринг",
+        "unit_measurement": "чел",
+        "cost": 25,
+        "currency": "BYN"
+      }
+    ]
+  }
+]

@@ -8,7 +8,9 @@ import EstimateWorks from "../CommonComponent/EstimateWorksMaterials/EstimateWor
 import ExecutorCancelService from "../CommonComponent/ExecutorCancelService/ExecutorCancelService";
 import GraphicWorks from "../CommonComponent/GraphicWorks/GraphicWorks";
 import OrderInfoWithMyResponse from "../CommonComponent/CustomerOrderInfo/OrderInfoWithMyResponse";
+import ContractExecutor from "../CommonComponent/CustomerExecutorContractOrder/ContractOrderCustomerExecutor";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
+import { EstimateEarningsMeta } from "../../Common/EstimateEarningsSummary";
 import { uiAlert } from "../../../../UiDialog/uiDialog.js";
 
 import {
@@ -81,6 +83,14 @@ export default function ContinueExecuteWorkServiceInfo({ orderId, onBack }) {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
+      meta={
+        <EstimateEarningsMeta
+          orderId={orderIdFinal}
+          estimateUserId={executorId}
+          orderBudget={currentOrder?.budget}
+          orderCurrency={currentOrder?.currency}
+        />
+      }
       loading={loading}
       loadingText="Загрузка заказа..."
       error={error ? `Ошибка: ${error}` : null}
@@ -98,6 +108,10 @@ export default function ContinueExecuteWorkServiceInfo({ orderId, onBack }) {
           orderId={orderIdFinal}
           categoryWorkId={currentOrder.category_work_id}
         />
+      )}
+
+      {activeTab === "customerExecutorContract" && (
+        <ContractExecutor order={currentOrder} />
       )}
 
       {activeTab === "chat" && <Chat order_id={orderIdFinal} />}

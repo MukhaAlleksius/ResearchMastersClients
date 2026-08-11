@@ -23,8 +23,18 @@ from schemas.estimate_graphic_works_schemas import (  # Входные схем�
     WorkEstimateSchema,
 )
 from cruds.works_materials_crud import ensure_work_master_myself  # works_masters_myself
+from cruds.orders.sync_order_budget import sync_order_budget_from_deal
 
 logger = logging.getLogger(__name__)  # Логгер модуля
+
+
+async def _sync_budget_after_estimate(
+    db: AsyncSession, order_id: int
+) -> None:
+    try:
+        await sync_order_budget_from_deal(db, order_id)
+    except Exception as error:
+        logger.warning("sync order budget after estimate failed: %s", error)
 
 
 async def _notify_estimate_updated(
@@ -136,6 +146,7 @@ async def add_work_into_estimate(
                 work_estimate_schema.order_id,
                 work_estimate_schema.user_id,
             )
+            await _sync_budget_after_estimate(db, work_estimate_schema.order_id)
             await db.commit()
             await db.refresh(existing_work)
             logger.info(
@@ -160,6 +171,7 @@ async def add_work_into_estimate(
             work_estimate_schema.order_id,
             work_estimate_schema.user_id,
         )
+        await _sync_budget_after_estimate(db, work_estimate_schema.order_id)
         await db.commit()
         await db.refresh(new_work)
         logger.info(f"Создана новая работа: {new_work.name_work}, id={new_work.id}")

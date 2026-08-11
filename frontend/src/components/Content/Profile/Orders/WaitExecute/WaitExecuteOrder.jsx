@@ -5,7 +5,9 @@ import Chat from "../../Services/CommonComponent/ChatOrderMaster/ChatOrderMaster
 import CustomerCancelOrder from "../CommonComponents/CustomerCancelOrder/CustomerCancelOrder";
 import CustomerEstimateWorks from "../CommonComponents/CustomerEstimateWorksMaterials/CustomerEstimateWorks";
 import OrderInfoWithExecutorResponse from "../../Services/CommonComponent/CustomerOrderInfo/OrderInfoWithExecutorResponse";
+import ContractAgreement from "../CommonComponents/CustomerExecutorContractOrder/CustomerExecutorContract";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
+import { EstimateEarningsMeta } from "../../Common/EstimateEarningsSummary";
 import {
   getWorkDetailTabs,
   useWorkDetailInitialTab,
@@ -154,22 +156,15 @@ export default function WaitExecuteOrder({
       backLabel="Назад к заказам"
       onBack={onBack || (() => navigate(-1))}
       meta={
-        <>
-          <span>
-            Бюджет:{" "}
-            <strong>
-              {currentOrder?.budget != null
-                ? `${Number(currentOrder.budget).toLocaleString()} ${currentOrder.currency || "BYN"}`
-                : "—"}
-            </strong>
-          </span>
-          <span>
-            Локация: <strong>{currentOrder.location || "Не указана"}</strong>
-          </span>
-          <span>
-            Статус: <strong>Ожидает выполнения</strong>
-          </span>
-        </>
+        <EstimateEarningsMeta
+          orderId={orderId}
+          estimateUserId={resolvedExecutorId}
+          proposedPrice={orderResponseExecutor?.proposed_price}
+          offerBudgetType={orderResponseExecutor?.budget_type}
+          offerCurrency={orderResponseExecutor?.currency}
+          orderBudget={currentOrder?.budget}
+          orderCurrency={currentOrder?.currency}
+        />
       }
       tabs={tabs}
       activeTab={activeTab}
@@ -183,6 +178,14 @@ export default function WaitExecuteOrder({
         <CustomerEstimateWorks
           order_id={orderId}
           category_work_id={currentOrder.category_work_id}
+          executor_id={resolvedExecutorId}
+        />
+      )}
+
+      {activeTab === "customerExecutorContract" && (
+        <ContractAgreement
+          order={currentOrder}
+          order_response_executor={orderResponseExecutor}
           executor_id={resolvedExecutorId}
         />
       )}

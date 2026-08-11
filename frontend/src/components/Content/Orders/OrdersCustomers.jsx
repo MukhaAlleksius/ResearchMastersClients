@@ -427,9 +427,10 @@ function OrderCatalogCard({ order, returnTo }) {
     .filter(Boolean)
     .join(", ");
 
-  const budgetLabel = order.budget
-    ? formatMoney(order.budget, order.currency || "BYN")
-    : "Договорная";
+  const budgetLabel =
+    order.budget != null && Number(order.budget) > 0
+      ? formatMoney(order.budget, order.currency || "BYN")
+      : "Сумма неизвестна";
 
   return (
     <Link to={linkTo} state={linkState} className="order-card catalog-card">
@@ -454,12 +455,6 @@ function OrderCatalogCard({ order, returnTo }) {
         )}
 
         <div className="order-card__chips">
-          <span className="order-card__chip">
-            <span className="order-card__chip-label">Срочность</span>
-            <span className="order-card__chip-value">
-              {order.urgency_level || "Не указана"}
-            </span>
-          </span>
           <span className="order-card__chip">
             <span className="order-card__chip-label">Срок</span>
             <span className="order-card__chip-value">

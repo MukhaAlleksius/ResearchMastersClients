@@ -36,9 +36,14 @@ async def add_contract_api(
         raise HTTPException(status_code=403, detail="Access denied")  # Чужой договор
     try:
         contract = await add_contract(db=db, contract_schema=contract_schema)  # Создаём в БД
-        return contract  # Возвращаем созданный договор
-    except HTTPException as e:  # Ошибка из CRUD
-        raise HTTPException(status_code=403, detail=f"Ошибка {e}")  # Оборачиваем в 403
+        # Отдаём полный ContractResponse (имена сторон), а не сырой ORM
+        full = await get_contract(db=db, order_id=contract_schema.order_id)
+        return full or contract
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("add_contract failed")
+        raise HTTPException(status_code=400, detail=f"Ошибка сохранения договора: {e}") from e
 
 
 @router.put("/subscribe_customer_contract/{order_id}")  # PUT подпись заказчика

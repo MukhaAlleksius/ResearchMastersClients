@@ -9,7 +9,9 @@ import CustomerExecutorComplaints from "../CommonComponents/CustomerExecutorComp
 import CustomerReportWorks from "../CommonComponents/CustomerReportWorks/CustomerReportWorks";
 import ExecutorInfo from "../CommonComponents/CustomerOrderInfo/ExecutorInfo";
 import OrderInfoWithExecutorResponse from "../../Services/CommonComponent/CustomerOrderInfo/OrderInfoWithExecutorResponse";
+import ContractAgreement from "../CommonComponents/CustomerExecutorContractOrder/CustomerExecutorContract";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
+import { EstimateEarningsMeta } from "../../Common/EstimateEarningsSummary";
 import CompleteOrderModal from "./CompleteOrderModal";
 import { uiAlert } from "../../../../UiDialog/uiDialog.js";
 
@@ -270,19 +272,15 @@ export default function InProgressExecuteOrder({ order, onBack, userId, onOrderS
           </div>
         }
         meta={
-          <>
-            <span>
-              Бюджет:{" "}
-              <strong>
-                {currentOrder?.budget != null
-                  ? `${Number(currentOrder.budget).toLocaleString()} ${currentOrder.currency || "BYN"}`
-                  : "—"}
-              </strong>
-            </span>
-            <span>
-              Статус: <strong>В процессе выполнения</strong>
-            </span>
-          </>
+          <EstimateEarningsMeta
+            orderId={orderId}
+            estimateUserId={resolvedExecutorId}
+            proposedPrice={orderResponseExecutor?.proposed_price}
+            offerBudgetType={orderResponseExecutor?.budget_type}
+            offerCurrency={orderResponseExecutor?.currency}
+            orderBudget={currentOrder?.budget}
+            orderCurrency={currentOrder?.currency}
+          />
         }
         tabs={tabs}
         activeTab={activeTab}
@@ -302,6 +300,14 @@ export default function InProgressExecuteOrder({ order, onBack, userId, onOrderS
 
         {activeTab === "schedule" && (
           <CustomerReportWorks order={currentOrder} />
+        )}
+
+        {activeTab === "customerExecutorContract" && (
+          <ContractAgreement
+            order={currentOrder}
+            order_response_executor={orderResponseExecutor}
+            executor_id={resolvedExecutorId}
+          />
         )}
 
         {activeTab === "chat" && <Chat order_id={orderId} />}

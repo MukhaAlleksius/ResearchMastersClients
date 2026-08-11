@@ -203,13 +203,13 @@ export default function OrderCustomer({
 
         <div className="order-customer-section">
           <h3>Условия</h3>
-          <p>Срочность: {order.urgency_level || "Не указана"}</p>
           <p>Срок выполнения: {order.deadline || "Не указан"}</p>
           <p>
-            Примерная сумма:{" "}
-            {order.budget
-              ? formatMoney(order.budget, order.currency || "BYN")
-              : "Договорная"}
+            {order.budget != null && Number(order.budget) > 0
+              ? `Сумма: ${formatMoney(order.budget, order.currency || "BYN")}${
+                  order.budget_type ? ` (${order.budget_type})` : ""
+                }`
+              : "Сумма неизвестна"}
           </p>
           {order.insurance_required && <p>Требуется страховка исполнителя</p>}
         </div>

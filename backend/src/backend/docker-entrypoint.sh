@@ -21,6 +21,12 @@ if [ "${RUN_MIGRATIONS_ON_STARTUP:-true}" = "true" ]; then
   # Runs after migrations so tables/constraints are present.
   echo "Ensuring default geography..."
   python -c "import asyncio; from bootstrap_schema import seed_default_geography; print('geography_seeded' if asyncio.run(seed_default_geography()) else 'geography_ok')"
+
+  # Catalog of categories/works from data/works_dictionary.json (idempotent).
+  if [ "${SEED_DEFAULT_WORKS:-true}" = "true" ]; then
+    echo "Ensuring default works catalog..."
+    python -c "import asyncio; from seed_works import seed_default_works; print('works_seeded' if asyncio.run(seed_default_works()) else 'works_ok')"
+  fi
 fi
 
 echo "Starting gunicorn..."

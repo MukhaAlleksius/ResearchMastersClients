@@ -24,6 +24,7 @@ from cruds.orders.create_orders import (  # Применение согласо�
     apply_in_progress_customer_cancel_agreed,
 )
 from cruds.orders.read_orders import get_order  # READ заказа после обновления
+from cruds.orders.sync_order_budget import sync_order_budget_from_deal
 from schemas.orders_schemas import (  # Входные/выходные схемы
     CustomerDecisionSchema,
     ExecutorDecisionSchema,
@@ -160,6 +161,7 @@ async def update_order_response_executor(
             is_update=True,
         )
 
+        await sync_order_budget_from_deal(db, order_id)
         await db.commit()
         await db.refresh(row)
 

@@ -8,6 +8,10 @@ import "./add_order_for_all_executors.css";
 import "./order.css";
 
 import { uiAlert } from "../../../UiDialog/uiDialog.js";
+import {
+  isFixedBudgetType,
+  ORDER_BUDGET_TYPES,
+} from "../../../../utils/budgetTypes.js";
 
 export default function AddOrderForAllExecutors({
   showAuthBanner = false,
@@ -19,7 +23,6 @@ export default function AddOrderForAllExecutors({
   const [budget, setBudget] = useState("");
   const currency = "BYN";
   const [budgetType, setBudgetType] = useState("");
-  const [urgencyLevel, setUrgencyLevel] = useState("");
   const [location, setLocation] = useState("");
   const [deadline, setDeadline] = useState("Как можно скорее");
   const [insuranceRequired, setInsuranceRequired] = useState(false);
@@ -198,6 +201,17 @@ export default function AddOrderForAllExecutors({
       await uiAlert("Выберите точную дату выполнения");
       return;
     }
+    if (!budgetType) {
+      await uiAlert("Выберите тип бюджета");
+      return;
+    }
+    if (isFixedBudgetType(budgetType)) {
+      const amount = parseFloat(budget);
+      if (!budget || Number.isNaN(amount) || amount <= 0) {
+        await uiAlert("Укажите сумму для договорной цены");
+        return;
+      }
+    }
 
     const orderUserData = {
       title: title,
@@ -205,10 +219,10 @@ export default function AddOrderForAllExecutors({
       customer_id: localStorage.getItem("user_id"),
       category_work_id: categoryWorkMaster.value,
       category_work: categoryWorkMaster.label,
-      budget: parseFloat(budget) || 0,
+      budget: isFixedBudgetType(budgetType) ? parseFloat(budget) || 0 : 0,
       currency: currency,
       budget_type: budgetType,
-      urgency_level: urgencyLevel,
+      urgency_level: "",
       country: geoCountry.label,
       country_id: geoCountry.value,
       region: geoRegion.label,
@@ -292,7 +306,6 @@ export default function AddOrderForAllExecutors({
     setDescription("");
     setBudget("");
     setBudgetType("");
-    setUrgencyLevel("");
     setGeoCountry(null);
     setGeoRegion(null);
     setGeoTown(null);
@@ -303,8 +316,15 @@ export default function AddOrderForAllExecutors({
     setTowns([]);
   };
 
-  const budgetTypes = ["Фиксированная цена", "Почасовая оплата", "Договорная цена"];
-  const urgencyLevels = ["Низкий", "Средний", "Высокий"];
+  const budgetTypes = ORDER_BUDGET_TYPES;
+  const showBudgetAmount = isFixedBudgetType(budgetType);
+
+  const handleBudgetTypeChange = (value) => {
+    setBudgetType(value);
+    if (!isFixedBudgetType(value)) {
+      setBudget("");
+    }
+  };
 
   // Блокировка клавиш кроме цифр и точки
   const handleKeyDown = (e) => {
@@ -436,39 +456,15 @@ export default function AddOrderForAllExecutors({
             />
           </div>
 
-          {/* Бюджет и валюта */}
-          <div className="grid-2cols">
-            <div>
-              <label htmlFor="budget" className="label">
-                Примерная сумма
-              </label>
-              <input
-                type="number"
-                id="budget"
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-                className="input"
-              />
-            </div>
-            <div>
-              <span className="label">Валюта</span>
-              <p className="input input--readonly">BYN</p>
-            </div>
-          </div>
-
           {/* Тип бюджета */}
           <div>
             <label htmlFor="budgetType" className="label">
-              Тип бюджета
+              Тип бюджета <span className="required">*</span>
             </label>
             <select
               id="budgetType"
               value={budgetType}
-              onChange={(e) => setBudgetType(e.target.value)}
+              onChange={(e) => handleBudgetTypeChange(e.target.value)}
               className="select"
             >
               <option value="">Выберите тип бюджета</option>
@@ -480,25 +476,36 @@ export default function AddOrderForAllExecutors({
             </select>
           </div>
 
-          {/* Уровень срочности */}
-          <div>
-            <label htmlFor="urgencyLevel" className="label">
-              Уровень срочности
-            </label>
-            <select
-              id="urgencyLevel"
-              value={urgencyLevel}
-              onChange={(e) => setUrgencyLevel(e.target.value)}
-              className="select"
-            >
-              <option value="">Выберите уровень срочности</option>
-              {urgencyLevels.map((ul) => (
-                <option key={ul} value={ul}>
-                  {ul}
-                </option>
-              ))}
-            </select>
-          </div>
+          {showBudgetAmount ? (
+            <div className="grid-2cols">
+              <div>
+                <label htmlFor="budget" className="label">
+                  Сумма <span className="required">*</span>
+                </label>
+                <input
+                  type="number"
+                  id="budget"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  className="input"
+                />
+              </div>
+              <div>
+                <span className="label">Валюта</span>
+                <p className="input input--readonly">BYN</p>
+              </div>
+            </div>
+          ) : budgetType ? (
+            <p className="budget-type-hint">
+              {budgetType === "Сметная цена"
+                ? "Сумму заранее указывать не нужно — итоговая стоимость будет по смете."
+                : "Сумму указывать не нужно."}
+            </p>
+          ) : null}
 
           {/* Геолокация */}
           <div className="grid-3cols">

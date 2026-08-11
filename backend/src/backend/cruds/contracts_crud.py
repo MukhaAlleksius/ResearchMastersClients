@@ -11,6 +11,7 @@ from cruds.notifications_crud import (  # Уведомления о догово
     CONTRACT_UPDATED_NOTIFICATION_TYPE,
     notify_order_event_safe,
 )
+from cruds.orders.sync_order_budget import sync_order_budget_from_deal
 from models.users_models import User  # Пользователи (заказчик/исполнитель)
 from schemas.contracts_schemas import (
     ContractCreate,  # Схема создания/обновления
@@ -28,8 +29,22 @@ from schemas.geography_schemas import (
 logger = logging.getLogger(__name__)  # Логгер модуля
 
 
+def _is_estimate_budget_type(budget_type: str | None) -> bool:
+    return "сметн" in str(budget_type or "").lower()
+
+
+def _resolve_contract_budget(budget_type: str | None, budget):
+    """При сметной цене сумму в БД не храним — она определяется сметой."""
+    if _is_estimate_budget_type(budget_type):
+        return None
+    return budget
+
+
 async def add_contract(db: AsyncSession, contract_schema: ContractCreate):  # Создание или обновление договора
     try:
+        resolved_budget = _resolve_contract_budget(
+            contract_schema.budget_type, contract_schema.budget
+        )
         result = await db.execute(
             select(Contract).where(  # Ищем существующий договор по тройке ключей
                 and_(
@@ -45,7 +60,7 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):  # С
             existing_contract.title_work = contract_schema.title_work
             existing_contract.name_work = contract_schema.name_work
             existing_contract.budget_type = contract_schema.budget_type
-            existing_contract.budget = contract_schema.budget
+            existing_contract.budget = resolved_budget
             existing_contract.currency = contract_schema.currency
             existing_contract.date_start_work = contract_schema.date_start_work
             existing_contract.date_end_work = contract_schema.date_end_work
@@ -59,6 +74,7 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):  # С
                 notification_type=CONTRACT_UPDATED_NOTIFICATION_TYPE,
                 recipient_id=contract_schema.executor_id,
             )
+            await sync_order_budget_from_deal(db, contract_schema.order_id)
             await db.commit()
             await db.refresh(existing_contract)
             return existing_contract
@@ -73,7 +89,7 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):  # С
             date_start_work=contract_schema.date_start_work,
             date_end_work=contract_schema.date_end_work,
             budget_type=contract_schema.budget_type,
-            budget=contract_schema.budget,
+            budget=resolved_budget,
             currency=contract_schema.currency,
             subscribe_customer=contract_schema.subscribe_customer,
             subscribe_executor=contract_schema.subscribe_executor,
@@ -88,6 +104,7 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):  # С
             notification_type=CONTRACT_UPDATED_NOTIFICATION_TYPE,
             recipient_id=contract_schema.executor_id,
         )
+        await sync_order_budget_from_deal(db, contract_schema.order_id)
         await db.commit()
 
         return contract

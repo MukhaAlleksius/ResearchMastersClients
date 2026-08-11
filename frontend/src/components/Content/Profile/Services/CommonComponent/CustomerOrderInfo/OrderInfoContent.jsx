@@ -1,15 +1,29 @@
 import React from "react";
+import { classifyBudgetType } from "../../../../../../utils/budgetTypes.js";
 import "./customer_order_info.css";
 
 export const formatDateTime = (value) =>
   value ? new Date(value).toLocaleString("ru-RU") : "Не указана";
 
-export const formatBudget = (budget, currency, budgetType) => {
-  if (budget == null || budget === "") return "Не указан";
+export const formatBudget = (budget, currency, _budgetType) => {
+  if (budget == null || budget === "" || Number(budget) <= 0) {
+    return "Сумма неизвестна";
+  }
   const amount = Number(budget).toLocaleString("ru-RU");
-  const parts = [amount, currency || "BYN"].filter(Boolean).join(" ");
-  return budgetType ? `${parts} · ${budgetType}` : parts;
+  return [amount, currency || "BYN"].filter(Boolean).join(" ");
 };
+
+/** Подпись суммы в карточке/инфо заказа. */
+export function orderBudgetLabel(budgetType) {
+  const deal = classifyBudgetType(budgetType);
+  if (deal === "estimate") return "Сметная цена";
+  if (deal === "fixed") {
+    const value = String(budgetType || "").toLowerCase();
+    if (value.includes("фиксир")) return "Фиксированная цена";
+    return "Договорная цена";
+  }
+  return "Сумма";
+}
 
 export const formatLocation = (country, region, town) => {
   const parts = [country, region, town].filter(Boolean);
@@ -25,13 +39,11 @@ export function OrderInfoHighlights({
   currency,
   budget_type,
 }) {
-  const hasBudget = budget != null && budget !== "";
-  if (!hasBudget) return null;
-
+  const label = orderBudgetLabel(budget_type);
   return (
     <div className="order-info__highlights order-info__highlights--strip" aria-label="Ключевые параметры">
       <div className="order-info__highlight">
-        <span className="order-info__highlight-label">Примерная сумма</span>
+        <span className="order-info__highlight-label">{label}</span>
         <span className="order-info__highlight-value">
           {formatBudget(budget, currency, budget_type)}
         </span>
@@ -71,7 +83,6 @@ export function OrderDetailsGrid({ order, embedded = false }) {
     budget,
     currency,
     budget_type,
-    urgency_level,
     country,
     region,
     town,
@@ -84,7 +95,6 @@ export function OrderDetailsGrid({ order, embedded = false }) {
 
   const place = formatLocation(country, region, town);
   const hasPlace = place !== "Не указано" || location;
-  const hasBudgetHighlight = budget != null && budget !== "";
 
   return (
     <div
@@ -108,12 +118,11 @@ export function OrderDetailsGrid({ order, embedded = false }) {
       )}
 
       <DetailSection title="Условия и сроки" variant="conditions">
-        {!hasBudgetHighlight && (
-          <DetailRow label="Примерная сумма">
+        {!embedded && (
+          <DetailRow label={orderBudgetLabel(budget_type)}>
             {formatBudget(budget, currency, budget_type)}
           </DetailRow>
         )}
-        <DetailRow label="Срочность">{urgency_level}</DetailRow>
         <DetailRow label="Срок выполнения">{deadline}</DetailRow>
         <DetailRow label="Страхование">
           {insurance_required ? "Требуется" : "Не требуется"}

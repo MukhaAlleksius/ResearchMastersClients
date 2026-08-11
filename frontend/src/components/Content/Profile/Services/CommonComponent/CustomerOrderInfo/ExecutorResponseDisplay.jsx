@@ -1,4 +1,8 @@
 import React from "react";
+import {
+  isEstimateBudgetType,
+  isFixedBudgetType,
+} from "../../../../../../utils/budgetTypes.js";
 
 export function getExecutorDisplayName(executorName) {
   if (!executorName) return "Исполнитель";
@@ -20,19 +24,27 @@ export default function ExecutorResponseDisplay({
 
   const executorLabel = getExecutorDisplayName(response.executor_name);
   const isCompact = variant === "compact";
-  const priceText = `${response.proposed_price ?? "—"} ${response.currency || "BYN"}`;
+  const isFixed = isFixedBudgetType(response.budget_type);
+  const isEstimate = isEstimateBudgetType(response.budget_type);
+  const priceText = isFixed
+    ? `${response.proposed_price ?? "—"} ${response.currency || "BYN"}`
+    : isEstimate
+      ? "По смете"
+      : response.proposed_price != null
+        ? `${response.proposed_price} ${response.currency || "BYN"}`
+        : "—";
 
   const rows = [
-    {
-      key: "price",
-      label: "Цена",
-      value: priceText,
-      valueClass: "order-info__def--emphasis",
-    },
     {
       key: "budget",
       label: "Тип бюджета",
       value: response.budget_type || "—",
+    },
+    {
+      key: "price",
+      label: isFixed ? "Сумма" : "Стоимость",
+      value: priceText,
+      valueClass: "order-info__def--emphasis",
     },
     {
       key: "time",

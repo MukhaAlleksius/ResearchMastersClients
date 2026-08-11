@@ -2,6 +2,11 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { API, apiFetch, buildApiUrl } from "../../../../../../utils/api.js";
+import {
+  CONTRACT_BUDGET_TYPES,
+  isEstimateBudgetType,
+  isFixedBudgetType,
+} from "../../../../../../utils/budgetTypes.js";
 import "../../../Services/CommonComponent/CustomerExecutorContractOrder/contract_order_executor.css";
 import "../../../Services/CommonComponent/CustomerOrderInfo/customer_order_info.css";
 
@@ -123,11 +128,17 @@ export default function ContractAgreement({
         if (serverContract && Object.keys(serverContract).length > 0) {
           setContractData(serverContract);
 
-          const budgetDisplay = serverContract.budget
-            ? `${Number(serverContract.budget).toLocaleString()} ${
-                serverContract.currency || "BYN"
-              }${serverContract.budget_type ? ` (${serverContract.budget_type})` : ""}`
-            : "Не указана";
+          const isEstimate = String(serverContract.budget_type || "")
+            .toLowerCase()
+            .includes("сметн");
+          const budgetDisplay =
+            serverContract.budget != null && serverContract.budget !== ""
+              ? `${Number(serverContract.budget).toLocaleString()} ${
+                  serverContract.currency || "BYN"
+                }${serverContract.budget_type ? ` (${serverContract.budget_type})` : ""}`
+              : isEstimate
+                ? "По смете"
+                : "Не указана";
 
           setContract({
             title:
@@ -242,18 +253,28 @@ export default function ContractAgreement({
       const snapshot = { ...contract };
 
       let numericPrice = parseInt(snapshot.price.replace(/[^\d]/g, ""), 10) || 0;
+      const estimateBased = isEstimateBudgetType(snapshot.budgetType);
+      const fixedBased = isFixedBudgetType(snapshot.budgetType);
 
-      if (numericPrice > 9999999999) {
+      if (!estimateBased && numericPrice > 9999999999) {
         numericPrice = 9999999999;
         setContract((prev) => ({ ...prev, price: "9 999 999 999 руб." }));
         setError("Сумма ограничена 9 999 999 999");
         return;
       }
 
-      if (numericPrice === 0 && snapshot.price !== "Не указана") {
+      if (fixedBased && numericPrice === 0) {
+        setError("Для договорной цены укажите сумму сделки");
+        return;
+      }
+
+      if (!estimateBased && !fixedBased && numericPrice === 0 && snapshot.price !== "Не указана") {
         setError("Укажите корректную сумму");
         return;
       }
+
+      // Сметная цена: сумму в БД не сохраняем — она определяется сметой
+      const budgetToSave = estimateBased ? null : numericPrice;
 
       const resolvedExecutorId = resolveExecutorId();
       if (!resolvedExecutorId) {
@@ -278,7 +299,7 @@ export default function ContractAgreement({
         name_work: snapshot.subject || "",
         date_start_work: snapshot.workPeriodFrom,
         date_end_work: snapshot.workPeriodTo || "",
-        budget: numericPrice,
+        budget: budgetToSave,
         currency: snapshot.currentCurrency || "BYN",
         budget_type: snapshot.budgetType || null,
         subscribe_customer: snapshot.customerSigned || false,
@@ -298,11 +319,44 @@ export default function ContractAgreement({
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        let detail = errorText;
+        try {
+          const parsed = JSON.parse(errorText);
+          detail = parsed.detail || parsed.message || errorText;
+          if (Array.isArray(detail)) {
+            detail = detail
+              .map((item) => item.msg || JSON.stringify(item))
+              .join("; ");
+          }
+        } catch {
+          /* raw text */
+        }
+        throw new Error(detail || `HTTP ${response.status}`);
       }
 
       const savedContract = await response.json();
       setContractData(savedContract);
+      if (savedContract) {
+        const isEstimate = isEstimateBudgetType(
+          savedContract.budget_type || snapshot.budgetType,
+        );
+        const budgetDisplay =
+          savedContract.budget != null && savedContract.budget !== ""
+            ? `${Number(savedContract.budget).toLocaleString()} ${
+                savedContract.currency || "BYN"
+              }${savedContract.budget_type ? ` (${savedContract.budget_type})` : ""}`
+            : isEstimate
+              ? "По смете"
+              : "Не указана";
+        setContract((prev) => ({
+          ...prev,
+          price: budgetDisplay,
+          budgetType: savedContract.budget_type || prev.budgetType,
+          currentCurrency: savedContract.currency || prev.currentCurrency,
+          customerSigned: Boolean(savedContract.subscribe_customer),
+          contractorSigned: Boolean(savedContract.subscribe_executor),
+        }));
+      }
       onContractUpdated?.();
       setSuccessMessage("Договор сохранён");
     } catch (saveError) {
@@ -347,16 +401,19 @@ export default function ContractAgreement({
   const handleBudgetTypeChange = useCallback(
     (e) => {
       const newBudgetType = e.target.value;
+      const estimateBased = isEstimateBudgetType(newBudgetType);
       const numericPart = contract.price.replace(/[^\d]/g, "");
 
       setContract((prev) => ({
         ...prev,
         budgetType: newBudgetType,
-        price: numericPart
-          ? `${Number(numericPart).toLocaleString()} ${prev.currentCurrency}${
-              newBudgetType ? ` (${newBudgetType})` : ""
-            }`
-          : "Не указана",
+        price: estimateBased
+          ? "По смете"
+          : numericPart
+            ? `${Number(numericPart).toLocaleString()} ${prev.currentCurrency}${
+                newBudgetType ? ` (${newBudgetType})` : ""
+              }`
+            : "Не указана",
       }));
       setError("");
       setSuccessMessage("");
@@ -478,44 +535,85 @@ export default function ContractAgreement({
             </label>
 
             <label className="oi-modal__field">
-              <span className="oi-modal__field-label">Сумма</span>
-              <input
-                type="text"
-                className="oi-modal__input"
-                value={contract.price.replace(/[^\d]/g, "").trim() || ""}
-                onChange={handlePriceChange}
-                placeholder="45000"
-              />
-            </label>
-
-            <label className="oi-modal__field">
-              <span className="oi-modal__field-label">Валюта</span>
-              <select
-                className="oi-modal__select"
-                value={contract.currentCurrency}
-                onChange={handleCurrencyChange}
-              >
-                {currencies.map((currency) => (
-                  <option key={currency.value} value={currency.value}>
-                    {currency.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="oi-modal__field">
-              <span className="oi-modal__field-label">Тип бюджета</span>
+              <span className="oi-modal__field-label">Тип цены</span>
               <select
                 className="oi-modal__select"
                 value={contract.budgetType || ""}
                 onChange={handleBudgetTypeChange}
               >
                 <option value="">Не указан</option>
-                <option value="Фиксированная сумма">Фиксированная сумма</option>
-                <option value="Почасовая оплата">Почасовая оплата</option>
-                <option value="Договорная цена">Договорная цена</option>
+                {CONTRACT_BUDGET_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
               </select>
             </label>
+            {isFixedBudgetType(contract.budgetType) && (
+              <>
+                <label className="oi-modal__field">
+                  <span className="oi-modal__field-label">Сумма</span>
+                  <input
+                    type="text"
+                    className="oi-modal__input"
+                    value={contract.price.replace(/[^\d]/g, "").trim() || ""}
+                    onChange={handlePriceChange}
+                    placeholder="45000"
+                  />
+                </label>
+                <label className="oi-modal__field">
+                  <span className="oi-modal__field-label">Валюта</span>
+                  <select
+                    className="oi-modal__select"
+                    value={contract.currentCurrency}
+                    onChange={handleCurrencyChange}
+                  >
+                    {currencies.map((currency) => (
+                      <option key={currency.value} value={currency.value}>
+                        {currency.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="oi-modal__hint">
+                  Договорная цена сделки — укажите её в поле «Сумма».
+                </p>
+              </>
+            )}
+            {isEstimateBudgetType(contract.budgetType) && (
+              <p className="oi-modal__hint">
+                Цена по смете: сумму в договор не сохраняем — она определится по
+                смете работ.
+              </p>
+            )}
+            {!contract.budgetType && (
+              <>
+                <label className="oi-modal__field">
+                  <span className="oi-modal__field-label">Сумма</span>
+                  <input
+                    type="text"
+                    className="oi-modal__input"
+                    value={contract.price.replace(/[^\d]/g, "").trim() || ""}
+                    onChange={handlePriceChange}
+                    placeholder="45000"
+                  />
+                </label>
+                <label className="oi-modal__field">
+                  <span className="oi-modal__field-label">Валюта</span>
+                  <select
+                    className="oi-modal__select"
+                    value={contract.currentCurrency}
+                    onChange={handleCurrencyChange}
+                  >
+                    {currencies.map((currency) => (
+                      <option key={currency.value} value={currency.value}>
+                        {currency.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
 
             <label className="oi-modal__field">
               <span className="oi-modal__field-label">Срок выполнения с</span>

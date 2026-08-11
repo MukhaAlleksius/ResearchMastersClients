@@ -9,6 +9,10 @@ import DeadlineField, {
 } from "../../../../Common/DeadlineField.jsx";
 import "../AddOrder/add_order_for_draft.css";
 import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+import {
+  isFixedBudgetType,
+  ORDER_BUDGET_TYPES,
+} from "../../../../../../utils/budgetTypes.js";
 
 const ORDER_STATUS = {
   DRAFT: "Не предложенные исполнителям",
@@ -16,8 +20,7 @@ const ORDER_STATUS = {
   SELF: "Самостоятельное выполнение",
 };
 
-const budgetTypes = ["Фиксированная цена", "Почасовая оплата", "Договорная цена"];
-const urgencyLevels = ["Низкий", "Средний", "Высокий"];
+const budgetTypes = ORDER_BUDGET_TYPES;
 
 const customStyles = {
   control: (base, state) => ({
@@ -81,7 +84,6 @@ function normalizeOrder(order) {
     category_work:
       order.category_work || order.category_work_name || order.category || "",
     budget_type: order.budget_type || order.budgetType || "",
-    urgency_level: order.urgency_level || order.urgencyLevel || "",
     created_at: order.created_at || order.createdAt || "",
     updated_at: order.updated_at || order.updatedAt || "",
     status_order_customer:
@@ -136,7 +138,6 @@ function CustomerOrderEditForm({
   const [budget, setBudget] = useState("");
   const currency = "BYN";
   const [budgetType, setBudgetType] = useState("");
-  const [urgencyLevel, setUrgencyLevel] = useState("");
   const [location, setLocation] = useState("");
   const [deadline, setDeadline] = useState("Как можно скорее");
   const [insuranceRequired, setInsuranceRequired] = useState(false);
@@ -252,7 +253,6 @@ function CustomerOrderEditForm({
       order.budget != null && order.budget !== "" ? String(order.budget) : "",
     );
     setBudgetType(order.budget_type || "");
-    setUrgencyLevel(order.urgency_level || "");
     setLocation(order.location || "");
     setDeadline(order.deadline || "Как можно скорее");
     setInsuranceRequired(Boolean(order.insurance_required));
@@ -367,6 +367,13 @@ function CustomerOrderEditForm({
     if (!isValidDeadline(deadline)) {
       return "Выберите точную дату выполнения";
     }
+    if (!budgetType) return "Выберите тип бюджета";
+    if (isFixedBudgetType(budgetType)) {
+      const amount = parseFloat(budget);
+      if (!budget || Number.isNaN(amount) || amount <= 0) {
+        return "Укажите сумму для договорной цены";
+      }
+    }
     return "";
   };
 
@@ -376,10 +383,10 @@ function CustomerOrderEditForm({
     customer_id: Number(localStorage.getItem("user_id")),
     category_work_id: categoryWorkMaster.value,
     category_work: categoryWorkMaster.label,
-    budget: parseFloat(budget) || 0,
+    budget: isFixedBudgetType(budgetType) ? parseFloat(budget) || 0 : 0,
     currency,
     budget_type: budgetType,
-    urgency_level: urgencyLevel,
+    urgency_level: "",
     country: geoCountry.label,
     country_id: geoCountry.value,
     region: geoRegion.label,
@@ -586,71 +593,65 @@ function CustomerOrderEditForm({
           <div className="aod-section__head">
             <span className="aod-section__icon" aria-hidden="true" />
             <h2 id="coi-section-budget" className="aod-section__title">
-              Сумма и срочность
+              Бюджет
             </h2>
           </div>
 
-          <div className="aod-grid-2">
-            <div className="aod-field">
-              <label htmlFor="coi-budget" className="aod-label">
-                Примерная сумма
-              </label>
-              <input
-                type="number"
-                id="coi-budget"
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-                className="aod-input"
-              />
-            </div>
-            <div className="aod-field">
-              <label className="aod-label">Валюта</label>
-              <p className="aod-input aod-input--readonly">BYN</p>
-            </div>
+          <div className="aod-field">
+            <label htmlFor="coi-budget-type" className="aod-label">
+              Тип бюджета <span className="aod-required">*</span>
+            </label>
+            <select
+              id="coi-budget-type"
+              value={budgetType}
+              onChange={(e) => {
+                const nextType = e.target.value;
+                setBudgetType(nextType);
+                if (!isFixedBudgetType(nextType)) {
+                  setBudget("");
+                }
+              }}
+              className="aod-select"
+            >
+              <option value="">Выберите тип бюджета</option>
+              {budgetTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="aod-grid-2">
-            <div className="aod-field">
-              <label htmlFor="coi-budget-type" className="aod-label">
-                Тип бюджета
-              </label>
-              <select
-                id="coi-budget-type"
-                value={budgetType}
-                onChange={(e) => setBudgetType(e.target.value)}
-                className="aod-select"
-              >
-                <option value="">Выберите тип бюджета</option>
-                {budgetTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
+          {isFixedBudgetType(budgetType) ? (
+            <div className="aod-grid-2">
+              <div className="aod-field">
+                <label htmlFor="coi-budget" className="aod-label">
+                  Сумма <span className="aod-required">*</span>
+                </label>
+                <input
+                  type="number"
+                  id="coi-budget"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  className="aod-input"
+                />
+              </div>
+              <div className="aod-field">
+                <label className="aod-label">Валюта</label>
+                <p className="aod-input aod-input--readonly">BYN</p>
+              </div>
             </div>
-            <div className="aod-field">
-              <label htmlFor="coi-urgency" className="aod-label">
-                Уровень срочности
-              </label>
-              <select
-                id="coi-urgency"
-                value={urgencyLevel}
-                onChange={(e) => setUrgencyLevel(e.target.value)}
-                className="aod-select"
-              >
-                <option value="">Выберите уровень срочности</option>
-                {urgencyLevels.map((level) => (
-                  <option key={level} value={level}>
-                    {level}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          ) : budgetType ? (
+            <p className="aod-budget-hint">
+              {budgetType === "Сметная цена"
+                ? "Сумму заранее указывать не нужно — итоговая стоимость будет по смете."
+                : "Сумму указывать не нужно."}
+            </p>
+          ) : null}
         </section>
 
         <section className="aod-section" aria-labelledby="coi-section-geo">
