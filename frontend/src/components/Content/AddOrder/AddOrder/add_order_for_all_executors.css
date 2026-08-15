@@ -110,6 +110,14 @@
   background: #fff;
 }
 
+.order-form-wrapper .select:required:invalid {
+  color: #94a3b8;
+}
+
+.order-form-wrapper .select option {
+  color: #0f172a;
+}
+
 .order-form-wrapper .input--readonly {
   display: flex;
   align-items: center;
@@ -133,12 +141,76 @@
 .order-form-wrapper .grid-3cols {
   display: grid;
   gap: 1rem;
+  align-items: start;
 }
 
 @media (min-width: 768px) {
   .order-form-wrapper .grid-3cols {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+.order-form-wrapper .order-geo-field {
+  min-width: 0;
+  width: 100%;
+}
+
+.order-form-wrapper .order-geo-select__control {
+  min-height: 42px !important;
+  height: 42px !important;
+}
+
+.order-form-wrapper .order-geo-select__value-container {
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+  align-items: center !important;
+  height: 40px !important;
+}
+
+.order-form-wrapper .order-geo-select__single-value {
+  margin: 0 !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.order-form-wrapper .order-geo-select__placeholder {
+  white-space: nowrap !important;
+}
+
+.order-form-wrapper .order-geo-select__input-container {
+  margin: 0 !important;
+  padding: 0 !important;
+  grid-template-columns: 0 min-content !important;
+}
+
+/* Neutralize order.css input[type=text] rules inside any react-select control */
+.order-form-wrapper [class*="-control"] input[type="text"],
+.order-form-wrapper [class*="-Input"] input,
+.order-form-wrapper .order-geo-select__control input,
+.order-form-wrapper .order-geo-select__input,
+.order-form-wrapper .order-geo-select__input input {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+
+.order-form-wrapper [class*="-control"] input[type="text"]:focus,
+.order-form-wrapper .order-geo-select__control input:focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .order-form-wrapper .submit-button {

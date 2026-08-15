@@ -29,11 +29,14 @@ async def add_contract_api(
     db: AsyncSession = Depends(get_db),  # Сессия БД
     current_user: UserCommonSchema = Depends(get_current_user),  # Авторизованный пользователь
 ):
-    if current_user.user_id not in (  # Только заказчик или исполнитель
-        contract_schema.customer_id,
-        contract_schema.executor_id,
-    ):
-        raise HTTPException(status_code=403, detail="Access denied")  # Чужой договор
+    # Договор составляет исполнитель (админ тоже может сохранить при разборе спора)
+    is_executor = current_user.user_id == contract_schema.executor_id
+    is_admin = getattr(current_user, "role", None) in ("admin", "moderator")
+    if not is_executor and not is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Договор может составить только исполнитель",
+        )
     try:
         contract = await add_contract(db=db, contract_schema=contract_schema)  # Создаём в БД
         # Отдаём полный ContractResponse (имена сторон), а не сырой ORM

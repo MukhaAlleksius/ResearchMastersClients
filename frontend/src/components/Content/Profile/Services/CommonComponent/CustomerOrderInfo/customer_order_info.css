@@ -1025,6 +1025,14 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
+.oi-modal__select:required:invalid {
+  color: #94a3b8;
+}
+
+.oi-modal__select option {
+  color: #0f172a;
+}
+
 .oi-modal__footer {
   display: flex;
   gap: 10px;

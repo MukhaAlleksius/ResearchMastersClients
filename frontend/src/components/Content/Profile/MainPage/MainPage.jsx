@@ -528,7 +528,7 @@ export default function MainPage() {
                       <span className="mp-info-item__icon" aria-hidden="true">
                         {contactTypeIcon(contact.name_contact)}
                       </span>
-                      <span>
+                      <span className="mp-info-item__body">
                         <strong>{contact.name_contact}</strong>
                         <br />
                         {contact.contact}

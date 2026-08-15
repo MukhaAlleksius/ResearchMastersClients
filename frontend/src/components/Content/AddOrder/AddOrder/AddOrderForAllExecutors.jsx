@@ -9,8 +9,10 @@ import "./order.css";
 
 import { uiAlert } from "../../../UiDialog/uiDialog.js";
 import {
+  budgetTypeHint,
+  BUDGET_TYPE_OPTIONS,
+  BUDGET_TYPE_PLACEHOLDER,
   isFixedBudgetType,
-  ORDER_BUDGET_TYPES,
 } from "../../../../utils/budgetTypes.js";
 
 export default function AddOrderForAllExecutors({
@@ -316,7 +318,6 @@ export default function AddOrderForAllExecutors({
     setTowns([]);
   };
 
-  const budgetTypes = ORDER_BUDGET_TYPES;
   const showBudgetAmount = isFixedBudgetType(budgetType);
 
   const handleBudgetTypeChange = (value) => {
@@ -466,11 +467,14 @@ export default function AddOrderForAllExecutors({
               value={budgetType}
               onChange={(e) => handleBudgetTypeChange(e.target.value)}
               className="select"
+              required
             >
-              <option value="">Выберите тип бюджета</option>
-              {budgetTypes.map((bt) => (
-                <option key={bt} value={bt}>
-                  {bt}
+              <option value="" disabled hidden>
+                {BUDGET_TYPE_PLACEHOLDER}
+              </option>
+              {BUDGET_TYPE_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -500,20 +504,18 @@ export default function AddOrderForAllExecutors({
               </div>
             </div>
           ) : budgetType ? (
-            <p className="budget-type-hint">
-              {budgetType === "Сметная цена"
-                ? "Сумму заранее указывать не нужно — итоговая стоимость будет по смете."
-                : "Сумму указывать не нужно."}
-            </p>
+            <p className="budget-type-hint">{budgetTypeHint(budgetType)}</p>
           ) : null}
 
           {/* Геолокация */}
-          <div className="grid-3cols">
-            <div className="profile-settings__field" style={{ minWidth: 200 }}>
-              <label className="profile-settings__label">
+          <div className="grid-3cols order-geo-fields">
+            <div className="order-geo-field">
+              <label className="label" htmlFor="order-geo-country">
                 Страна <span className="required">*</span>
               </label>
               <Select
+                inputId="order-geo-country"
+                classNamePrefix="order-geo-select"
                 options={countryOptions}
                 value={geoCountry}
                 onChange={handleSelectCountriesAndAddRegions}
@@ -524,11 +526,13 @@ export default function AddOrderForAllExecutors({
                 noOptionsMessage={() => "Нет стран в справочнике"}
               />
             </div>
-            <div className="profile-settings__field" style={{ minWidth: 200 }}>
-              <label className="profile-settings__label">
+            <div className="order-geo-field">
+              <label className="label" htmlFor="order-geo-region">
                 Область <span className="required">*</span>
               </label>
               <Select
+                inputId="order-geo-region"
+                classNamePrefix="order-geo-select"
                 options={areaOptions}
                 value={geoRegion}
                 onChange={handleSelectRegionsAndAddTowns}
@@ -543,11 +547,13 @@ export default function AddOrderForAllExecutors({
                 }
               />
             </div>
-            <div className="profile-settings__field" style={{ minWidth: 200 }}>
-              <label className="profile-settings__label">
+            <div className="order-geo-field">
+              <label className="label" htmlFor="order-geo-town">
                 Город <span className="required">*</span>
               </label>
               <Select
+                inputId="order-geo-town"
+                classNamePrefix="order-geo-select"
                 options={townOptions}
                 value={geoTown}
                 onChange={setGeoTown}
@@ -556,7 +562,7 @@ export default function AddOrderForAllExecutors({
                 placeholder="Выберите город"
                 noOptionsMessage={() =>
                   !geoRegion
-                    ? "Выберите город"
+                    ? "Сначала выберите область"
                     : "Нет городов для выбранной области"
                 }
                 isDisabled={!geoRegion}
@@ -619,39 +625,76 @@ export default function AddOrderForAllExecutors({
 }
 
 const customStyles = {
-  control: (base) => ({
+  control: (base, state) => ({
     ...base,
-    minHeight: 40,
-    height: 40,
-    borderRadius: 6,
-    borderColor: "#e2e8f0",
-    fontSize: 16, // Шрифты внутри полей тоже чуть меньше
-    padding: "0 4px",
+    minHeight: 42,
+    height: 42,
+    borderRadius: 10,
+    borderColor: state.isFocused ? "#2563eb" : "#e2e8f0",
+    boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : "none",
+    backgroundColor: "#f8fafc",
+    fontSize: "0.9375rem",
+    alignItems: "center",
+    flexWrap: "nowrap",
+    "&:hover": { borderColor: "#94a3b8" },
   }),
   dropdownIndicator: (base) => ({
     ...base,
-    padding: 4,
+    padding: "0 8px",
   }),
   clearIndicator: (base) => ({
     ...base,
-    padding: 4,
+    padding: "0 4px",
+  }),
+  indicatorsContainer: (base) => ({
+    ...base,
+    height: 40,
+    alignSelf: "center",
   }),
   valueContainer: (base) => ({
     ...base,
-    padding: "0 6px",
-    height: 32,
-    display: "flex",
+    padding: "0 10px",
+    height: 40,
+    flexWrap: "nowrap",
     alignItems: "center",
+    overflow: "hidden",
   }),
   input: (base) => ({
     ...base,
     margin: 0,
     padding: 0,
   }),
+  singleValue: (base) => ({
+    ...base,
+    margin: 0,
+    padding: 0,
+    maxWidth: "calc(100% - 8px)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  }),
+  placeholder: (base) => ({
+    ...base,
+    margin: 0,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  }),
+  indicatorSeparator: () => ({ display: "none" }),
+  menu: (base) => ({
+    ...base,
+    borderRadius: 10,
+    overflow: "hidden",
+    boxShadow: "0 10px 28px rgba(15, 23, 42, 0.12)",
+    zIndex: 50,
+  }),
   option: (base, state) => ({
     ...base,
-    backgroundColor: state.isFocused ? "#f0f0f0" : "white",
-    color: "black",
+    backgroundColor: state.isFocused ? "#eff6ff" : "white",
+    color: "#0f172a",
     cursor: "pointer",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   }),
 };

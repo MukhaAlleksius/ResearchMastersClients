@@ -66,6 +66,26 @@ export function findOptionByLabel(options, label) {
   );
 }
 
+/**
+ * Регион-город (напр. «г. Минск»): населённый пункт фиксирован справочником,
+ * свободный ввод города запрещён.
+ */
+export function isCityAsRegion(regionLabel) {
+  const label = String(regionLabel || "").trim().toLowerCase();
+  if (!label) return false;
+  return (
+    /^г\.\s*/.test(label) ||
+    /^город\s+/.test(label) ||
+    label === "минск" ||
+    label === "г минск"
+  );
+}
+
+/** Можно ли создавать новый город в выбранном регионе. */
+export function canCreateTownInRegion(regionLabel) {
+  return Boolean(regionLabel) && !isCityAsRegion(regionLabel);
+}
+
 export async function fetchCountriesList() {
   const response = await apiFetch(`${API.baseURL}/countries`);
   if (!response.ok) throw new Error("Не удалось загрузить список стран");

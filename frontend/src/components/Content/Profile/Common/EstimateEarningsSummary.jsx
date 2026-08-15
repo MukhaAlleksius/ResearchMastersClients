@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { API, apiFetch, buildApiUrl } from "../../../../utils/api.js";
 import { classifyBudgetType } from "../../../../utils/budgetTypes.js";
-import { formatMoney } from "../../../../utils/currency.js";
+import {
+  convertAmountWithRates,
+  fetchNbrbRates,
+  formatMoney,
+  normalizeCurrencyCode,
+} from "../../../../utils/currency.js";
 import { resolveEstimateCurrency } from "../../../../utils/estimateStorage.js";
 import "./estimate_earnings_summary.css";
 
@@ -44,6 +49,18 @@ function parseAmount(value) {
 function formatBudgetLine(amount, currency) {
   if (amount == null) return "Сумма неизвестна";
   return formatMoney(amount, currency);
+}
+
+function toBynAmount(amount, currency, rates) {
+  if (amount == null) return null;
+  const code = normalizeCurrencyCode(currency || "BYN");
+  if (code === "BYN") return amount;
+  if (!rates) return amount;
+  try {
+    return convertAmountWithRates(amount, code, "BYN", rates);
+  } catch {
+    return amount;
+  }
 }
 
 /**
@@ -294,6 +311,22 @@ export function EstimateEarningsMeta({
     orderCurrency,
   });
 
+  const [rates, setRates] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchNbrbRates()
+      .then((data) => {
+        if (!cancelled) setRates(data);
+      })
+      .catch(() => {
+        if (!cancelled) setRates(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId, estimateCurrency, customerCurrency, executorCurrency, contractCurrency]);
+
   if (!orderId) return null;
   if (
     loading &&
@@ -313,32 +346,34 @@ export function EstimateEarningsMeta({
     <>
       <MetaBudgetLine
         label="Бюджет от заказчика"
-        amount={customerAmount}
-        currency={customerCurrency}
+        amount={toBynAmount(customerAmount, customerCurrency, rates)}
+        currency="BYN"
         emphasize={budgetSource === "customer"}
       />
       <MetaBudgetLine
         label="Бюджет от исполнителя"
-        amount={executorAmount}
-        currency={executorCurrency}
+        amount={toBynAmount(executorAmount, executorCurrency, rates)}
+        currency="BYN"
         emphasize={budgetSource === "executor"}
       />
       <MetaBudgetLine
         label="Договорная цена"
-        amount={contractAmount}
-        currency={contractCurrency}
+        amount={toBynAmount(contractAmount, contractCurrency, rates)}
+        currency="BYN"
         emphasize={budgetSource === "contract"}
       />
       <MetaBudgetLine
         label="Сметная цена"
-        amount={estimateAmount}
-        currency={estimateCurrency}
+        amount={toBynAmount(estimateAmount, estimateCurrency, rates)}
+        currency="BYN"
         emphasize={budgetSource === "estimate"}
       />
       {hasWorks && (
         <span className="estimate-earnings-meta estimate-earnings-meta--done">
           Уже сделано:{" "}
-          <strong>{formatMoney(doneEarnings, estimateCurrency)}</strong>
+          <strong>
+            {formatMoney(toBynAmount(doneEarnings, estimateCurrency, rates), "BYN")}
+          </strong>
         </span>
       )}
     </>
@@ -396,6 +431,22 @@ export default function EstimateEarningsSummary({
     orderCurrency,
   });
 
+  const [rates, setRates] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchNbrbRates()
+      .then((data) => {
+        if (!cancelled) setRates(data);
+      })
+      .catch(() => {
+        if (!cancelled) setRates(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId, estimateCurrency, customerCurrency, executorCurrency, contractCurrency]);
+
   if (!orderId) return null;
 
   const stillLoading =
@@ -417,29 +468,29 @@ export default function EstimateEarningsSummary({
         <div className="estimate-earnings-summary__grid">
           <SummaryBudgetItem
             label="Бюджет от заказчика"
-            amount={customerAmount}
-            currency={customerCurrency}
+            amount={toBynAmount(customerAmount, customerCurrency, rates)}
+            currency="BYN"
           />
           <SummaryBudgetItem
             label="Бюджет от исполнителя"
-            amount={executorAmount}
-            currency={executorCurrency}
+            amount={toBynAmount(executorAmount, executorCurrency, rates)}
+            currency="BYN"
           />
           <SummaryBudgetItem
             label="Договорная цена"
-            amount={contractAmount}
-            currency={contractCurrency}
+            amount={toBynAmount(contractAmount, contractCurrency, rates)}
+            currency="BYN"
           />
           <SummaryBudgetItem
             label="Сметная цена"
-            amount={estimateAmount}
-            currency={estimateCurrency}
+            amount={toBynAmount(estimateAmount, estimateCurrency, rates)}
+            currency="BYN"
           />
           {hasWorks && (
             <SummaryBudgetItem
               label="Уже сделано"
-              amount={doneEarnings}
-              currency={estimateCurrency}
+              amount={toBynAmount(doneEarnings, estimateCurrency, rates)}
+              currency="BYN"
               done
             />
           )}

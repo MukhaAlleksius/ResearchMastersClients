@@ -292,8 +292,8 @@ const FIELD_LABELS_RU = {
 
 function humanizeValidationMsg(msg = "") {
   const text = String(msg);
-  if (/at least 6 characters/i.test(text) || /min_length.*6/i.test(text)) {
-    return "минимум 6 символов";
+  if (/at least 8 characters/i.test(text) || /min_length.*8/i.test(text)) {
+    return "от 8 до 128 символов";
   }
   if (/at most|max_length/i.test(text)) {
     return "слишком длинное значение";
@@ -321,7 +321,7 @@ export function formatApiDetail(detail, fallback = "Ошибка запроса"
 
   const parts = detail.map((item) => {
     const rawMsg = String(item?.msg || item?.message || "").trim();
-    // Backend may already return "Пароль: минимум 6 символов"
+    // Backend may already return "Пароль: от 8 до 128 символов"
     if (rawMsg.includes(": ")) return rawMsg;
 
     const loc = Array.isArray(item?.loc)

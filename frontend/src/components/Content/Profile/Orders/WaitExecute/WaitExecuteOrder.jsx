@@ -184,6 +184,7 @@ export default function WaitExecuteOrder({
 
       {activeTab === "customerExecutorContract" && (
         <ContractAgreement
+          role="customer"
           order={currentOrder}
           order_response_executor={orderResponseExecutor}
           executor_id={resolvedExecutorId}

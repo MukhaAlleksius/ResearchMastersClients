@@ -72,6 +72,7 @@ class GraphicWorksSchema(BaseModel):
     quantity: float
     unit_measurement: str = Field(..., max_length=100)
     cost_unit: Optional[float] = None
+    note: Optional[str] = Field(None, max_length=2000)
 
     # Union[str, date] означает: Pydantic примет и строку, и объект даты.
     # Это решает конфликт, когда бэкенд отдает объект date, а схема ждала строку.
@@ -94,6 +95,14 @@ class GraphicWorksSchema(BaseModel):
             except ValueError:
                 raise ValueError("Дата должна быть в формате YYYY-MM-DD")
         return v
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def empty_note_to_none(cls, v):
+        if v is None:
+            return None
+        text = str(v).strip()
+        return text or None
 
     # ConfigDict(from_attributes=True) позволяет Pydantic читать данные из ORM-моделей
     # (SQLAlchemy). Без этого он не смог бы "достать" данные из объекта БД.

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { API, apiFetch, buildApiUrl } from "../../../../utils/api.js";
+import { API, apiFetch, buildApiUrl, formatApiDetail } from "../../../../utils/api.js";
 import CreatableSelect from "react-select/creatable";
 import Select from "react-select";
 import ModalShowContacts from "./ModalShowContacts";
@@ -11,12 +11,26 @@ import {
   IconMap,
   IconDoc,
 } from "../ProfileIcons.jsx";
-import { createTownByUser } from "../../../../utils/geographyApi.js";
+import {
+  canCreateTownInRegion,
+  createTownByUser,
+  isCityAsRegion,
+} from "../../../../utils/geographyApi.js";
 import {
   normalizeTownName,
   validateTownName,
 } from "../../../../utils/townNameValidation.js";
 import { uiAlert, uiWarn } from "../../../UiDialog/uiDialog.js";
+import {
+  CONTACT_TYPES,
+  contactAutoComplete,
+  contactInputMode,
+  contactPlaceholder,
+  isContactDraftFilled,
+  maskContactValue,
+  normalizeContactForSave,
+  validateContact,
+} from "../../../../utils/contactMasks.js";
 import "./profile_settings.css";
 const selectMenuProps = {
   menuPortalTarget: document.body,
@@ -37,7 +51,9 @@ export default function ProfileSettings() {
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [location, setLocation] = useState("");
   const [contactType, setContactType] = useState("Телефон");
-  const [contactValue, setContactValue] = useState("");
+  const [contactValue, setContactValue] = useState(() =>
+    maskContactValue("Телефон", ""),
+  );
   const [showContactsModal, setShowContactsModal] = useState(false);
   const [showGeoModal, setShowGeoModal] = useState(false);
   const [bio, setBio] = useState("");
@@ -84,19 +100,6 @@ export default function ProfileSettings() {
     operating_mode: operatingMode || null,
   };
 
-  const userContactsData = {
-    user_id: localStorage.getItem("user_id"),
-    name_contact: contactType ? contactType.toString() : null,
-    contact: contactValue ? contactValue.toString() : null,
-  };
-
-  const userGeographyOrderData = {
-    user_id: localStorage.getItem("user_id"),
-    country: geoCountryOrder ? geoCountryOrder.label : null,
-    region: geoRegionOrder ? geoRegionOrder.label : null,
-    town: geoTownOrder ? geoTownOrder.label : null,
-  };
-
   // Обработчик выбора страны с динамической загрузкой регионов
   const handleSelectCountriesAndAddRegions = async (selectedOption) => {
     setGeoCountry(selectedOption);
@@ -116,7 +119,14 @@ export default function ProfileSettings() {
     setGeoRegion(selectedOption);
     setGeoTown(null);
     if (selectedOption) {
-      await fetchTownsRegion(selectedOption.value);
+      const loadedTowns = await fetchTownsRegion(selectedOption.value);
+      if (
+        isCityAsRegion(selectedOption.label) &&
+        Array.isArray(loadedTowns) &&
+        loadedTowns.length === 1
+      ) {
+        setGeoTown(loadedTowns[0]);
+      }
     } else {
       setTowns([]);
     }
@@ -141,7 +151,14 @@ export default function ProfileSettings() {
     setGeoRegionOrder(selectedOption);
     setGeoTownOrder(null);
     if (selectedOption) {
-      await fetchTownsRegionForOrders(selectedOption.value);
+      const loadedTowns = await fetchTownsRegionForOrders(selectedOption.value);
+      if (
+        isCityAsRegion(selectedOption.label) &&
+        Array.isArray(loadedTowns) &&
+        loadedTowns.length === 1
+      ) {
+        setGeoTownOrder(loadedTowns[0]);
+      }
     } else {
       setTownsOrders([]);
     }
@@ -149,6 +166,12 @@ export default function ProfileSettings() {
 
   /** Создать город в справочнике (адрес профиля), если его нет в списке. */
   const handleCreateTown = async (inputValue) => {
+    if (!canCreateTownInRegion(geoRegion?.label)) {
+      await uiWarn(
+        "Для выбранного региона город задаётся только из справочника",
+      );
+      return;
+    }
     const name = normalizeTownName(inputValue);
     const nameError = validateTownName(name);
     if (nameError) {
@@ -175,6 +198,12 @@ export default function ProfileSettings() {
 
   /** Создать город в справочнике (география работ), если его нет в списке. */
   const handleCreateTownForOrders = async (inputValue) => {
+    if (!canCreateTownInRegion(geoRegionOrder?.label)) {
+      await uiWarn(
+        "Для выбранного региона город задаётся только из справочника",
+      );
+      return;
+    }
     const name = normalizeTownName(inputValue);
     const nameError = validateTownName(name);
     if (nameError) {
@@ -332,8 +361,8 @@ export default function ProfileSettings() {
   // Загрузка городов в список для выбора города при установке географии производства работ пользователя
   const fetchTownsRegionForOrders = async (regionId) => {
     if (!regionId) {
-      setTowns([]);
-      return;
+      setTownsOrders([]);
+      return [];
     }
     try {
       const response_towns = await apiFetch(
@@ -348,9 +377,11 @@ export default function ProfileSettings() {
       }));
 
       setTownsOrders(formattedTowns);
+      return formattedTowns;
     } catch (error) {
-      setTowns([]);
+      setTownsOrders([]);
       console.log("Ошибка: ", error);
+      return [];
     }
   };
 
@@ -529,46 +560,97 @@ export default function ProfileSettings() {
     }
   };
 
+  const handleContactTypeChange = (type) => {
+    setContactType(type);
+    setContactValue(maskContactValue(type, ""));
+  };
+
+  const handleContactValueChange = (raw) => {
+    setContactValue(maskContactValue(contactType, raw));
+  };
+
   const addContact = async (e) => {
     e.preventDefault();
+    if (!isContactDraftFilled(contactType, contactValue)) {
+      await uiWarn("Заполните поле контакта");
+      return;
+    }
+
+    const error = validateContact(contactType, contactValue);
+    if (error) {
+      await uiWarn(error);
+      return;
+    }
+
+    const payload = {
+      user_id: localStorage.getItem("user_id"),
+      name_contact: contactType,
+      contact: normalizeContactForSave(contactType, contactValue),
+    };
+
     try {
       const response = await apiFetch(buildApiUrl("/add_user_contact"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(userContactsData),
+        body: JSON.stringify(payload),
       });
-
-      console.log("Отправляем на скрвер: ", userContactsData.contact);
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Ошибка добавления географии заказа:", errorData);
-        throw new Error("Ошибка добавления географии заказа");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          formatApiDetail(errorData.detail, "Не удалось добавить контакт"),
+        );
       }
+      setContactType("Телефон");
+      setContactValue(maskContactValue("Телефон", ""));
+      await uiAlert("Контакт добавлен");
     } catch (error) {
-      console.error("Ошибка: ", error);
+      console.error("Ошибка:", error);
+      await uiWarn(error.message || "Не удалось добавить контакт");
     }
   };
 
   const addGeoExecuteOrder = async (e) => {
     e.preventDefault();
+    if (!geoCountryOrder || !geoRegionOrder || !geoTownOrder) {
+      await uiWarn("Выберите страну, регион и город (населённый пункт)");
+      return;
+    }
+
+    const townName = geoTownOrder.label;
+    const payload = {
+      user_id: localStorage.getItem("user_id"),
+      country: geoCountryOrder.label,
+      region: geoRegionOrder.label,
+      town: townName,
+    };
+
     try {
       const response = await apiFetch(
         buildApiUrl("/add_user_geography_execute_order"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(userGeographyOrderData),
+          body: JSON.stringify(payload),
         },
       );
 
-      console.log("Отправляем на скрвер: ", userGeographyOrderData.country);
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Ошибка добавления географии заказа:", errorData);
-        throw new Error("Ошибка добавления географии заказа");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          formatApiDetail(
+            errorData.detail,
+            "Не удалось добавить город в географию работ",
+          ),
+        );
       }
+
+      await uiAlert(
+        `Город (населённый пункт) «${townName}» добавлен в географию работ`,
+        { title: "География работ", variant: "success" },
+      );
     } catch (error) {
-      console.error("Ошибка: ", error);
+      console.error("Ошибка:", error);
+      await uiWarn(error.message || "Не удалось добавить город в географию работ");
     }
   };
 
@@ -717,34 +799,57 @@ export default function ProfileSettings() {
               </div>
               <div className="ps-select-wrap">
                 <span className="ps-label">Город</span>
-                <CreatableSelect
-                  {...selectMenuProps}
-                  options={townOptions}
-                  value={geoTown}
-                  onChange={setGeoTown}
-                  onCreateOption={handleCreateTown}
-                  isValidNewOption={(inputValue) =>
-                    Boolean(geoRegion) && Boolean(normalizeTownName(inputValue))
-                  }
-                  formatCreateLabel={(inputValue) =>
-                    `Добавить город «${normalizeTownName(inputValue)}»`
-                  }
-                  isClearable
-                  styles={selectStyles}
-                  placeholder={
-                    geoRegion
-                      ? "Выберите или введите город"
-                      : "Сначала выберите область"
-                  }
-                  isDisabled={!geoRegion}
-                  noOptionsMessage={({ inputValue }) =>
-                    !geoRegion
-                      ? "Сначала выберите область"
-                      : inputValue
-                        ? "Нет совпадений — можно добавить свой город"
-                        : "Нет городов — можно ввести свой"
-                  }
-                />
+                {isCityAsRegion(geoRegion?.label) ? (
+                  <Select
+                    {...selectMenuProps}
+                    options={townOptions}
+                    value={geoTown}
+                    onChange={setGeoTown}
+                    isClearable
+                    styles={selectStyles}
+                    placeholder={
+                      geoRegion
+                        ? "Выберите город"
+                        : "Сначала выберите область"
+                    }
+                    isDisabled={!geoRegion}
+                    noOptionsMessage={() =>
+                      !geoRegion
+                        ? "Сначала выберите область"
+                        : "Нет городов в справочнике"
+                    }
+                  />
+                ) : (
+                  <CreatableSelect
+                    {...selectMenuProps}
+                    options={townOptions}
+                    value={geoTown}
+                    onChange={setGeoTown}
+                    onCreateOption={handleCreateTown}
+                    isValidNewOption={(inputValue) =>
+                      canCreateTownInRegion(geoRegion?.label) &&
+                      Boolean(normalizeTownName(inputValue))
+                    }
+                    formatCreateLabel={(inputValue) =>
+                      `Добавить город «${normalizeTownName(inputValue)}»`
+                    }
+                    isClearable
+                    styles={selectStyles}
+                    placeholder={
+                      geoRegion
+                        ? "Выберите или введите город"
+                        : "Сначала выберите область"
+                    }
+                    isDisabled={!geoRegion}
+                    noOptionsMessage={({ inputValue }) =>
+                      !geoRegion
+                        ? "Сначала выберите область"
+                        : inputValue
+                          ? "Нет совпадений — можно добавить свой город"
+                          : "Нет городов — можно ввести свой"
+                    }
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -863,22 +968,26 @@ export default function ProfileSettings() {
             <div className="ps-contact-row">
               <select
                 value={contactType}
-                onChange={(e) => setContactType(e.target.value)}
+                onChange={(e) => handleContactTypeChange(e.target.value)}
                 className="ps-select"
                 aria-label="Тип контакта"
               >
-                <option>Телефон</option>
-                <option>Сайт</option>
-                <option>Телеграм</option>
-                <option>WhatsApp</option>
-                <option>Другой</option>
+                {CONTACT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
               </select>
               <input
                 type="text"
-                placeholder="Введите контакт"
+                inputMode={contactInputMode(contactType)}
+                autoComplete={contactAutoComplete(contactType)}
+                placeholder={contactPlaceholder(contactType)}
                 value={contactValue}
-                onChange={(e) => setContactValue(e.target.value)}
+                onChange={(e) => handleContactValueChange(e.target.value)}
                 className="ps-input"
+                maxLength={100}
+                aria-label="Значение контакта"
               />
             </div>
             <div className="ps-actions ps-actions--inline">
@@ -949,35 +1058,57 @@ export default function ProfileSettings() {
               </div>
               <div className="ps-select-wrap">
                 <span className="ps-label">Город</span>
-                <CreatableSelect
-                  {...selectMenuProps}
-                  isClearable
-                  options={townOrderOptions}
-                  value={geoTownOrder}
-                  onChange={(newValue) => setGeoTownOrder(newValue)}
-                  onCreateOption={handleCreateTownForOrders}
-                  isValidNewOption={(inputValue) =>
-                    Boolean(geoRegionOrder) &&
-                    Boolean(normalizeTownName(inputValue))
-                  }
-                  formatCreateLabel={(inputValue) =>
-                    `Добавить город «${normalizeTownName(inputValue)}»`
-                  }
-                  placeholder={
-                    geoRegionOrder
-                      ? "Выберите или введите город"
-                      : "Сначала выберите область"
-                  }
-                  isDisabled={!geoRegionOrder}
-                  noOptionsMessage={({ inputValue }) =>
-                    !geoRegionOrder
-                      ? "Сначала выберите область"
-                      : inputValue
-                        ? "Нет совпадений — можно добавить свой город"
-                        : "Нет городов — можно ввести свой"
-                  }
-                  styles={selectStyles}
-                />
+                {isCityAsRegion(geoRegionOrder?.label) ? (
+                  <Select
+                    {...selectMenuProps}
+                    isClearable
+                    options={townOrderOptions}
+                    value={geoTownOrder}
+                    onChange={(newValue) => setGeoTownOrder(newValue)}
+                    placeholder={
+                      geoRegionOrder
+                        ? "Выберите город"
+                        : "Сначала выберите область"
+                    }
+                    isDisabled={!geoRegionOrder}
+                    noOptionsMessage={() =>
+                      !geoRegionOrder
+                        ? "Сначала выберите область"
+                        : "Нет городов в справочнике"
+                    }
+                    styles={selectStyles}
+                  />
+                ) : (
+                  <CreatableSelect
+                    {...selectMenuProps}
+                    isClearable
+                    options={townOrderOptions}
+                    value={geoTownOrder}
+                    onChange={(newValue) => setGeoTownOrder(newValue)}
+                    onCreateOption={handleCreateTownForOrders}
+                    isValidNewOption={(inputValue) =>
+                      canCreateTownInRegion(geoRegionOrder?.label) &&
+                      Boolean(normalizeTownName(inputValue))
+                    }
+                    formatCreateLabel={(inputValue) =>
+                      `Добавить город «${normalizeTownName(inputValue)}»`
+                    }
+                    placeholder={
+                      geoRegionOrder
+                        ? "Выберите или введите город"
+                        : "Сначала выберите область"
+                    }
+                    isDisabled={!geoRegionOrder}
+                    noOptionsMessage={({ inputValue }) =>
+                      !geoRegionOrder
+                        ? "Сначала выберите область"
+                        : inputValue
+                          ? "Нет совпадений — можно добавить свой город"
+                          : "Нет городов — можно ввести свой"
+                    }
+                    styles={selectStyles}
+                  />
+                )}
               </div>
             </div>
             <div className="ps-actions ps-actions--inline">

@@ -1,10 +1,12 @@
+from decimal import Decimal  # Сравнение количества сметы и графика
+
 from fastapi import HTTPException  # HTTP-ошибки
 from cruds.notifications_crud import (  # Уведомления об изменении сметы/графика
     ESTIMATE_UPDATED_NOTIFICATION_TYPE,
     SCHEDULE_UPDATED_NOTIFICATION_TYPE,
     notify_order_event_safe,
 )
-from sqlalchemy import delete, select  # DELETE и SELECT
+from sqlalchemy import delete, func, select  # DELETE, SELECT и агрегаты
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
 from models.estimate_graphic_works_models import GraphicWork, WorkEstimate  # Смета и график
@@ -76,19 +78,57 @@ async def delete_work_from_estimate_for_order(
 ):
     try:
         result = await db.execute(
-            delete(WorkEstimate)
-            .where(
+            select(WorkEstimate).where(
                 WorkEstimate.user_id == user_id,
                 WorkEstimate.order_id == order_id,
                 WorkEstimate.id == work_estimate_id,
             )
-            .returning(WorkEstimate.id)  # Проверка, что строка удалена
         )
-        deleted_work_estimate = result.scalar_one_or_none()
+        work_estimate = result.scalar_one_or_none()
 
-        if deleted_work_estimate is None:
+        if work_estimate is None:
             raise HTTPException(status_code=404, detail="Запись не найдена")
 
+        graphic_qty_result = await db.execute(
+            select(func.coalesce(func.sum(GraphicWork.quantity), 0)).where(
+                GraphicWork.name_work == work_estimate.name_work,
+                GraphicWork.user_id == user_id,
+                GraphicWork.order_id == order_id,
+            )
+        )
+        graphic_qty = Decimal(str(graphic_qty_result.scalar_one() or 0))
+
+        # Работа из графика не удаляется: в смете можно снять только лишний объём.
+        if graphic_qty > 0:
+            estimate_qty = Decimal(str(work_estimate.quantity or 0))
+            if estimate_qty > graphic_qty:
+                work_estimate.quantity = graphic_qty
+                await notify_order_event_safe(
+                    db,
+                    order_id=order_id,
+                    actor_user_id=user_id,
+                    notification_type=ESTIMATE_UPDATED_NOTIFICATION_TYPE,
+                )
+                await _sync_budget_after_estimate(db, order_id)
+                await db.commit()
+                return {
+                    "detail": (
+                        "Работа не удалена: она есть в графике работ. "
+                        f"Количество уменьшено до {graphic_qty}."
+                    ),
+                    "deleted": False,
+                    "quantity": float(graphic_qty),
+                }
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Нельзя удалить работу: она есть в графике работ. "
+                    f"Можно уменьшить количество только до объёма из графика: {graphic_qty}."
+                ),
+            )
+
+        await db.delete(work_estimate)
         await notify_order_event_safe(
             db,
             order_id=order_id,
@@ -98,12 +138,12 @@ async def delete_work_from_estimate_for_order(
         await _sync_budget_after_estimate(db, order_id)
         await db.commit()
 
-        return {"detail": "Работа успешно удалена"}
+        return {"detail": "Работа успешно удалена", "deleted": True}
 
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 

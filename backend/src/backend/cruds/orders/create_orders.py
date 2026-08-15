@@ -220,39 +220,6 @@ async def _notify_executor_on_status_change(  # Обёртка уведомле�
     )  # Закрытие вызова/выражения
 
 
-async def _assert_contract_fully_signed_for_in_progress(
-    db: AsyncSession,
-    *,
-    order_id: int,
-    new_status: str,
-) -> None:
-    """Нельзя перевести заказ «В процессе», пока договор не подписан обеими сторонами."""
-    if not is_in_progress_status(new_status):
-        return
-
-    contract = await db.scalar(
-        select(Contract).where(Contract.order_id == order_id)
-    )
-    if not contract:
-        raise HTTPException(
-            status_code=409,
-            detail="Нельзя начать выполнение: договор ещё не составлен",
-        )
-    if not contract.subscribe_customer or not contract.subscribe_executor:
-        missing = []
-        if not contract.subscribe_customer:
-            missing.append("заказчиком")
-        if not contract.subscribe_executor:
-            missing.append("исполнителем")
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "Нельзя начать выполнение: договор не подписан "
-                + " и ".join(missing)
-            ),
-        )
-
-
 async def _sync_customer_status_for_executor_progress(  # Синхрон статуса заказчика с исполнителем
     db: AsyncSession,  # Продолжение выражения
     *,  # Продолжение выражения
@@ -491,12 +458,6 @@ async def add_status_order_customer(  # Статус заказа для зак�
             f"Создание статуса: order_id={status_order_customer_schema.order_id}, customer_id={status_order_customer_schema.customer_id}"  # Данные заказа
         )  # Закрытие вызова/выражения
 
-        await _assert_contract_fully_signed_for_in_progress(
-            db,
-            order_id=status_order_customer_schema.order_id,
-            new_status=status_order_customer_schema.status,
-        )
-
         result = await db.execute(  # Ищем существующий статус
             select(StatusOrderCustomer).where(  # SQL SELECT
                 StatusOrderCustomer.order_id == status_order_customer_schema.order_id,  # ID заказа
@@ -594,12 +555,6 @@ async def add_status_order_executor(  # Статус заказа для исп�
             order_id=status_order_executor_schema.order_id,  # ID заказа
             executor_id=status_order_executor_schema.executor_id,  # ID исполнителя
         )  # Закрытие вызова/выражения
-
-        await _assert_contract_fully_signed_for_in_progress(
-            db,
-            order_id=status_order_executor_schema.order_id,
-            new_status=status_order_executor_schema.status,
-        )
 
         if status_order_executor_schema.status == CUSTOMER_OFFER_STATUS:  # Предложение заказчиком
             if await is_executor_blocked_from_customer_reoffer(  # Повтор после отказа

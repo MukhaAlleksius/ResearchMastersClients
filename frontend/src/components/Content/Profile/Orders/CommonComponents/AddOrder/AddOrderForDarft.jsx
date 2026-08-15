@@ -9,8 +9,10 @@ import "./add_order_for_draft.css";
 
 import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
 import {
+  budgetTypeHint,
+  BUDGET_TYPE_OPTIONS,
+  BUDGET_TYPE_PLACEHOLDER,
   isFixedBudgetType,
-  ORDER_BUDGET_TYPES,
 } from "../../../../../../utils/budgetTypes.js";
 
 // сохранение заказа в черновик
@@ -300,7 +302,6 @@ export default function AddOrderForDraft({ onSuccess }) {
     setTowns([]);
   };
 
-  const budgetTypes = ORDER_BUDGET_TYPES;
   const showBudgetAmount = isFixedBudgetType(budgetType);
 
   const handleBudgetTypeChange = (value) => {
@@ -435,11 +436,14 @@ export default function AddOrderForDraft({ onSuccess }) {
               value={budgetType}
               onChange={(e) => handleBudgetTypeChange(e.target.value)}
               className="aod-select"
+              required
             >
-              <option value="">Выберите тип бюджета</option>
-              {budgetTypes.map((bt) => (
-                <option key={bt} value={bt}>
-                  {bt}
+              <option value="" disabled hidden>
+                {BUDGET_TYPE_PLACEHOLDER}
+              </option>
+              {BUDGET_TYPE_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -469,11 +473,7 @@ export default function AddOrderForDraft({ onSuccess }) {
               </div>
             </div>
           ) : budgetType ? (
-            <p className="aod-budget-hint">
-              {budgetType === "Сметная цена"
-                ? "Сумму заранее указывать не нужно — итоговая стоимость будет по смете."
-                : "Сумму указывать не нужно."}
-            </p>
+            <p className="aod-budget-hint">{budgetTypeHint(budgetType)}</p>
           ) : null}
         </section>
 
@@ -609,6 +609,7 @@ const customStyles = {
   control: (base, state) => ({
     ...base,
     minHeight: 42,
+    height: 42,
     borderRadius: 10,
     borderColor: state.isFocused ? "#2563eb" : "#e2e8f0",
     boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : "none",
@@ -618,16 +619,35 @@ const customStyles = {
   }),
   valueContainer: (base) => ({
     ...base,
-    padding: "2px 10px",
+    padding: "0 10px",
+    height: 40,
+    flexWrap: "nowrap",
+    overflow: "hidden",
+    alignItems: "center",
+  }),
+  indicatorsContainer: (base) => ({
+    ...base,
+    height: 40,
   }),
   input: (base) => ({
     ...base,
     margin: 0,
     padding: 0,
   }),
+  singleValue: (base) => ({
+    ...base,
+    margin: 0,
+    maxWidth: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  }),
   placeholder: (base) => ({
     ...base,
     color: "#94a3b8",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   }),
   indicatorSeparator: () => ({ display: "none" }),
   menu: (base) => ({
@@ -651,5 +671,8 @@ const customStyles = {
         : "#fff",
     color: state.isSelected ? "#fff" : "#0f172a",
     cursor: "pointer",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   }),
 };

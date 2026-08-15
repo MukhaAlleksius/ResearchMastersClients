@@ -187,6 +187,14 @@ async def update_graphic_works(
     graphic_works: GraphicWorksSchema,
 ):
     try:
+        update_values = {
+            "name_work": graphic_works.name_work,
+            "unit_measurement": graphic_works.unit_measurement,
+            "quantity": graphic_works.quantity,
+        }
+        if "note" in graphic_works.model_fields_set:
+            update_values["note"] = graphic_works.note
+
         result = await db.execute(
             update(GraphicWork)
             .where(
@@ -194,11 +202,7 @@ async def update_graphic_works(
                 GraphicWork.user_id == user_id,
                 GraphicWork.order_id == order_id,
             )
-            .values(
-                name_work=graphic_works.name_work,
-                unit_measurement=graphic_works.unit_measurement,
-                quantity=graphic_works.quantity,
-            )
+            .values(**update_values)
         )
 
         if result.rowcount == 0:
@@ -289,6 +293,7 @@ async def update_graphic_works(
             quantity=graphic_works_data.quantity,
             unit_measurement=graphic_works_data.unit_measurement,
             work_date=graphic_works_data.work_date,
+            note=graphic_works_data.note,
         )
 
     except HTTPException:

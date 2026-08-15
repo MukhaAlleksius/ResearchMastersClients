@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import { createPortal } from "react-dom";
-import { API, apiFetch, buildApiUrl } from "../../../../../../utils/api.js";
+import { apiFetch, buildApiUrl } from "../../../../../../utils/api.js";
 import {
-  CONTRACT_BUDGET_TYPES,
   isEstimateBudgetType,
-  isFixedBudgetType,
 } from "../../../../../../utils/budgetTypes.js";
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
 import "../../../Services/CommonComponent/CustomerExecutorContractOrder/contract_order_executor.css";
 import "../../../Services/CommonComponent/CustomerOrderInfo/customer_order_info.css";
 
@@ -40,20 +38,37 @@ const formatDateToInput = (ruDateString) => {
   }
 };
 
-const currencies = [
-  { value: "руб.", label: "RUB — Российские рубли" },
-  { value: "usd", label: "USD — Доллары США" },
-  { value: "eur", label: "EUR — Евро" },
-  { value: "byn", label: "BYN — Белорусские рубли" },
+/** В договоре: либо сумма за работу, либо цена по смете (без отдельной «договорной»). */
+const CONTRACT_PRICE_OPTIONS = [
+  { value: "Фиксированная стоимость", label: "Сумма за работу" },
+  { value: "Сметная цена", label: "Сметная" },
 ];
 
+const CONTRACT_CURRENCY = "BYN";
+
+function contractPriceMode(budgetType) {
+  if (isEstimateBudgetType(budgetType)) return "Сметная цена";
+  return "Фиксированная стоимость";
+}
+
+/**
+ * role:
+ * - "executor" — составляет и правит договор, подписывает как исполнитель
+ * - "customer" — только просмотр и подпись заказчика
+ * - "admin" — полный доступ (просмотр споров)
+ */
 export default function ContractAgreement({
   order,
-  order_response_executor,
-  customer,
+  order_response_executor: orderResponseExecutorProp,
+  customer: customerProp,
   executor_id: executorIdProp,
   onContractUpdated,
+  role = "executor",
 }) {
+  const isAuthor = role === "executor" || role === "admin";
+  const canSignAsCustomer = role === "customer" || role === "admin";
+  const canSignAsExecutor = role === "executor";
+
   const [contract, setContract] = useState({
     title: "Договор подряда на выполнение работ",
     city: "Минск",
@@ -65,25 +80,41 @@ export default function ContractAgreement({
     price: "Не указана",
     workPeriodFrom: "",
     workPeriodTo: "дата окончания",
-    currentCurrency: "руб.",
+    currentCurrency: CONTRACT_CURRENCY,
     budgetType: "",
     customerSigned: false,
     contractorSigned: false,
   });
 
   const [contractData, setContractData] = useState(null);
+  const [orderResponseExecutor, setOrderResponseExecutor] = useState(
+    orderResponseExecutorProp || null,
+  );
+  const [customer, setCustomer] = useState(customerProp || null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  useEffect(() => {
+    setOrderResponseExecutor(orderResponseExecutorProp || null);
+  }, [orderResponseExecutorProp]);
+
+  useEffect(() => {
+    setCustomer(customerProp || null);
+  }, [customerProp]);
+
   const resolveExecutorId = useCallback(() => {
+    const storedUserId = Number(
+      localStorage.getItem("user_id") || localStorage.getItem("id"),
+    );
     const candidates = [
-      order_response_executor?.executor_id,
+      orderResponseExecutor?.executor_id,
       executorIdProp,
       order?.executor_id,
       contractData?.executor_id,
+      role === "executor" ? storedUserId : null,
     ];
 
     for (const value of candidates) {
@@ -95,10 +126,11 @@ export default function ContractAgreement({
 
     return null;
   }, [
-    order_response_executor?.executor_id,
+    orderResponseExecutor?.executor_id,
     executorIdProp,
     order?.executor_id,
     contractData?.executor_id,
+    role,
   ]);
 
   const getFullName = useCallback((data) => {
@@ -133,9 +165,7 @@ export default function ContractAgreement({
             .includes("сметн");
           const budgetDisplay =
             serverContract.budget != null && serverContract.budget !== ""
-              ? `${Number(serverContract.budget).toLocaleString()} ${
-                  serverContract.currency || "BYN"
-                }${serverContract.budget_type ? ` (${serverContract.budget_type})` : ""}`
+              ? `${Number(serverContract.budget).toLocaleString()} ${CONTRACT_CURRENCY}`
               : isEstimate
                 ? "По смете"
                 : "Не указана";
@@ -151,7 +181,7 @@ export default function ContractAgreement({
             workPeriodTo:
               formatDateToRu(serverContract.date_end_work) || "дата окончания",
             price: budgetDisplay,
-            currentCurrency: serverContract.currency || "BYN",
+            currentCurrency: CONTRACT_CURRENCY,
             budgetType: serverContract.budget_type || "",
             customerName: serverContract.customer_name || "Не указано",
             contractorName: serverContract.executor_name || "Не указано",
@@ -171,51 +201,52 @@ export default function ContractAgreement({
     return false;
   };
 
-  const loadFromProps = useCallback(() => {
-    const customerFullName = customer
-      ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim()
-      : "Не указано";
+  const loadFromProps = useCallback(
+    (offer = orderResponseExecutor, customerData = customer) => {
+      const customerFullName = customerData
+        ? `${customerData.first_name || ""} ${customerData.last_name || ""}`.trim() ||
+          "Не указано"
+        : "Не указано";
 
-    const addressParts = [
-      order?.country,
-      order?.region,
-      order?.town || order?.city,
-      order?.location,
-    ].filter(Boolean);
-    const fullAddress = addressParts.join(", ") || "Адрес не указан";
+      const addressParts = [
+        order?.country,
+        order?.region,
+        order?.town || order?.city,
+        order?.location,
+      ].filter(Boolean);
+      const fullAddress = addressParts.join(", ") || "Адрес не указан";
 
-    const executorFullName = getFullName(order_response_executor);
+      const executorFullName = getFullName(offer);
 
-    const budget = order_response_executor?.proposed_price || order?.budget;
-    const currency =
-      order_response_executor?.currency || order?.currency || "BYN";
-    const budgetType = order_response_executor?.budget_type || "";
+      const budget = offer?.proposed_price || order?.budget;
+      const budgetType = offer?.budget_type || order?.budget_type || "";
 
-    const budgetDisplay = budget
-      ? `${Number(budget).toLocaleString()} ${currency}${
-          budgetType ? ` (${budgetType})` : ""
-        }`
-      : "Не указана";
+      const budgetDisplay = budget
+        ? `${Number(budget).toLocaleString()} ${CONTRACT_CURRENCY}`
+        : isEstimateBudgetType(budgetType)
+          ? "По смете"
+          : "Не указана";
 
-    setContract({
-      title: order?.title || "Договор подряда на выполнение работ",
-      customerName: customerFullName,
-      addressWork: fullAddress,
-      contractorName: executorFullName,
-      subject: order?.description || order?.title || "",
-      price: budgetDisplay,
-      workPeriodFrom:
-        formatDateToRu(order_response_executor?.start_time_work) || "",
-      workPeriodTo: formatDateToRu(order?.end_time_work) || "дата окончания",
-      currentCurrency: currency,
-      budgetType,
-      customerSigned: false,
-      contractorSigned: false,
-      city: "Минск",
-      date: new Date().toLocaleDateString("ru-RU"),
-    });
-    setError("");
-  }, [order, order_response_executor, customer, getFullName]);
+      setContract({
+        title: order?.title || "Договор подряда на выполнение работ",
+        customerName: customerFullName,
+        addressWork: fullAddress,
+        contractorName: executorFullName,
+        subject: order?.description || order?.title || "",
+        price: budgetDisplay,
+        workPeriodFrom: formatDateToRu(offer?.start_time_work) || "",
+        workPeriodTo: formatDateToRu(order?.end_time_work) || "дата окончания",
+        currentCurrency: CONTRACT_CURRENCY,
+        budgetType,
+        customerSigned: false,
+        contractorSigned: false,
+        city: "Минск",
+        date: new Date().toLocaleDateString("ru-RU"),
+      });
+      setError("");
+    },
+    [order, orderResponseExecutor, customer, getFullName],
+  );
 
   useEffect(() => {
     const initializeContract = async () => {
@@ -225,10 +256,70 @@ export default function ContractAgreement({
       }
 
       setIsLoading(true);
+
+      let offer = orderResponseExecutorProp || null;
+      let customerData = customerProp || null;
+      const executorId =
+        Number(executorIdProp) ||
+        Number(localStorage.getItem("user_id") || localStorage.getItem("id")) ||
+        null;
+
+      try {
+        if (!offer && executorId) {
+          const offerRes = await apiFetch(
+            buildApiUrl(`/order_response_executor/${executorId}/${order.id}`),
+          );
+          if (offerRes.ok) {
+            offer = await offerRes.json();
+            setOrderResponseExecutor(offer);
+          }
+        }
+
+        const customerId = Number(customerData?.id ?? order?.customer_id);
+        if (
+          (!customerData || !customerData.first_name) &&
+          Number.isFinite(customerId) &&
+          customerId > 0
+        ) {
+          const profileRes = await apiFetch(
+            buildApiUrl(`/profile?user_id=${customerId}`),
+          );
+          if (profileRes.ok) {
+            customerData = await profileRes.json();
+            setCustomer(customerData);
+          }
+        }
+
+        if (role === "executor" && executorId) {
+          const selfRes = await apiFetch(
+            buildApiUrl(`/profile?user_id=${executorId}`),
+          );
+          if (selfRes.ok) {
+            const selfProfile = await selfRes.json();
+            if (!offer) offer = {};
+            if (!offer.executor_name && !offer.first_name) {
+              offer = {
+                ...offer,
+                executor_id: executorId,
+                first_name: selfProfile.first_name,
+                last_name: selfProfile.last_name,
+              };
+              setOrderResponseExecutor(offer);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Ошибка подготовки данных договора:", err);
+      }
+
       const hasServerContract = await loadContractFromServer(order.id);
 
       if (!hasServerContract) {
-        loadFromProps();
+        if (isAuthor) {
+          loadFromProps(offer, customerData);
+        } else {
+          setContractData(null);
+        }
       }
 
       setIsLoading(false);
@@ -236,7 +327,22 @@ export default function ContractAgreement({
 
     initializeContract();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order?.id]);
+  }, [order?.id, role]);
+
+  // Заказчик ждёт договор от исполнителя — периодически проверяем появление
+  useEffect(() => {
+    if (isAuthor || !order?.id || contractData) return undefined;
+
+    const timer = setInterval(async () => {
+      const loaded = await loadContractFromServer(order.id);
+      if (loaded) {
+        onContractUpdated?.();
+      }
+    }, 5000);
+
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthor, order?.id, contractData]);
 
   const saveContract = useCallback(async () => {
     if (!order?.id) {
@@ -254,22 +360,17 @@ export default function ContractAgreement({
 
       let numericPrice = parseInt(snapshot.price.replace(/[^\d]/g, ""), 10) || 0;
       const estimateBased = isEstimateBudgetType(snapshot.budgetType);
-      const fixedBased = isFixedBudgetType(snapshot.budgetType);
+      const priceMode = contractPriceMode(snapshot.budgetType);
 
       if (!estimateBased && numericPrice > 9999999999) {
         numericPrice = 9999999999;
-        setContract((prev) => ({ ...prev, price: "9 999 999 999 руб." }));
+        setContract((prev) => ({ ...prev, price: `9 999 999 999 ${CONTRACT_CURRENCY}` }));
         setError("Сумма ограничена 9 999 999 999");
         return;
       }
 
-      if (fixedBased && numericPrice === 0) {
-        setError("Для договорной цены укажите сумму сделки");
-        return;
-      }
-
-      if (!estimateBased && !fixedBased && numericPrice === 0 && snapshot.price !== "Не указана") {
-        setError("Укажите корректную сумму");
+      if (!estimateBased && numericPrice <= 0) {
+        setError("Укажите сумму за работу");
         return;
       }
 
@@ -300,8 +401,8 @@ export default function ContractAgreement({
         date_start_work: snapshot.workPeriodFrom,
         date_end_work: snapshot.workPeriodTo || "",
         budget: budgetToSave,
-        currency: snapshot.currentCurrency || "BYN",
-        budget_type: snapshot.budgetType || null,
+        currency: CONTRACT_CURRENCY,
+        budget_type: priceMode,
         subscribe_customer: snapshot.customerSigned || false,
         subscribe_executor: snapshot.contractorSigned || false,
       };
@@ -342,9 +443,7 @@ export default function ContractAgreement({
         );
         const budgetDisplay =
           savedContract.budget != null && savedContract.budget !== ""
-            ? `${Number(savedContract.budget).toLocaleString()} ${
-                savedContract.currency || "BYN"
-              }${savedContract.budget_type ? ` (${savedContract.budget_type})` : ""}`
+            ? `${Number(savedContract.budget).toLocaleString()} ${CONTRACT_CURRENCY}`
             : isEstimate
               ? "По смете"
               : "Не указана";
@@ -352,20 +451,22 @@ export default function ContractAgreement({
           ...prev,
           price: budgetDisplay,
           budgetType: savedContract.budget_type || prev.budgetType,
-          currentCurrency: savedContract.currency || prev.currentCurrency,
+          currentCurrency: CONTRACT_CURRENCY,
           customerSigned: Boolean(savedContract.subscribe_customer),
           contractorSigned: Boolean(savedContract.subscribe_executor),
         }));
       }
       onContractUpdated?.();
+      setIsModalOpen(false);
       setSuccessMessage("Договор сохранён");
+      await uiAlert("Договор сохранён");
     } catch (saveError) {
       console.error("Ошибка сохранения:", saveError);
       setError(`Ошибка сохранения: ${saveError.message}`);
     } finally {
       setIsSaving(false);
     }
-  }, [order, customer, order_response_executor, contract, onContractUpdated, resolveExecutorId]);
+  }, [order, customer, orderResponseExecutor, contract, onContractUpdated, resolveExecutorId]);
 
   const handlePriceChange = (e) => {
     const numericValue = e.target.value.replace(/[^\d]/g, "");
@@ -374,28 +475,12 @@ export default function ContractAgreement({
     setContract((prev) => ({
       ...prev,
       price: numericValue
-        ? `${Number(numericValue).toLocaleString()} ${prev.currentCurrency}${
-            prev.budgetType ? ` (${prev.budgetType})` : ""
-          }`
+        ? `${Number(numericValue).toLocaleString()} ${CONTRACT_CURRENCY}`
         : "Не указана",
+      currentCurrency: CONTRACT_CURRENCY,
     }));
     setError("");
     setSuccessMessage("");
-  };
-
-  const handleCurrencyChange = (e) => {
-    const value = e.target.value;
-    const numericPart = contract.price.replace(/[^\d]/g, "");
-
-    setContract((prev) => ({
-      ...prev,
-      currentCurrency: value,
-      price: numericPart
-        ? `${Number(numericPart).toLocaleString()} ${value}${
-            prev.budgetType ? ` (${prev.budgetType})` : ""
-          }`
-        : "Не указана",
-    }));
   };
 
   const handleBudgetTypeChange = useCallback(
@@ -407,18 +492,17 @@ export default function ContractAgreement({
       setContract((prev) => ({
         ...prev,
         budgetType: newBudgetType,
+        currentCurrency: CONTRACT_CURRENCY,
         price: estimateBased
           ? "По смете"
           : numericPart
-            ? `${Number(numericPart).toLocaleString()} ${prev.currentCurrency}${
-                newBudgetType ? ` (${newBudgetType})` : ""
-              }`
+            ? `${Number(numericPart).toLocaleString()} ${CONTRACT_CURRENCY}`
             : "Не указана",
       }));
       setError("");
       setSuccessMessage("");
     },
-    [contract.price, contract.currentCurrency],
+    [contract.price],
   );
 
   const updateContractField = useCallback((field, value) => {
@@ -427,7 +511,7 @@ export default function ContractAgreement({
     setSuccessMessage("");
   }, []);
 
-  const toggleSignature = useCallback(async () => {
+  const toggleCustomerSignature = useCallback(async () => {
     if (!order?.id) {
       setError("Нет ID заказа");
       setSuccessMessage("");
@@ -440,7 +524,9 @@ export default function ContractAgreement({
 
     try {
       const response = await apiFetch(
-        buildApiUrl(`/subscribe_customer_contract/${order.id}?subscribe_customer=true`),
+        buildApiUrl(
+          `/subscribe_customer_contract/${order.id}?subscribe_customer=true`,
+        ),
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -452,11 +538,48 @@ export default function ContractAgreement({
       }
 
       setContract((prev) => ({ ...prev, customerSigned: true }));
-      setSuccessMessage("Подпись заказчика добавлена");
+      setSuccessMessage("Согласие заказчика добавлено");
       onContractUpdated?.();
     } catch (signError) {
       console.error("Ошибка:", signError);
-      setError("Не удалось подтвердить подпись");
+      setError("Не удалось подтвердить согласие");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [order?.id, onContractUpdated]);
+
+  const toggleExecutorSignature = useCallback(async () => {
+    if (!order?.id) {
+      setError("Нет ID заказа");
+      setSuccessMessage("");
+      return;
+    }
+
+    setIsSaving(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const response = await apiFetch(
+        buildApiUrl(
+          `/subscribe_executor_contract/${order.id}?subscribe_executor=true`,
+        ),
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Ошибка: ${response.status}`);
+      }
+
+      setContract((prev) => ({ ...prev, contractorSigned: true }));
+      setSuccessMessage("Согласие исполнителя добавлено");
+      onContractUpdated?.();
+    } catch (signError) {
+      console.error("Ошибка:", signError);
+      setError("Не удалось подтвердить согласие");
     } finally {
       setIsSaving(false);
     }
@@ -467,6 +590,32 @@ export default function ContractAgreement({
       <div className="contract-doc contract-doc--loading">
         <div className="contract-doc__spinner" aria-hidden="true" />
         <p className="contract-doc__loading-text">Загрузка договора…</p>
+      </div>
+    );
+  }
+
+  if (!isAuthor && !contractData) {
+    return (
+      <div className="contract-doc contract-doc--empty">
+        <div className="contract-doc__empty-icon" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
+            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <h2 className="contract-doc__empty-title">Договор пока не создан</h2>
+        <p className="contract-doc__empty-text">
+          Договор подряда появится здесь автоматически, как только исполнитель
+          его сохранит или подпишет.
+        </p>
+        <p className="contract-doc__empty-meta">
+          Ожидаем договор от исполнителя
+        </p>
+        <p className="contract-doc__empty-meta">{order?.title || "Заказ"}</p>
       </div>
     );
   }
@@ -535,24 +684,23 @@ export default function ContractAgreement({
             </label>
 
             <label className="oi-modal__field">
-              <span className="oi-modal__field-label">Тип цены</span>
+              <span className="oi-modal__field-label">Оплата</span>
               <select
                 className="oi-modal__select"
-                value={contract.budgetType || ""}
+                value={contractPriceMode(contract.budgetType)}
                 onChange={handleBudgetTypeChange}
               >
-                <option value="">Не указан</option>
-                {CONTRACT_BUDGET_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                {CONTRACT_PRICE_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
                   </option>
                 ))}
               </select>
             </label>
-            {isFixedBudgetType(contract.budgetType) && (
+            {!isEstimateBudgetType(contract.budgetType) ? (
               <>
                 <label className="oi-modal__field">
-                  <span className="oi-modal__field-label">Сумма</span>
+                  <span className="oi-modal__field-label">Сумма за работу</span>
                   <input
                     type="text"
                     className="oi-modal__input"
@@ -563,56 +711,16 @@ export default function ContractAgreement({
                 </label>
                 <label className="oi-modal__field">
                   <span className="oi-modal__field-label">Валюта</span>
-                  <select
-                    className="oi-modal__select"
-                    value={contract.currentCurrency}
-                    onChange={handleCurrencyChange}
-                  >
-                    {currencies.map((currency) => (
-                      <option key={currency.value} value={currency.value}>
-                        {currency.label}
-                      </option>
-                    ))}
-                  </select>
+                  <p className="oi-modal__input" style={{ margin: 0 }}>
+                    {CONTRACT_CURRENCY}
+                  </p>
                 </label>
-                <p className="oi-modal__hint">
-                  Договорная цена сделки — укажите её в поле «Сумма».
-                </p>
               </>
-            )}
-            {isEstimateBudgetType(contract.budgetType) && (
+            ) : (
               <p className="oi-modal__hint">
-                Цена по смете: сумму в договор не сохраняем — она определится по
+                Сумму в договор не сохраняем — итоговая стоимость определится по
                 смете работ.
               </p>
-            )}
-            {!contract.budgetType && (
-              <>
-                <label className="oi-modal__field">
-                  <span className="oi-modal__field-label">Сумма</span>
-                  <input
-                    type="text"
-                    className="oi-modal__input"
-                    value={contract.price.replace(/[^\d]/g, "").trim() || ""}
-                    onChange={handlePriceChange}
-                    placeholder="45000"
-                  />
-                </label>
-                <label className="oi-modal__field">
-                  <span className="oi-modal__field-label">Валюта</span>
-                  <select
-                    className="oi-modal__select"
-                    value={contract.currentCurrency}
-                    onChange={handleCurrencyChange}
-                  >
-                    {currencies.map((currency) => (
-                      <option key={currency.value} value={currency.value}>
-                        {currency.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </>
             )}
 
             <label className="oi-modal__field">
@@ -776,10 +884,15 @@ export default function ContractAgreement({
               2.1. Общая стоимость работ составляет{" "}
               <strong>{contract.price}</strong>.
             </p>
-            {contract.budgetType && (
+            {isEstimateBudgetType(contract.budgetType) ? (
               <p className="contract-doc__paragraph">
-                2.2. Оплата производится по {contract.budgetType} после
-                подписания акта выполненных работ.
+                2.2. Оплата производится по смете после подписания акта
+                выполненных работ.
+              </p>
+            ) : (
+              <p className="contract-doc__paragraph">
+                2.2. Оплата производится после подписания акта выполненных
+                работ.
               </p>
             )}
           </section>
@@ -849,80 +962,121 @@ export default function ContractAgreement({
         </div>
 
         <footer className="contract-doc__signatures">
-          <h3 className="contract-doc__signatures-title">Подписи сторон</h3>
+          <h3 className="contract-doc__signatures-title">Согласия пользователей</h3>
           <div className="contract-doc__signatures-grid">
             <div
               className={`contract-doc__sign-card ${
                 contract.customerSigned
                   ? "contract-doc__sign-card--signed"
-                  : ""
+                  : canSignAsCustomer
+                    ? ""
+                    : "contract-doc__sign-card--pending"
               }`}
             >
               <p className="contract-doc__sign-role">Заказчик</p>
               <p className="contract-doc__sign-line">{contract.customerName}</p>
-              <button
-                type="button"
-                disabled={contract.customerSigned || isSaving}
-                onClick={toggleSignature}
-                className={`contract-doc__sign-btn ${
-                  contract.customerSigned
-                    ? "contract-doc__sign-btn--done"
-                    : "contract-doc__sign-btn--primary"
-                }`}
-              >
-                {isSaving
-                  ? "Сохранение…"
-                  : contract.customerSigned
-                    ? "Подписано"
-                    : "Подтвердить подпись"}
-              </button>
+              {canSignAsCustomer ? (
+                <button
+                  type="button"
+                  disabled={contract.customerSigned || isSaving || !contractData}
+                  onClick={toggleCustomerSignature}
+                  className={`contract-doc__sign-btn ${
+                    contract.customerSigned
+                      ? "contract-doc__sign-btn--done"
+                      : "contract-doc__sign-btn--primary"
+                  }`}
+                >
+                  {isSaving
+                    ? "Сохранение…"
+                    : contract.customerSigned
+                      ? "Согласие дано"
+                      : "Подтвердить согласие"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className={`contract-doc__sign-btn ${
+                    contract.customerSigned
+                      ? "contract-doc__sign-btn--done"
+                      : "contract-doc__sign-btn--waiting"
+                  }`}
+                >
+                  {contract.customerSigned ? "Согласие дано" : "Ожидает согласия"}
+                </button>
+              )}
             </div>
 
             <div
               className={`contract-doc__sign-card ${
                 contract.contractorSigned
                   ? "contract-doc__sign-card--signed"
-                  : "contract-doc__sign-card--pending"
+                  : canSignAsExecutor
+                    ? ""
+                    : "contract-doc__sign-card--pending"
               }`}
             >
               <p className="contract-doc__sign-role">Исполнитель</p>
               <p className="contract-doc__sign-line">{contract.contractorName}</p>
-              <button
-                type="button"
-                disabled
-                className={`contract-doc__sign-btn ${
-                  contract.contractorSigned
-                    ? "contract-doc__sign-btn--done"
-                    : "contract-doc__sign-btn--waiting"
-                }`}
-              >
-                {contract.contractorSigned ? "Подписано" : "Ожидает подписи"}
-              </button>
+              {canSignAsExecutor ? (
+                <button
+                  type="button"
+                  disabled={
+                    contract.contractorSigned || isSaving || !contractData
+                  }
+                  onClick={toggleExecutorSignature}
+                  className={`contract-doc__sign-btn ${
+                    contract.contractorSigned
+                      ? "contract-doc__sign-btn--done"
+                      : "contract-doc__sign-btn--primary"
+                  }`}
+                >
+                  {isSaving
+                    ? "Сохранение…"
+                    : contract.contractorSigned
+                      ? "Согласие дано"
+                      : "Подтвердить согласие"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className={`contract-doc__sign-btn ${
+                    contract.contractorSigned
+                      ? "contract-doc__sign-btn--done"
+                      : "contract-doc__sign-btn--waiting"
+                  }`}
+                >
+                  {contract.contractorSigned ? "Согласие дано" : "Ожидает согласия"}
+                </button>
+              )}
             </div>
           </div>
         </footer>
 
-        <div className="contract-doc__actions">
-          <button
-            type="button"
-            className="contract-doc__action-btn contract-doc__action-btn--primary"
-            onClick={saveContract}
-            disabled={isSaving}
-          >
-            {isSaving ? "Сохранение…" : "Сохранить договор"}
-          </button>
-          <button
-            type="button"
-            className="contract-doc__action-btn contract-doc__action-btn--secondary"
-            onClick={() => setIsModalOpen(true)}
-            disabled={isSaving}
-          >
-            Изменить условия
-          </button>
-        </div>
+        {isAuthor && (
+          <div className="contract-doc__actions">
+            <button
+              type="button"
+              className="contract-doc__action-btn contract-doc__action-btn--primary"
+              onClick={saveContract}
+              disabled={isSaving}
+            >
+              {isSaving ? "Сохранение…" : "Сохранить договор"}
+            </button>
+            <button
+              type="button"
+              className="contract-doc__action-btn contract-doc__action-btn--secondary"
+              onClick={() => setIsModalOpen(true)}
+              disabled={isSaving}
+            >
+              Изменить условия
+            </button>
+          </div>
+        )}
       </article>
 
-      {editModal}
+      {isAuthor ? editModal : null}
     </div>
   );
 }

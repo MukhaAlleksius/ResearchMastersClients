@@ -1,6 +1,14 @@
 from datetime import datetime
+import re
 from typing import Dict, List, Optional
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 class UserBaseSchema(BaseModel):
@@ -18,19 +26,23 @@ class UserBaseSchema(BaseModel):
 class UserSchema(UserBaseSchema):
     password: str = Field(
         ...,
-        min_length=6,
+        min_length=8,
         max_length=128,
         validation_alias=AliasChoices("password", "password_hash"),
     )
 
     @field_validator("password")
     @classmethod
-    def password_not_blank(cls, value: str) -> str:
-        if not value or not value.strip():
-            raise ValueError("Пароль не может состоять только из пробелов")
-        if len(value) < 6:
-            raise ValueError("Пароль должен содержать минимум 6 символов")
-        return value  # trim не делать - пробелы внутри пароля ok
+    def password_strength(cls, value: str) -> str:
+        if not value or len(value) < 8:
+            raise ValueError("Пароль должен содержать от 8 до 128 символов")
+        if len(value) > 128:
+            raise ValueError("Пароль должен содержать от 8 до 128 символов")
+        has_letter = any(c.isalpha() for c in value)
+        has_digit = any(c.isdigit() for c in value)
+        if not has_letter or not has_digit:
+            raise ValueError("Пароль должен содержать и буквы, и цифры")
+        return value  # trim не делать — пробелы внутри пароля ok
 
 
 class UserReadSchema(UserBaseSchema):
@@ -54,6 +66,7 @@ class UserCommonReadSchema(BaseModel):
 
 class UserCommonSchema(UserCommonReadSchema):
     user_id: int
+    role: Optional[str] = "user"
 
 
 class BusinessFormSchema(BaseModel):
@@ -83,6 +96,11 @@ class UserProfileSchema(BaseModel):
 
 
 # Контакты пользователя
+ALLOWED_CONTACT_TYPES = frozenset(
+    {"Телефон", "Сайт", "Телеграм", "WhatsApp", "Другой"}
+)
+
+
 class UserContactReadSchema(BaseModel):
     contact_id: Optional[int] = Field(None)
     name_contact: str = Field(..., max_length=100)
@@ -91,6 +109,43 @@ class UserContactReadSchema(BaseModel):
 
 class UserContactSchema(UserContactReadSchema):
     user_id: int
+
+    @field_validator("name_contact")
+    @classmethod
+    def contact_type_allowed(cls, value: str) -> str:
+        name = (value or "").strip()
+        if name not in ALLOWED_CONTACT_TYPES:
+            raise ValueError(
+                "Тип контакта: Телефон, Сайт, Телеграм, WhatsApp или Другой"
+            )
+        return name
+
+    @field_validator("contact")
+    @classmethod
+    def contact_value_not_blank(cls, value: str) -> str:
+        text = (value or "").strip()
+        if not text:
+            raise ValueError("Контакт не может быть пустым")
+        return text
+
+    @model_validator(mode="after")
+    def contact_matches_type(self):
+        name = self.name_contact
+        value = self.contact
+        if name in {"Телефон", "WhatsApp"}:
+            digits = re.sub(r"\D", "", value)
+            if not re.fullmatch(r"375\d{9}", digits):
+                raise ValueError("Телефон: формат +375 XX XXX-XX-XX")
+        elif name == "Телеграм":
+            if not re.fullmatch(r"@[A-Za-z0-9_]{5,32}", value):
+                raise ValueError("Telegram: @name (5–32 символа)")
+        elif name == "Сайт":
+            if "@" in value:
+                if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
+                    raise ValueError("Укажите email name@mail.com или URL сайта")
+            elif not re.match(r"^https?://", value, flags=re.I):
+                raise ValueError("Сайт: укажите URL вида https://example.com")
+        return self
 
 
 class UserScillSchema(BaseModel):

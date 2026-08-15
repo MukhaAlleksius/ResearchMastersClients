@@ -1041,7 +1041,7 @@ export default function ExecutorProfile({ openModal }) {
                       <span className="ep-info-item__icon" aria-hidden="true">
                         {contactTypeIcon(contact.name_contact)}
                       </span>
-                      <span>
+                      <span className="ep-info-item__body">
                         <strong>{contact.name_contact}</strong>
                         <br />
                         {contact.contact}

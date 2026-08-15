@@ -5,8 +5,11 @@ import "./customer_order_info.css";
 export const formatDateTime = (value) =>
   value ? new Date(value).toLocaleString("ru-RU") : "Не указана";
 
-export const formatBudget = (budget, currency, _budgetType) => {
+export const formatBudget = (budget, currency, budgetType) => {
   if (budget == null || budget === "" || Number(budget) <= 0) {
+    const deal = classifyBudgetType(budgetType);
+    if (deal === "negotiable") return "По договорённости";
+    if (deal === "estimate") return "По смете";
     return "Сумма неизвестна";
   }
   const amount = Number(budget).toLocaleString("ru-RU");
@@ -17,11 +20,8 @@ export const formatBudget = (budget, currency, _budgetType) => {
 export function orderBudgetLabel(budgetType) {
   const deal = classifyBudgetType(budgetType);
   if (deal === "estimate") return "Сметная цена";
-  if (deal === "fixed") {
-    const value = String(budgetType || "").toLowerCase();
-    if (value.includes("фиксир")) return "Фиксированная цена";
-    return "Договорная цена";
-  }
+  if (deal === "fixed") return "Фиксированная стоимость";
+  if (deal === "negotiable") return "Договорная стоимость";
   return "Сумма";
 }
 

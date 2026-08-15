@@ -18,6 +18,19 @@ from schemas.geography_schemas import (  # Pydantic-схемы географи�
 logger = logging.getLogger(__name__)  # Логгер модуля
 
 
+def _is_city_as_region(region_name: str | None) -> bool:
+    """Регион-город (напр. «г. Минск») — города только из справочника."""
+    label = str(region_name or "").strip().lower()
+    if not label:
+        return False
+    return (
+        label.startswith("г.")
+        or label.startswith("г ")
+        or label.startswith("город ")
+        or label in {"минск", "г минск"}
+    )
+
+
 def _block_delete(reasons: list[str]) -> None:  # Запрет удаления с перечислением причин
     if reasons:  # есть блокирующие ссылки
         raise HTTPException(  # 400 с деталями
@@ -297,6 +310,20 @@ async def add_town_by_user(
     *,
     created_by_user_id: int | None = None,
 ) -> Town:  # город от пользователя (регистрация / профиль)
+    region_result = await db.execute(
+        select(Region).where(Region.id == payload.region_id)
+    )
+    region = region_result.scalar_one_or_none()
+    if not region:
+        raise HTTPException(status_code=404, detail="Регион не найден")
+    if _is_city_as_region(region.name_region):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Для региона-города (например, г. Минск) "
+                "можно выбрать только город из справочника"
+            ),
+        )
     town_schema = TownSchema(
         region_id=payload.region_id,
         name_town=payload.name_town,

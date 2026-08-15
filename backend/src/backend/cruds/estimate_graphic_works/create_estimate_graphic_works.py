@@ -37,6 +37,26 @@ async def _sync_budget_after_estimate(
         logger.warning("sync order budget after estimate failed: %s", error)
 
 
+async def _graphic_quantity_for_work(
+    db: AsyncSession, user_id: int, order_id: int, name_work: str
+) -> Decimal:
+    result = await db.execute(
+        select(func.coalesce(func.sum(GraphicWork.quantity), 0)).where(
+            GraphicWork.user_id == user_id,
+            GraphicWork.order_id == order_id,
+            GraphicWork.name_work == name_work,
+        )
+    )
+    return Decimal(str(result.scalar_one() or 0))
+
+
+async def _with_done_quantity(db: AsyncSession, work: WorkEstimate) -> WorkEstimate:
+    work.done_quantity = await _graphic_quantity_for_work(
+        db, work.user_id, work.order_id, work.name_work
+    )
+    return work
+
+
 async def _notify_estimate_updated(
     db: AsyncSession, order_id: int, user_id: int
 ) -> None:  # Безопасное уведомление об изменении сметы
@@ -152,7 +172,7 @@ async def add_work_into_estimate(
             logger.info(
                 f"Обновлена работа: {existing_work.name_work}, id={existing_work.id}"
             )
-            return existing_work
+            return await _with_done_quantity(db, existing_work)
 
         # ✅ Создаём новую работу
         new_work = WorkEstimate(
@@ -175,7 +195,7 @@ async def add_work_into_estimate(
         await db.commit()
         await db.refresh(new_work)
         logger.info(f"Создана новая работа: {new_work.name_work}, id={new_work.id}")
-        return new_work
+        return await _with_done_quantity(db, new_work)
 
     except IntegrityError:
         await db.rollback()
@@ -293,6 +313,14 @@ async def add_work_into_graphic_works(
         if existing_graphic_work:
             # СУММИРУЕМ
             existing_graphic_work.quantity += today_qty
+            incoming_note = work_graphic_works_schema.note
+            if incoming_note:
+                if existing_graphic_work.note:
+                    existing_graphic_work.note = (
+                        f"{existing_graphic_work.note}\n{incoming_note}"
+                    )
+                else:
+                    existing_graphic_work.note = incoming_note
             total_graphic_qty = existing_graphic_work.quantity
             logger.info(
                 f"📅 ДАТА {target_date}: {existing_graphic_work.name_work} += {today_qty} (итого {total_graphic_qty})"
@@ -305,6 +333,7 @@ async def add_work_into_graphic_works(
                 name_work=work_graphic_works_schema.name_work,
                 unit_measurement=work_graphic_works_schema.unit_measurement,
                 quantity=today_qty,
+                note=work_graphic_works_schema.note,
                 work_date=target_date,
             )
             db.add(new_graphic_work)

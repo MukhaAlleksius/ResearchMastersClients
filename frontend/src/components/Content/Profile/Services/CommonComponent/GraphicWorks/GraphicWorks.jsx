@@ -427,7 +427,12 @@ export default function GraphicWorks({ orderId, categoryWorkId }) {
                     key={work.id || `${work.name_work}-${index}`}
                     className="gw-day-panel__item"
                   >
-                    <span className="gw-day-panel__item-name">{work.name_work}</span>
+                    <div className="gw-day-panel__item-main">
+                      <span className="gw-day-panel__item-name">{work.name_work}</span>
+                      {work.note ? (
+                        <span className="gw-day-panel__item-note">{work.note}</span>
+                      ) : null}
+                    </div>
                     <span className="gw-day-panel__item-qty">
                       {work.quantity} {work.unit_measurement}
                     </span>

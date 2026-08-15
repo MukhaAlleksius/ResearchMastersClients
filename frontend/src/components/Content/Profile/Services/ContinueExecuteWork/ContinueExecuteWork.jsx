@@ -8,7 +8,7 @@ import EstimateWorks from "../CommonComponent/EstimateWorksMaterials/EstimateWor
 import ExecutorCancelService from "../CommonComponent/ExecutorCancelService/ExecutorCancelService";
 import GraphicWorks from "../CommonComponent/GraphicWorks/GraphicWorks";
 import OrderInfoWithMyResponse from "../CommonComponent/CustomerOrderInfo/OrderInfoWithMyResponse";
-import ContractExecutor from "../CommonComponent/CustomerExecutorContractOrder/ContractOrderCustomerExecutor";
+import ContractAgreement from "../../Orders/CommonComponents/CustomerExecutorContractOrder/CustomerExecutorContract";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
 import { EstimateEarningsMeta } from "../../Common/EstimateEarningsSummary";
 import { uiAlert } from "../../../../UiDialog/uiDialog.js";
@@ -111,7 +111,11 @@ export default function ContinueExecuteWorkServiceInfo({ orderId, onBack }) {
       )}
 
       {activeTab === "customerExecutorContract" && (
-        <ContractExecutor order={currentOrder} />
+        <ContractAgreement
+          role="executor"
+          order={currentOrder}
+          executor_id={executorId}
+        />
       )}
 
       {activeTab === "chat" && <Chat order_id={orderIdFinal} />}

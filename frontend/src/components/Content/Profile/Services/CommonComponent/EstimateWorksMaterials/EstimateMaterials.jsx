@@ -243,16 +243,6 @@ export default function ModalAddMaterials({
               </label>
               <div className="materials-modal__form-row materials-modal__form-row--triple">
                 <label className="materials-modal__field">
-                  <span className="materials-modal__label">Ед. изм.</span>
-                  <input
-                    type="text"
-                    value={materialUnitMeasurement}
-                    onChange={(e) => setMaterialUnitMeasurement(e.target.value)}
-                    placeholder="кг, м², шт..."
-                    className="materials-modal__input"
-                  />
-                </label>
-                <label className="materials-modal__field">
                   <span className="materials-modal__label">Количество</span>
                   <input
                     type="text"
@@ -260,6 +250,16 @@ export default function ModalAddMaterials({
                     onChange={(e) => setMaterialQuantity(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="0.00"
+                    className="materials-modal__input"
+                  />
+                </label>
+                <label className="materials-modal__field">
+                  <span className="materials-modal__label">Ед. изм.</span>
+                  <input
+                    type="text"
+                    value={materialUnitMeasurement}
+                    onChange={(e) => setMaterialUnitMeasurement(e.target.value)}
+                    placeholder="кг, м², шт..."
                     className="materials-modal__input"
                   />
                 </label>

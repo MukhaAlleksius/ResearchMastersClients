@@ -54,6 +54,7 @@ def user_to_schema(
         first_name=user_orm.first_name,  # имя
         last_name=user_orm.last_name,  # фамилия
         town_id=user_orm.town_id,
+        role=getattr(user_orm, "role", None) or "user",
     )
 
 

@@ -12,11 +12,11 @@ import "./customer_order_info.css";
 import "../../../../Orders/order_customer.css";
 import { uiAlert, uiConfirm } from "../../../../../UiDialog/uiDialog.js";
 import {
+  budgetTypeHint,
+  BUDGET_TYPE_OPTIONS,
+  BUDGET_TYPE_PLACEHOLDER,
   isFixedBudgetType,
-  OFFER_BUDGET_TYPES,
 } from "../../../../../../utils/budgetTypes.js";
-
-const budgetTypes = OFFER_BUDGET_TYPES;
 
 function OfferServiceIcon() {
   return (
@@ -171,7 +171,7 @@ export default function OrderInfoAnswerExecutor({
 
         budget_type: data.budget_type || "",
 
-        currency: data.currency || "BYN",
+        currency: "BYN",
 
         estimated_time: data.estimated_time || "",
 
@@ -224,7 +224,7 @@ export default function OrderInfoAnswerExecutor({
 
     budget_type: formData.budget_type || null,
 
-    currency: formData.currency || "BYN",
+    currency: "BYN",
 
     estimated_time: formData.estimated_time,
 
@@ -496,12 +496,14 @@ export default function OrderInfoAnswerExecutor({
                     : "",
                 });
               }}
+              required
             >
-              <option value="">Выберите тип бюджета</option>
-
-              {budgetTypes.map((bt) => (
-                <option key={bt} value={bt}>
-                  {bt}
+              <option value="" disabled hidden>
+                {BUDGET_TYPE_PLACEHOLDER}
+              </option>
+              {BUDGET_TYPE_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -510,9 +512,7 @@ export default function OrderInfoAnswerExecutor({
           {isFixedBudgetType(formData.budget_type) ? (
             <>
               <label className="oi-modal__field">
-                <span className="oi-modal__field-label">
-                  Сумма ({formData.currency})
-                </span>
+                <span className="oi-modal__field-label">Сумма (BYN)</span>
 
                 <input
                   type="text"
@@ -525,27 +525,13 @@ export default function OrderInfoAnswerExecutor({
 
               <label className="oi-modal__field">
                 <span className="oi-modal__field-label">Валюта</span>
-
-                <select
-                  className="oi-modal__select"
-                  value={formData.currency}
-                  onChange={(e) =>
-                    setFormData({ ...formData, currency: e.target.value })
-                  }
-                >
-                  <option value="BYN">BYN</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="RUB">RUB</option>
-                </select>
+                <p className="oi-modal__input" style={{ margin: 0 }}>
+                  BYN
+                </p>
               </label>
             </>
           ) : formData.budget_type ? (
-            <p className="oi-modal__hint">
-              {formData.budget_type === "Сметная цена"
-                ? "Сумму заранее указывать не нужно — итоговая стоимость будет по смете работ."
-                : "Сумму указывать не нужно."}
-            </p>
+            <p className="oi-modal__hint">{budgetTypeHint(formData.budget_type)}</p>
           ) : null}
 
           <label className="oi-modal__field">

@@ -57,6 +57,7 @@ class GraphicWork(Base):
     quantity = Column(
         Numeric(10, 2), nullable=False
     )  # Количество (исправлена опечатка)
+    note = Column(Text, nullable=True)
     work_date = Column(Date, nullable=False)  # Дата выполнения работы
 
 

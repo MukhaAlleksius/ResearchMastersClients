@@ -4,12 +4,11 @@ import OrderInfoCard from "./OrderInfo";
 import "./customer_order_info.css";
 import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
 import {
+  budgetTypeHint,
+  BUDGET_TYPE_OPTIONS,
+  BUDGET_TYPE_PLACEHOLDER,
   isFixedBudgetType,
-  OFFER_BUDGET_TYPES,
 } from "../../../../../../utils/budgetTypes.js";
-
-const budgetTypes = OFFER_BUDGET_TYPES;
-const currencies = ["BYN", "USD", "EUR", "RUB"];
 
 const formatDateDDMMYY = (dateString) => {
   if (!dateString || dateString === "") return null;
@@ -30,7 +29,7 @@ function ResponseModal({ onClose, onSend, order }) {
   const [cost, setCost] = useState("");
   const [message, setMessage] = useState("");
   const [budgetType, setBudgetType] = useState("");
-  const [currency, setCurrency] = useState("BYN");
+  const currency = "BYN";
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -202,11 +201,14 @@ function ResponseModal({ onClose, onSend, order }) {
                   setCost("");
                 }
               }}
+              required
             >
-              <option value="">Выберите тип бюджета</option>
-              {budgetTypes.map((bt) => (
-                <option key={bt} value={bt}>
-                  {bt}
+              <option value="" disabled hidden>
+                {BUDGET_TYPE_PLACEHOLDER}
+              </option>
+              {BUDGET_TYPE_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -227,25 +229,13 @@ function ResponseModal({ onClose, onSend, order }) {
 
               <label className="oi-modal__field">
                 <span className="oi-modal__field-label">Валюта</span>
-                <select
-                  className="oi-modal__select"
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                >
-                  {currencies.map((cur) => (
-                    <option key={cur} value={cur}>
-                      {cur}
-                    </option>
-                  ))}
-                </select>
+                <p className="oi-modal__input" style={{ margin: 0 }}>
+                  BYN
+                </p>
               </label>
             </>
           ) : budgetType ? (
-            <p className="oi-modal__hint">
-              {budgetType === "Сметная цена"
-                ? "Сумму заранее указывать не нужно — итоговая стоимость будет по смете."
-                : "Сумму указывать не нужно."}
-            </p>
+            <p className="oi-modal__hint">{budgetTypeHint(budgetType)}</p>
           ) : null}
 
           <label className="oi-modal__field">

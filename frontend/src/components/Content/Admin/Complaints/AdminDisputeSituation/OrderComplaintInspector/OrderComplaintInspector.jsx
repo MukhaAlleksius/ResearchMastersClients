@@ -238,6 +238,7 @@ export default function OrderComplaintInspector({ orderId }) {
       case "customerExecutorContract":
         return (
           <ContractAgreement
+            role="admin"
             order={commonProps.order}
             order_response_executor={orderResponseExecutor}
             customer={commonProps.customer}

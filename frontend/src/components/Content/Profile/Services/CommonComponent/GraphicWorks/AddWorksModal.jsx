@@ -7,12 +7,24 @@ import { IconEdit, IconTrash } from "../../../ProfileIcons.jsx";
 const selectStyles = {
   control: (base, state) => ({
     ...base,
-    minHeight: 42,
+    minHeight: 44,
     borderRadius: 10,
-    borderColor: state.isFocused ? "#2563eb" : "#e2e8f0",
-    boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 99, 235, 0.1)" : "none",
-    fontSize: "0.875rem",
-    "&:hover": { borderColor: "#94a3b8" },
+    borderWidth: 1.5,
+    borderColor: state.isFocused ? "#2563eb" : "#64748b",
+    boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 99, 235, 0.18)" : "none",
+    fontSize: "0.9375rem",
+    fontWeight: 500,
+    "&:hover": { borderColor: state.isFocused ? "#2563eb" : "#334155" },
+  }),
+  placeholder: (base) => ({
+    ...base,
+    color: "#475569",
+    fontWeight: 500,
+  }),
+  singleValue: (base) => ({
+    ...base,
+    color: "#0f172a",
+    fontWeight: 500,
   }),
   indicatorSeparator: () => ({ display: "none" }),
   menu: (base) => ({
@@ -57,6 +69,7 @@ export default function AddWorksModal({
   const [editingWorkId, setEditingWorkId] = useState(null);
   const [unit, setUnit] = useState("шт");
   const [costPerUnit, setCostPerUnit] = useState("");
+  const [note, setNote] = useState("");
 
   const resolveCostForWorkName = useCallback(
     (workName, fallback = "") => {
@@ -109,6 +122,7 @@ export default function AddWorksModal({
     setQuantity("");
     setUnit("шт");
     setCostPerUnit("");
+    setNote("");
   }, [setQuantity, setSelectedWorkId, setSelectedWorkOption]);
 
   const onPickWork = useCallback(
@@ -122,6 +136,7 @@ export default function AddWorksModal({
       setQuantity(String(work.quantity ?? ""));
       setUnit(work.unit_measurement || "шт");
       setCostPerUnit(resolveCostForWorkName(work.name_work));
+      setNote(work.note || "");
     },
     [resolveCostForWorkName, setQuantity, handleWorkSelect],
   );
@@ -187,6 +202,7 @@ export default function AddWorksModal({
           unit_measurement: unit,
           work_date: selectedDate,
           cost_unit: cost,
+          note: note.trim() || null,
         },
       );
       onGraphicWorkAdded?.(createdWork);
@@ -202,6 +218,7 @@ export default function AddWorksModal({
     selectedWorkOption,
     quantity,
     costPerUnit,
+    note,
     selectedDate,
     unit,
     userId,
@@ -235,6 +252,7 @@ export default function AddWorksModal({
             unit_measurement: unit,
             work_date: selectedDate,
             cost_unit: cost,
+            note: note.trim() || null,
           }),
         },
       );
@@ -254,6 +272,7 @@ export default function AddWorksModal({
     selectedWorkOption,
     quantity,
     costPerUnit,
+    note,
     unit,
     selectedDate,
     userId,
@@ -331,6 +350,9 @@ export default function AddWorksModal({
               >
                 <div className="gw-modal__item-info">
                   <div className="gw-modal__item-name">{work.name_work}</div>
+                  {work.note ? (
+                    <div className="gw-modal__item-note">{work.note}</div>
+                  ) : null}
                 </div>
                 <span className="gw-modal__item-qty">
                   {work.quantity} {work.unit_measurement}
@@ -421,6 +443,7 @@ export default function AddWorksModal({
               min="0.01"
               step="0.01"
               placeholder="Количество"
+              title="Количество"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -431,6 +454,7 @@ export default function AddWorksModal({
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
               className="gw-modal__select-native"
+              title="Единица измерения"
               disabled={busy}
             >
               {unitOptions.map((opt) => (
@@ -439,17 +463,27 @@ export default function AddWorksModal({
                 </option>
               ))}
             </select>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Цена за ед."
+              title="Цена за единицу измерения"
+              value={costPerUnit}
+              onChange={(e) => setCostPerUnit(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="gw-modal__input"
+              disabled={busy}
+            />
           </div>
 
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Стоимость за единицу"
-            value={costPerUnit}
-            onChange={(e) => setCostPerUnit(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="gw-modal__input gw-modal__input--cost"
+          <textarea
+            className="gw-modal__input gw-modal__textarea"
+            placeholder="Замечание (необязательно)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            maxLength={2000}
             disabled={busy}
           />
 

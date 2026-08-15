@@ -219,6 +219,7 @@ async def get_works_from_graphic_works_for_order(
                 quantity=work_from_graphic_works.quantity,
                 unit_measurement=work_from_graphic_works.unit_measurement,
                 work_date=work_from_graphic_works.work_date,
+                note=work_from_graphic_works.note,
             )
             for work_from_graphic_works in works_from_graphic_works
         ]

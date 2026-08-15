@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { API, apiFetch } from "../../../../../../utils/api.js";
+import { API, apiFetch, readApiError } from "../../../../../../utils/api.js";
 import CreatableSelect from "react-select/creatable";
 import EditWorkModal from "./EditWorkModal";
 import ModalAddMaterials from "./EstimateMaterials";
@@ -11,41 +11,22 @@ import {
   normalizeCurrencyCode,
 } from "../../../../../../utils/currency";
 import {
+  buildPriceAnchorsForWorks,
   convertFlatWorksToCurrency,
   mapApiEstimateWork,
   persistEstimateCurrencyOnly,
   persistEstimateWorks,
   resolveEstimateCurrency,
   saveEstimateCurrency,
+  saveEstimatePriceAnchors,
   worksNeedCurrencyConversion,
 } from "../../../../../../utils/estimateStorage.js";
 import "./estimate_works_materials.css";
 
-import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+import { uiAlert, uiConfirm } from "../../../../../UiDialog/uiDialog.js";
 import { useEstimateTablePan } from "../../../../../../hooks/useDragScroll.js";
 
 const unitsList = ["м2", "шт", "кг", "м3", "пог.м"];
-
-function rebuildPriceAnchors(works) {
-  const worksMap = new Map();
-  const materialsMap = new Map();
-  (works || []).forEach((work) => {
-    worksMap.set(
-      work.id,
-      createMoneyAnchor(work.workPricePerUnit, work.currency || "BYN"),
-    );
-    (work.materials || []).forEach((mat) => {
-      materialsMap.set(
-        mat.id,
-        createMoneyAnchor(
-          mat.materialPricePerUnit,
-          mat.currency || work.currency || "BYN",
-        ),
-      );
-    });
-  });
-  return { works: worksMap, materials: materialsMap };
-}
 
 const CUSTOM_WORK_PREFIX = "custom:";
 
@@ -110,8 +91,12 @@ export default function EstimateWorks({ order_id, category_work_id }) {
   const [orderExists, setOrderExists] = useState(!!order_id);
   const [orderId, setOrderId] = useState(order_id);
   const [isConvertingCurrency, setIsConvertingCurrency] = useState(false);
-  const priceAnchorsRef = useRef(rebuildPriceAnchors([]));
+  const priceAnchorsRef = useRef({ works: new Map(), materials: new Map() });
   const workCostAnchorRef = useRef(null);
+
+  const persistAnchors = useCallback(() => {
+    saveEstimatePriceAnchors(user_id, orderId, priceAnchorsRef.current);
+  }, [user_id, orderId]);
   const tableScrollRef = useEstimateTablePan();
 
   const handleKeyDown = (e) => {
@@ -201,6 +186,8 @@ export default function EstimateWorks({ order_id, category_work_id }) {
           rates,
         );
 
+        // Якоря не трогаем — конвертация всегда от исходной суммы.
+        persistAnchors();
         setAddedWorks(convertedWorks);
         saveEstimateCurrency(user_id, orderId, normalizedNew);
         setCurrency(normalizedNew);
@@ -232,7 +219,7 @@ export default function EstimateWorks({ order_id, category_work_id }) {
         setIsConvertingCurrency(false);
       }
     },
-    [currency, addedWorks, orderId, user_id],
+    [currency, addedWorks, orderId, user_id, persistAnchors],
   );
 
   const fetchWorksForCategoryWork = useCallback(async (catId) => {
@@ -283,7 +270,13 @@ export default function EstimateWorks({ order_id, category_work_id }) {
         mapApiEstimateWork(work, worksCurrency),
       );
 
-      priceAnchorsRef.current = rebuildPriceAnchors(flatWorks);
+      // Берём сохранённые исходные цены, иначе BYN↔USD будет «плыть» из‑за округления.
+      priceAnchorsRef.current = buildPriceAnchorsForWorks(
+        flatWorks,
+        user_id,
+        orderId,
+      );
+      persistAnchors();
 
       if (
         flatWorks.length > 0 &&
@@ -323,7 +316,7 @@ export default function EstimateWorks({ order_id, category_work_id }) {
       setEstimateWorks([]);
       setAddedWorks([]);
     }
-  }, [orderId, user_id]);
+  }, [orderId, user_id, persistAnchors]);
 
   const fetchPersonalWorksForCategoryWork = useCallback(
     async (catId) => {
@@ -504,20 +497,25 @@ export default function EstimateWorks({ order_id, category_work_id }) {
     setEditingWork(null);
   };
 
-  const handleUpdateEstimateWork = useCallback((updatedWork) => {
-    setAddedWorks((prev) =>
-      prev.map((item) =>
-        item.id === updatedWork.id ? { ...item, ...updatedWork } : item,
-      ),
-    );
-    priceAnchorsRef.current.works.set(
-      updatedWork.id,
-      createMoneyAnchor(
-        updatedWork.workPricePerUnit,
-        updatedWork.currency || "BYN",
-      ),
-    );
-  }, []);
+  const handleUpdateEstimateWork = useCallback(
+    (updatedWork) => {
+      setAddedWorks((prev) =>
+        prev.map((item) =>
+          item.id === updatedWork.id ? { ...item, ...updatedWork } : item,
+        ),
+      );
+      // Ручное изменение цены — новый якорь в текущей валюте отображения.
+      priceAnchorsRef.current.works.set(
+        updatedWork.id,
+        createMoneyAnchor(
+          updatedWork.workPricePerUnit,
+          updatedWork.currency || "BYN",
+        ),
+      );
+      persistAnchors();
+    },
+    [persistAnchors],
+  );
 
   const handleAddEstimateWork = async () => {
     if (!orderExists || !orderId) {
@@ -565,26 +563,35 @@ export default function EstimateWorks({ order_id, category_work_id }) {
       }
 
       const data = await res.json();
-
-      const newWork = {
-        id: data.id,
-        workDescription: data.name_work || "Без названия",
-        workQuantity: Number(data.quantity || 0),
-        doneQuantity: Number(data.done_quantity || 0),
-        workUnit: data.unit_measurement || "",
-        workPricePerUnit: Number(data.cost_unit || 0),
-        currency: data.currency || currency,
-        materials: [],
-      };
+      const workId = data.id;
 
       setAddedWorks((prev) => {
-        const index = prev.findIndex((w) => w.id === newWork.id);
+        const index = prev.findIndex(
+          (w) =>
+            Number(w.id) === Number(workId) ||
+            (data.name_work && w.workDescription === data.name_work),
+        );
+        const existing = index >= 0 ? prev[index] : null;
+        const apiDone = data.done_quantity;
+        const doneQuantity =
+          apiDone != null && apiDone !== ""
+            ? Number(apiDone)
+            : Number(existing?.doneQuantity ?? 0);
+
+        const newWork = {
+          id: workId,
+          workDescription: data.name_work || "Без названия",
+          workQuantity: Number(data.quantity || 0),
+          doneQuantity,
+          workUnit: data.unit_measurement || "",
+          workPricePerUnit: Number(data.cost_unit || 0),
+          currency: data.currency || currency,
+          materials: existing?.materials || [],
+        };
+
         if (index >= 0) {
           const updated = [...prev];
-          updated[index] = {
-            ...updated[index],
-            ...newWork,
-          };
+          updated[index] = { ...existing, ...newWork };
           return updated;
         }
         return [...prev, newWork];
@@ -595,10 +602,11 @@ export default function EstimateWorks({ order_id, category_work_id }) {
         currency: normalizeCurrencyCode(currency),
       };
       priceAnchorsRef.current.works.set(
-        newWork.id,
+        workId,
         createMoneyAnchor(anchorSource.amount, anchorSource.currency),
       );
       saveEstimateCurrency(user_id, orderId, normalizeCurrencyCode(currency));
+      persistAnchors();
 
       await uiAlert("Работа добавлена в смету!");
       if (category_work_id) {
@@ -633,15 +641,52 @@ export default function EstimateWorks({ order_id, category_work_id }) {
   ]);
 
   const removeItem = async (id) => {
-    setAddedWorks((prev) => prev.filter((item) => item.id !== id));
+    const item = addedWorks.find((work) => work.id === id);
+    if (!item) return;
+
+    const doneQuantity = Number(item.doneQuantity ?? 0);
+    const workQuantity = Number(item.workQuantity ?? 0);
+
+    if (doneQuantity > 0 && workQuantity <= doneQuantity) {
+      await uiAlert("Нельзя удалить: работа есть в графике работ.");
+      return;
+    }
+
+    if (!(await uiConfirm("Удалить эту работу?"))) return;
 
     try {
-      await apiFetch(
+      const response = await apiFetch(
         `${API.baseURL}/delete_work_from_estimate/${user_id}/${orderId}/${id}`,
         { method: "DELETE" },
       );
+
+      if (!response.ok) {
+        const detail = await readApiError(
+          response,
+          "Не удалось удалить работу",
+        );
+        await uiAlert(detail);
+        return;
+      }
+
+      const data = await response.json().catch(() => ({}));
+      const remainingQty = Number(data.quantity);
+
+      if (data.deleted === false && Number.isFinite(remainingQty)) {
+        setAddedWorks((prev) =>
+          prev.map((work) =>
+            work.id === id ? { ...work, workQuantity: remainingQty } : work,
+          ),
+        );
+        return;
+      }
+
+      setAddedWorks((prev) => prev.filter((work) => work.id !== id));
+      priceAnchorsRef.current.works.delete(id);
+      persistAnchors();
     } catch (error) {
       console.error(error);
+      await uiAlert("Ошибка соединения с сервером");
     }
   };
 
@@ -664,6 +709,7 @@ export default function EstimateWorks({ order_id, category_work_id }) {
       material.id,
       createMoneyAnchor(material.materialPricePerUnit, materialCurrency),
     );
+    persistAnchors();
   };
 
   const updateMaterialInWork = (workId, materialId, updates) => {
@@ -686,6 +732,7 @@ export default function EstimateWorks({ order_id, category_work_id }) {
       materialId,
       createMoneyAnchor(updates.materialPricePerUnit, materialCurrency),
     );
+    persistAnchors();
   };
 
   const totalWorkCost = addedWorks.reduce((sum, item) => {
@@ -827,8 +874,11 @@ export default function EstimateWorks({ order_id, category_work_id }) {
             id="estimate-global-currency"
             value={currency}
             onChange={(e) => handleGlobalCurrencyChange(e.target.value)}
-            className="currency-select header"
+            className={`currency-select header${
+              isConvertingCurrency ? " currency-select--busy" : ""
+            }`}
             disabled={isConvertingCurrency}
+            aria-busy={isConvertingCurrency}
           >
             {currencies.map((cur) => (
               <option key={cur} value={cur}>
@@ -836,11 +886,6 @@ export default function EstimateWorks({ order_id, category_work_id }) {
               </option>
             ))}
           </select>
-          {isConvertingCurrency && (
-            <span className="estimate-currency-hint">
-              Конвертация и сохранение…
-            </span>
-          )}
         </div>
       </header>
 
@@ -1014,10 +1059,26 @@ export default function EstimateWorks({ order_id, category_work_id }) {
 
           <div className="form-field-row form-field-row--metrics">
             <div className="form-field">
+              <label className="field-label" htmlFor="work-quantity">
+                Количество
+              </label>
+              <input
+                id="work-quantity"
+                type="text"
+                placeholder="0.00"
+                value={workQuantity}
+                onChange={(e) => setWorkQuantity(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="estimate-input"
+              />
+            </div>
+
+            <div className="form-field">
               <label className="field-label">Ед. изм.</label>
               <div className="unit-select">
                 <CreatableSelect
                   isClearable
+                  classNamePrefix="ew-select"
                   value={unitMeasurement}
                   menuPortalTarget={document.body}
                   menuPosition="fixed"
@@ -1034,24 +1095,9 @@ export default function EstimateWorks({ order_id, category_work_id }) {
                   }
                   isValidNewOption={(inputValue) => Boolean(inputValue?.trim())}
                   noOptionsMessage={() => "Введите единицу измерения"}
-                  styles={customStyles}
+                  styles={unitSelectStyles}
                 />
               </div>
-            </div>
-
-            <div className="form-field">
-              <label className="field-label" htmlFor="work-quantity">
-                Количество
-              </label>
-              <input
-                id="work-quantity"
-                type="text"
-                placeholder="0.00"
-                value={workQuantity}
-                onChange={(e) => setWorkQuantity(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="estimate-input"
-              />
             </div>
 
             <div className="form-field">
@@ -1192,5 +1238,52 @@ const customStyles = {
     ...base,
     padding: "0 8px",
     color: "#6b7280",
+  }),
+};
+
+const METRICS_FIELD_HEIGHT = 44;
+
+const unitSelectStyles = {
+  ...customStyles,
+  control: (base, state) => ({
+    ...customStyles.control(base, state),
+    minHeight: METRICS_FIELD_HEIGHT,
+    height: METRICS_FIELD_HEIGHT,
+    padding: 0,
+    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+  }),
+  valueContainer: (base) => ({
+    ...customStyles.valueContainer(base),
+    height: METRICS_FIELD_HEIGHT - 2,
+    minHeight: METRICS_FIELD_HEIGHT - 2,
+    padding: "0 8px",
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+  }),
+  indicatorsContainer: (base) => ({
+    ...base,
+    height: METRICS_FIELD_HEIGHT - 2,
+    alignSelf: "center",
+    flexShrink: 0,
+  }),
+  dropdownIndicator: (base) => ({
+    ...base,
+    padding: "0 8px",
+    display: "flex",
+    alignItems: "center",
+  }),
+  clearIndicator: (base) => ({
+    ...base,
+    padding: "0 4px",
+    display: "flex",
+    alignItems: "center",
+  }),
+  input: (base) => ({
+    ...customStyles.input(base),
+    margin: 0,
+    padding: 0,
   }),
 };

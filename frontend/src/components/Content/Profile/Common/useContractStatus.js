@@ -50,16 +50,16 @@ export function getContractBlockReason(status) {
   if (!status || status.loading || status.isReady) return null;
 
   if (!status.exists) {
-    return "Договор ещё не составлен заказчиком";
+    return "Договор ещё не составлен исполнителем";
   }
   if (!status.customerSigned && !status.executorSigned) {
-    return "Договор не подписан заказчиком и исполнителем";
+    return "Нет согласий заказчика и исполнителя";
   }
   if (!status.customerSigned) {
-    return "Договор не подписан заказчиком";
+    return "Нет согласия заказчика";
   }
   if (!status.executorSigned) {
-    return "Договор не подписан исполнителем";
+    return "Нет согласия исполнителя";
   }
 
   return "Договор не готов к началу работ";

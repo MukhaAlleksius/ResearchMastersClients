@@ -6,13 +6,9 @@ import CustomerInfo from "../CommonComponent/InformationAboutCustomer/Informatio
 import EstimateWorks from "../CommonComponent/EstimateWorksMaterials/EstimateWorks";
 import ExecutorCancelService from "../CommonComponent/ExecutorCancelService/ExecutorCancelService";
 import OrderInfoWithMyResponse from "../CommonComponent/CustomerOrderInfo/OrderInfoWithMyResponse";
-import ContractExecutor from "../CommonComponent/CustomerExecutorContractOrder/ContractOrderCustomerExecutor";
+import ContractAgreement from "../../Orders/CommonComponents/CustomerExecutorContractOrder/CustomerExecutorContract";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
 import { EstimateEarningsMeta } from "../../Common/EstimateEarningsSummary";
-import {
-  getContractBlockReason,
-  useContractStatus,
-} from "../../Common/useContractStatus.js";
 import StartWorkModal from "./StartWorkModal";
 import "./WaitExecuteWork.css";
 import { uiAlert } from "../../../../UiDialog/uiDialog.js";
@@ -41,13 +37,6 @@ export default function WaitExecuteWorkServiceInfo({
 
   const orderIdFinal = orderId || slug;
 
-  const contractStatus = useContractStatus(orderIdFinal, {
-    pollWhileNotReady: true,
-  });
-  const contractBlockReason = getContractBlockReason(contractStatus);
-  const canStartWork =
-    !contractStatus.loading && contractStatus.isReady && !contractBlockReason;
-
   const fetchOrderInfo = useCallback(async () => {
     if (!orderIdFinal) {
       setError("ID заказа не найден");
@@ -75,10 +64,10 @@ export default function WaitExecuteWorkServiceInfo({
   }, [fetchOrderInfo]);
 
   const openStartModal = useCallback(() => {
-    if (isStarting || !orderIdFinal || !canStartWork) return;
+    if (isStarting || !orderIdFinal) return;
     setModalError(null);
     setShowStartModal(true);
-  }, [isStarting, orderIdFinal, canStartWork]);
+  }, [isStarting, orderIdFinal]);
 
   const closeStartModal = useCallback(() => {
     if (isStarting) return;
@@ -88,14 +77,6 @@ export default function WaitExecuteWorkServiceInfo({
 
   const handleStartExecuteWork = useCallback(async () => {
     if (isStarting || !orderIdFinal) return;
-
-    if (!canStartWork) {
-      setModalError(
-        contractBlockReason ||
-          "Нельзя начать выполнение, пока договор не подписан обеими сторонами",
-      );
-      return;
-    }
 
     setIsStarting(true);
     setModalError(null);
@@ -147,14 +128,7 @@ export default function WaitExecuteWorkServiceInfo({
     } finally {
       setIsStarting(false);
     }
-  }, [
-    isStarting,
-    orderIdFinal,
-    navigate,
-    onServiceStatusChanged,
-    canStartWork,
-    contractBlockReason,
-  ]);
+  }, [isStarting, orderIdFinal, navigate, onServiceStatusChanged]);
 
   const tabs = useMemo(
     () =>
@@ -164,42 +138,19 @@ export default function WaitExecuteWorkServiceInfo({
     [],
   );
 
-  const contractNotice = !canStartWork
-    ? {
-        variant: "warning",
-        title: "Договор не подписан",
-        text: contractStatus.loading
-          ? "Проверяем статус договора…"
-          : contractBlockReason ||
-            "Подпишите договор с заказчиком, чтобы начать выполнение.",
-        actionLabel:
-          activeTab !== "customerExecutorContract" ? "К договору" : undefined,
-        onAction:
-          activeTab !== "customerExecutorContract"
-            ? () => setActiveTab("customerExecutorContract")
-            : undefined,
-      }
-    : null;
-
   return (
     <>
       <WorkDetailLayout
         title={order?.title || "Ожидание выполнения"}
         backLabel="Назад к услугам"
         onBack={onBack || (() => navigate(-1))}
-        notice={contractNotice}
         headerExtra={
           <div className="work-detail__header-action">
             <button
               type="button"
               onClick={openStartModal}
-              disabled={isStarting || !orderIdFinal || !canStartWork}
+              disabled={isStarting || !orderIdFinal}
               className="work-detail__btn-primary"
-              title={
-                canStartWork
-                  ? undefined
-                  : contractBlockReason || "Сначала подпишите договор"
-              }
             >
               {isStarting ? "Обновление..." : "Начать работу"}
             </button>
@@ -229,7 +180,11 @@ export default function WaitExecuteWorkServiceInfo({
         )}
 
         {activeTab === "customerExecutorContract" && (
-          <ContractExecutor order={order} />
+          <ContractAgreement
+            role="executor"
+            order={order}
+            executor_id={userId || localStorage.getItem("user_id")}
+          />
         )}
 
         {activeTab === "chat" && <Chat order_id={orderIdFinal} />}

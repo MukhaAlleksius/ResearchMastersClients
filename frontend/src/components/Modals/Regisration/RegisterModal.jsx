@@ -5,10 +5,12 @@ import { API, apiFetch, formatApiDetail } from "../../../utils/api.js"; // baseU
 import { Link } from "react-router-dom"; // ссылки на /legal/*
 import { createPortal } from "react-dom"; // модалка в body
 import {
+  canCreateTownInRegion,
   createTownByUser,
   fetchRegionsList, // регионы по countryId
   fetchTownsList, // города по regionId
   getFallbackRegistrationGeography, // дефолт без API
+  isCityAsRegion,
   loadDefaultRegistrationGeography, // дефолт с API
 } from "../../../utils/geographyApi";
 import {
@@ -108,7 +110,7 @@ export default function RegisterModal({ isOpen, onClose }) {
   const [firstName, setFirstName] = useState(""); // имя
   const [lastName, setLastName] = useState(""); // фамилия
   const [email, setEmail] = useState(""); // логин
-  const [password, setPassword] = useState(""); // пароль (≥6)
+  const [password, setPassword] = useState(""); // пароль (≥8, буква + цифра)
   const [agreeTerms, setAgreeTerms] = useState(false); // согласие с офертой
   const [loading, setLoading] = useState(false); // идёт POST /register
   const [invalidFields, setInvalidFields] = useState({}); // подсветка пустых полей
@@ -254,6 +256,13 @@ export default function RegisterModal({ isOpen, onClose }) {
 
   /** Создать город в выбранном регионе (если нет в списке). */
   const handleCreateTown = async (inputValue) => {
+    const regionOption = findOption(regions, regionId);
+    if (!canCreateTownInRegion(regionOption?.label)) {
+      await uiWarn(
+        "Для выбранного региона город задаётся только из справочника",
+      );
+      return;
+    }
     const name = normalizeTownName(inputValue);
     const nameError = validateTownName(name);
     if (nameError) {
@@ -299,18 +308,26 @@ export default function RegisterModal({ isOpen, onClose }) {
 
     setInvalidFields(nextInvalid);
 
-    if (
-      nextInvalid.firstName ||
-      nextInvalid.lastName ||
-      nextInvalid.countryId ||
-      nextInvalid.regionId ||
-      nextInvalid.townId ||
-      nextInvalid.email ||
-      nextInvalid.password
-    ) {
-      await uiWarn(
-        "Заполните все обязательные поля. Город можно выбрать из списка или ввести свой.",
-      );
+    const missingGeo =
+      nextInvalid.countryId || nextInvalid.regionId || nextInvalid.townId;
+    const missingOther =
+      nextInvalid.firstName || nextInvalid.lastName || nextInvalid.email;
+    const missingPassword = nextInvalid.password;
+
+    if (missingPassword || missingGeo || missingOther) {
+      if (missingPassword && !missingGeo && !missingOther) {
+        await uiWarn("Заполните поле «Пароль»");
+      } else if (missingGeo && !missingOther && !missingPassword) {
+        await uiWarn(
+          "Выберите страну, регион и город. Город можно выбрать из списка или ввести свой.",
+        );
+      } else if (missingGeo) {
+        await uiWarn(
+          "Заполните все обязательные поля. Город можно выбрать из списка или ввести свой.",
+        );
+      } else {
+        await uiWarn("Заполните все обязательные поля.");
+      }
       return;
     }
 
@@ -329,22 +346,17 @@ export default function RegisterModal({ isOpen, onClose }) {
       return;
     }
 
-    if (password.length < 6) {
-      // минимум как на бэке/UX
+    if (password.length < 8 || password.length > 128) {
       setInvalidFields({ password: true });
-      await uiWarn("Пароль должен содержать минимум 6 символов");
+      await uiWarn("Пароль должен содержать от 8 до 128 символов");
       return;
     }
 
-    if (password.length > 128) {
+    const hasLetter = /\p{L}/u.test(password);
+    const hasDigit = /\d/.test(password);
+    if (!hasLetter || !hasDigit) {
       setInvalidFields({ password: true });
-      await uiWarn("Пароль не должен быть длиннее 128 символов");
-      return;
-    }
-
-    if (!password.trim()) {
-      setInvalidFields({ password: true });
-      await uiWarn("Пароль не должен состоять только из пробелов");
+      await uiWarn("Пароль должен содержать и буквы, и цифры");
       return;
     }
 
@@ -536,43 +548,78 @@ export default function RegisterModal({ isOpen, onClose }) {
               <FieldRow
                 label="Город *"
                 htmlFor="reg-town"
-                hint={!regionId ? "сначала регион" : "см. правила"}
+                hint={
+                  !regionId
+                    ? "сначала регион"
+                    : isCityAsRegion(findOption(regions, regionId)?.label)
+                      ? "только из справочника"
+                      : "см. правила"
+                }
               >
-                <CreatableSelect
-                  inputId="reg-town"
-                  classNamePrefix="reg-geo"
-                  options={towns}
-                  value={findOption(towns, townId)}
-                  onChange={(option) => {
-                    setTownId(option ? String(option.value) : "");
-                    clearInvalid("townId");
-                  }}
-                  onCreateOption={handleCreateTown}
-                  isValidNewOption={(inputValue) =>
-                    Boolean(regionId) && Boolean(normalizeTownName(inputValue))
-                  }
-                  formatCreateLabel={(inputValue) =>
-                    `Добавить город «${normalizeTownName(inputValue)}»`
-                  }
-                  isDisabled={fieldsDisabled || !regionId || geoLoading}
-                  isLoading={false}
-                  isClearable={false}
-                  placeholder={
-                    !regionId
-                      ? "Сначала выберите регион"
-                      : "Выберите или введите город"
-                  }
-                  noOptionsMessage={({ inputValue }) =>
-                    inputValue
-                      ? "Нет совпадений — проверьте правила названия"
-                      : "Нет городов — можно ввести свой"
-                  }
-                  menuPortalTarget={document.body}
-                  menuPosition="fixed"
-                  styles={buildGeoSelectStyles(Boolean(invalidFields.townId))}
-                  aria-describedby="reg-town-rules"
-                  aria-invalid={Boolean(invalidFields.townId)}
-                />
+                {isCityAsRegion(findOption(regions, regionId)?.label) ? (
+                  <Select
+                    inputId="reg-town"
+                    classNamePrefix="reg-geo"
+                    options={towns}
+                    value={findOption(towns, townId)}
+                    onChange={(option) => {
+                      setTownId(option ? String(option.value) : "");
+                      clearInvalid("townId");
+                    }}
+                    isDisabled={fieldsDisabled || !regionId || geoLoading}
+                    isClearable={false}
+                    placeholder={
+                      !regionId
+                        ? "Сначала выберите регион"
+                        : "Выберите город"
+                    }
+                    noOptionsMessage={() => "Нет городов в справочнике"}
+                    menuPortalTarget={document.body}
+                    menuPosition="fixed"
+                    styles={buildGeoSelectStyles(Boolean(invalidFields.townId))}
+                    aria-invalid={Boolean(invalidFields.townId)}
+                  />
+                ) : (
+                  <CreatableSelect
+                    inputId="reg-town"
+                    classNamePrefix="reg-geo"
+                    options={towns}
+                    value={findOption(towns, townId)}
+                    onChange={(option) => {
+                      setTownId(option ? String(option.value) : "");
+                      clearInvalid("townId");
+                    }}
+                    onCreateOption={handleCreateTown}
+                    isValidNewOption={(inputValue) =>
+                      Boolean(regionId) &&
+                      canCreateTownInRegion(
+                        findOption(regions, regionId)?.label,
+                      ) &&
+                      Boolean(normalizeTownName(inputValue))
+                    }
+                    formatCreateLabel={(inputValue) =>
+                      `Добавить город «${normalizeTownName(inputValue)}»`
+                    }
+                    isDisabled={fieldsDisabled || !regionId || geoLoading}
+                    isLoading={false}
+                    isClearable={false}
+                    placeholder={
+                      !regionId
+                        ? "Сначала выберите регион"
+                        : "Выберите или введите город"
+                    }
+                    noOptionsMessage={({ inputValue }) =>
+                      inputValue
+                        ? "Нет совпадений — проверьте правила названия"
+                        : "Нет городов — можно ввести свой"
+                    }
+                    menuPortalTarget={document.body}
+                    menuPosition="fixed"
+                    styles={buildGeoSelectStyles(Boolean(invalidFields.townId))}
+                    aria-describedby="reg-town-rules"
+                    aria-invalid={Boolean(invalidFields.townId)}
+                  />
+                )}
               </FieldRow>
 
               <RulesDisclosure id="reg-town-rules" title="Правила названия города">
@@ -634,16 +681,14 @@ export default function RegisterModal({ isOpen, onClose }) {
               <RulesDisclosure
                 id="reg-password-rules"
                 title="Требования к паролю"
-                drop="up"
               >
                 <ul>
-                  <li>от 6 до 128 символов;</li>
-                  <li>не может состоять только из пробелов;</li>
+                  <li>Пароль должен содержать от 8 до 128 символов.</li>
+                  <li>Пароль должен содержать и буквы, и цифры.</li>
                   <li>
-                    буквы (латиница или кириллица), цифры и спецсимволы
-                    разрешены;
+                    Можно использовать латинские и кириллические буквы, цифры и
+                    специальные символы.
                   </li>
-                  <li>заглавные буквы и цифры не обязательны.</li>
                 </ul>
               </RulesDisclosure>
             </div>

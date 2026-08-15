@@ -333,8 +333,9 @@
 /* Contact row */
 .ps-contact-row {
   display: grid;
-  grid-template-columns: minmax(140px, 180px) 1fr;
+  grid-template-columns: minmax(140px, 180px) minmax(0, 1fr);
   gap: 12px;
+  align-items: center;
 }
 
 @media (max-width: 520px) {

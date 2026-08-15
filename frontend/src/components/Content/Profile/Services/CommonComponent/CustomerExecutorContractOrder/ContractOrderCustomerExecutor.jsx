@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { apiFetch, buildApiUrl } from "../../../../../../utils/api.js";
+import { isEstimateBudgetType } from "../../../../../../utils/budgetTypes.js";
 import {
   CONTRACT_POLL_MS,
   useLiveContract,
@@ -63,7 +64,7 @@ export default function ContractExecutor({
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Ошибка сервера:", response.status, errorText);
-        setError("Ошибка сохранения подписи исполнителя");
+        setError("Ошибка сохранения согласия исполнителя");
         return;
       }
 
@@ -74,7 +75,7 @@ export default function ContractExecutor({
       }
     } catch (err) {
       console.error("Ошибка сохранения:", err);
-      setError("Ошибка сохранения подписи");
+      setError("Ошибка сохранения согласия");
     } finally {
       setIsSaving(false);
     }
@@ -103,12 +104,12 @@ export default function ContractExecutor({
         </div>
         <h2 className="contract-doc__empty-title">Договор пока не создан</h2>
         <p className="contract-doc__empty-text">
-          Договор подряда появится здесь автоматически, как только заказчик его
+          Договор подряда появится здесь автоматически, как только исполнитель его
           сохранит или подпишет.
         </p>
         {pollForUpdates && (
           <p className="contract-doc__empty-meta">
-            {isPolling ? "Проверяем обновления…" : "Ожидаем договор от заказчика"}
+            {isPolling ? "Проверяем обновления…" : "Ожидаем договор от исполнителя"}
           </p>
         )}
         <p className="contract-doc__empty-meta">
@@ -219,10 +220,15 @@ export default function ContractExecutor({
               2.1. Общая стоимость работ составляет{" "}
               <strong>{contract.price}</strong>.
             </p>
-            {contract.budgetType && (
+            {isEstimateBudgetType(contract.budgetType) ? (
               <p className="contract-doc__paragraph">
-                2.2. Оплата производится по {contract.budgetType} после
-                подписания акта выполненных работ.
+                2.2. Оплата производится по смете после подписания акта
+                выполненных работ.
+              </p>
+            ) : (
+              <p className="contract-doc__paragraph">
+                2.2. Оплата производится после подписания акта выполненных
+                работ.
               </p>
             )}
           </section>
@@ -292,7 +298,7 @@ export default function ContractExecutor({
         </div>
 
         <footer className="contract-doc__signatures">
-          <h3 className="contract-doc__signatures-title">Подписи сторон</h3>
+          <h3 className="contract-doc__signatures-title">Согласия пользователей</h3>
           <div className="contract-doc__signatures-grid">
             <div
               className={`contract-doc__sign-card ${
@@ -312,7 +318,7 @@ export default function ContractExecutor({
                     : "contract-doc__sign-btn--waiting"
                 }`}
               >
-                {contract.customerSigned ? "Подписано" : "Ожидает подписи"}
+                {contract.customerSigned ? "Согласие дано" : "Ожидает согласия"}
               </button>
             </div>
 
@@ -338,8 +344,8 @@ export default function ContractExecutor({
                 {isSaving
                   ? "Сохранение…"
                   : contract.contractorSigned
-                    ? "Подписано"
-                    : "Подтвердить подпись"}
+                    ? "Согласие дано"
+                    : "Подтвердить согласие"}
               </button>
             </div>
           </div>

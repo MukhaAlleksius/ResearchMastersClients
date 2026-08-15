@@ -635,6 +635,14 @@
   font-size: 0.8125rem;
   color: #334155;
   line-height: 1.4;
+  min-width: 0;
+}
+
+.ep-info-item__body {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ep-info-item__icon {

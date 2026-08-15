@@ -70,9 +70,9 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):  # С
             await notify_order_event_safe(
                 db,
                 order_id=contract_schema.order_id,
-                actor_user_id=contract_schema.customer_id,
+                actor_user_id=contract_schema.executor_id,
                 notification_type=CONTRACT_UPDATED_NOTIFICATION_TYPE,
-                recipient_id=contract_schema.executor_id,
+                recipient_id=contract_schema.customer_id,
             )
             await sync_order_budget_from_deal(db, contract_schema.order_id)
             await db.commit()
@@ -100,9 +100,9 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):  # С
         await notify_order_event_safe(
             db,
             order_id=contract_schema.order_id,
-            actor_user_id=contract_schema.customer_id,
+            actor_user_id=contract_schema.executor_id,
             notification_type=CONTRACT_UPDATED_NOTIFICATION_TYPE,
-            recipient_id=contract_schema.executor_id,
+            recipient_id=contract_schema.customer_id,
         )
         await sync_order_budget_from_deal(db, contract_schema.order_id)
         await db.commit()

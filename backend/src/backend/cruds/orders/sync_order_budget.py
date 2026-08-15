@@ -21,14 +21,9 @@ def _is_estimate_budget_type(budget_type: str | None) -> bool:
 
 def _is_fixed_budget_type(budget_type: str | None) -> bool:
     value = str(budget_type or "").lower()
-    if "сметн" in value:
+    if "сметн" in value or "договорн" in value:
         return False
-    if "фиксир" in value:
-        return True
-    # «Договорная цена» — согласованная сумма; голое «Договорная» — нет
-    if "договорн" in value and "цен" in value:
-        return True
-    return False
+    return "фиксир" in value
 
 
 def _normalize_currency(code: str | None) -> str:

@@ -5,7 +5,7 @@ import Chat from "../CommonComponent/ChatOrderMaster/ChatOrderMaster";
 import CustomerInfo from "../CommonComponent/InformationAboutCustomer/InformationAboutCustomer";
 import EstimateWorks from "../CommonComponent/EstimateWorksMaterials/EstimateWorks";
 import OrderInfoWithMyResponse from "../CommonComponent/CustomerOrderInfo/OrderInfoWithMyResponse";
-import ContractExecutor from "../CommonComponent/CustomerExecutorContractOrder/ContractOrderCustomerExecutor";
+import ContractAgreement from "../../Orders/CommonComponents/CustomerExecutorContractOrder/CustomerExecutorContract";
 import ReportWorks from "../CommonComponent/GraphicWorks/Report/ReportWorks";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
 import { EstimateEarningsMeta } from "../../Common/EstimateEarningsSummary";
@@ -96,7 +96,11 @@ export default function ExecuteWorkServiceInfo({ service, onBack }) {
       {activeTab === "schedule" && <ReportWorks />}
 
       {activeTab === "customerExecutorContract" && (
-        <ContractExecutor order={order} />
+        <ContractAgreement
+          role="executor"
+          order={order}
+          executor_id={localStorage.getItem("user_id")}
+        />
       )}
 
       {activeTab === "chat" && <Chat order_id={orderId} />}

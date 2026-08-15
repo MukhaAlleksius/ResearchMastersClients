@@ -332,7 +332,7 @@
 
 .reg-modal__rules[open] {
   z-index: 6;
-  border-radius: 8px 8px 0 0;
+  border-radius: 8px;
 }
 
 .reg-modal__rules-summary {
@@ -372,20 +372,13 @@
 }
 
 .reg-modal__rules-body {
-  position: absolute;
-  left: -1px;
-  right: -1px;
-  top: calc(100% - 1px);
-  z-index: 7;
+  position: static;
   box-sizing: border-box;
   max-width: none;
-  padding: 0.35rem 0.55rem 0.45rem;
+  padding: 0 0.55rem 0.45rem;
   color: #1e3a8a;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12);
+  background: transparent;
+  border: none;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -404,9 +397,15 @@
 }
 
 .reg-modal__rules--up .reg-modal__rules-body {
+  position: absolute;
+  left: -1px;
+  right: -1px;
   top: auto;
   bottom: calc(100% - 1px);
-  border-top: 1px solid #bfdbfe;
+  z-index: 7;
+  padding: 0.35rem 0.55rem 0.45rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
   border-bottom: none;
   border-radius: 8px 8px 0 0;
   box-shadow: 0 -8px 18px rgba(37, 99, 235, 0.12);

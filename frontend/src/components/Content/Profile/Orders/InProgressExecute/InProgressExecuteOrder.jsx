@@ -304,6 +304,7 @@ export default function InProgressExecuteOrder({ order, onBack, userId, onOrderS
 
         {activeTab === "customerExecutorContract" && (
           <ContractAgreement
+            role="customer"
             order={currentOrder}
             order_response_executor={orderResponseExecutor}
             executor_id={resolvedExecutorId}

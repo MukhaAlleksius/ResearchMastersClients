@@ -78,6 +78,31 @@ textarea:focus {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
 }
 
+/* react-select keeps a hidden text input inside the control; global
+   input[type=text] rules above force width/padding and break single-line layout */
+div[class*="-control"] input[type="text"],
+div[class*="-Control"] input[type="text"],
+div[class*="__control"] input[type="text"] {
+  width: auto;
+  min-width: 2px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  font-size: inherit;
+  color: inherit;
+}
+
+div[class*="-control"] input[type="text"]:focus,
+div[class*="-Control"] input[type="text"]:focus,
+div[class*="__control"] input[type="text"]:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
 .text-description {
   font-size: 0.875rem;
   color: #6b7280; /* gray-500 */

@@ -2,11 +2,17 @@ import { API, apiFetch } from "./api.js";
 
 import {
   convertAmountWithRates,
+  createMoneyAnchor,
   normalizeCurrencyCode,
+  roundMoney,
 } from "./currency.js";
 
 export function getEstimateCurrencyStorageKey(userId, orderId) {
   return `estimate_currency_${userId}_${orderId}`;
+}
+
+export function getEstimateAnchorsStorageKey(userId, orderId) {
+  return `estimate_price_anchors_${userId}_${orderId}`;
 }
 
 export function saveEstimateCurrency(userId, orderId, currency) {
@@ -23,6 +29,94 @@ export function loadEstimateCurrency(userId, orderId) {
     getEstimateCurrencyStorageKey(userId, orderId),
   );
   return value ? normalizeCurrencyCode(value) : null;
+}
+
+/** Сохраняет исходные (якорные) цены — чтобы BYN→USD→BYN не «плыл» из‑за округления. */
+export function saveEstimatePriceAnchors(userId, orderId, priceAnchors) {
+  if (!userId || !orderId || !priceAnchors) return;
+  const payload = { works: {}, materials: {} };
+  priceAnchors.works?.forEach((anchor, id) => {
+    const snap = anchor.get?.() || anchor;
+    if (snap?.amount == null) return;
+    payload.works[String(id)] = {
+      amount: roundMoney(snap.amount),
+      currency: normalizeCurrencyCode(snap.currency || "BYN"),
+    };
+  });
+  priceAnchors.materials?.forEach((anchor, id) => {
+    const snap = anchor.get?.() || anchor;
+    if (snap?.amount == null) return;
+    payload.materials[String(id)] = {
+      amount: roundMoney(snap.amount),
+      currency: normalizeCurrencyCode(snap.currency || "BYN"),
+    };
+  });
+  localStorage.setItem(
+    getEstimateAnchorsStorageKey(userId, orderId),
+    JSON.stringify(payload),
+  );
+}
+
+export function loadEstimatePriceAnchors(userId, orderId) {
+  if (!userId || !orderId) return null;
+  try {
+    const raw = localStorage.getItem(
+      getEstimateAnchorsStorageKey(userId, orderId),
+    );
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const works = new Map();
+    const materials = new Map();
+    Object.entries(parsed.works || {}).forEach(([id, snap]) => {
+      works.set(
+        Number.isFinite(Number(id)) ? Number(id) : id,
+        createMoneyAnchor(snap.amount, snap.currency),
+      );
+      // also keep string key for safety
+      works.set(id, createMoneyAnchor(snap.amount, snap.currency));
+    });
+    Object.entries(parsed.materials || {}).forEach(([id, snap]) => {
+      materials.set(
+        Number.isFinite(Number(id)) ? Number(id) : id,
+        createMoneyAnchor(snap.amount, snap.currency),
+      );
+      materials.set(id, createMoneyAnchor(snap.amount, snap.currency));
+    });
+    return { works, materials };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Собирает якоря: сохранённый оригинал важнее суммы из API
+ * (в API уже может лежать округлённый USD/EUR).
+ */
+export function buildPriceAnchorsForWorks(flatWorks, userId, orderId) {
+  const saved = loadEstimatePriceAnchors(userId, orderId);
+  const worksMap = new Map(saved?.works || []);
+  const materialsMap = new Map(saved?.materials || []);
+
+  (flatWorks || []).forEach((work) => {
+    if (!worksMap.has(work.id) && !worksMap.has(String(work.id))) {
+      const anchor = createMoneyAnchor(
+        work.workPricePerUnit,
+        work.currency || "BYN",
+      );
+      worksMap.set(work.id, anchor);
+    }
+    (work.materials || []).forEach((mat) => {
+      if (!materialsMap.has(mat.id) && !materialsMap.has(String(mat.id))) {
+        const anchor = createMoneyAnchor(
+          mat.materialPricePerUnit,
+          mat.currency || work.currency || "BYN",
+        );
+        materialsMap.set(mat.id, anchor);
+      }
+    });
+  });
+
+  return { works: worksMap, materials: materialsMap };
 }
 
 export function resolveEstimateCurrency(data, userId, orderId) {
@@ -74,10 +168,16 @@ export function convertFlatWorksToCurrency(
 ) {
   const target = normalizeCurrencyCode(targetCurrency);
 
+  const getWorkAnchor = (id) =>
+    priceAnchors?.works?.get(id) || priceAnchors?.works?.get(String(id));
+  const getMatAnchor = (id) =>
+    priceAnchors?.materials?.get(id) ||
+    priceAnchors?.materials?.get(String(id));
+
   return flatWorks.map((work) => {
-    const workAnchor = priceAnchors.works.get(work.id);
+    const workAnchor = getWorkAnchor(work.id);
     const materials = (work.materials || []).map((mat) => {
-      const matAnchor = priceAnchors.materials.get(mat.id);
+      const matAnchor = getMatAnchor(mat.id);
       return {
         ...mat,
         currency: target,

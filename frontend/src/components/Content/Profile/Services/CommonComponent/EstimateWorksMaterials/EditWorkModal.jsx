@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { API, apiFetch } from "../../../../../../utils/api.js";
+import { API, apiFetch, readApiError } from "../../../../../../utils/api.js";
 import {
   createMoneyAnchor,
   formatMoney,
@@ -59,6 +59,8 @@ export default function EditWorkModal({
     Number(editedWork.workPricePerUnit || 0) *
 
     Number(editedWork.workQuantity || 0);
+
+  const doneQuantity = Number(work.doneQuantity ?? 0);
 
 
 
@@ -160,6 +162,18 @@ export default function EditWorkModal({
 
     }
 
+    const minQty = doneQuantity;
+
+    if (minQty > 0 && numQty < minQty) {
+
+      await uiAlert(
+        `Нельзя установить количество меньше, чем уже зафиксировано в графике работ: ${minQty}`,
+      );
+
+      return;
+
+    }
+
 
 
     const numPrice = Number(editedWork.workPricePerUnit);
@@ -216,11 +230,14 @@ export default function EditWorkModal({
 
       if (response && response.ok === false) {
 
-        const text = await response.text?.();
+        const detail = await readApiError(
+          response,
+          "Не удалось сохранить изменения",
+        );
 
-        console.error("Backend error:", text);
+        await uiAlert(detail);
 
-        throw new Error("Ошибка сохранения");
+        return;
 
       }
 
@@ -374,7 +391,7 @@ export default function EditWorkModal({
 
 
 
-              <div className="materials-modal__form-row">
+              <div className="materials-modal__form-row materials-modal__form-row--triple">
 
                 <label className="materials-modal__field">
 
@@ -422,12 +439,6 @@ export default function EditWorkModal({
 
                 </label>
 
-              </div>
-
-
-
-              <div className="materials-modal__form-row">
-
                 <label className="materials-modal__field">
 
                   <span className="materials-modal__label">
@@ -457,6 +468,12 @@ export default function EditWorkModal({
                   />
 
                 </label>
+
+              </div>
+
+
+
+              <div className="materials-modal__form-row">
 
                 <label className="materials-modal__field">
 
