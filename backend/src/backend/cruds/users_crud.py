@@ -36,6 +36,7 @@ from models.works_materials_models import (  # Категории работ м�
     WorkMasterMyself,
 )
 from models.geography_models import Country, Region, Town  # Справочник географии
+from cruds.geography_crud import _is_city_as_region  # регион-город: только справочник
 from core.access import is_user_blocked  # Проверка блокировки аккаунта
 from models.users_models import (  # ORM-модели пользователя и профиля
     BusinessForm,
@@ -79,6 +80,23 @@ async def _ensure_town_exists(db: AsyncSession, town_id: int) -> Town:
     return town
 
 
+async def _ensure_town_allowed_for_profile(db: AsyncSession, town_id: int) -> Town:
+    """Город должен существовать; для г. Минск — только пункт из справочника."""
+    town = await _ensure_town_exists(db, town_id)
+    region = await db.get(Region, town.region_id)
+    if region and _is_city_as_region(region.name_region):
+        source = (town.source or "admin").lower()
+        if source == "user" or town.is_verified is False:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Для г. Минск и других регионов-городов "
+                    "выберите населённый пункт из справочника"
+                ),
+            )
+    return town
+
+
 async def _geo_names_for_town_id(
     db: AsyncSession, town_id: int | None
 ) -> tuple[str, str, str]:
@@ -110,7 +128,7 @@ async def add_user(
             status_code=400, detail="Пользователь с таким именем уже существует"
         )
 
-    await _ensure_town_exists(db, user.town_id)
+    await _ensure_town_allowed_for_profile(db, user.town_id)
 
     db_user = User(  # ORM-объект нового пользователя
         first_name=user.first_name,  # имя
@@ -144,7 +162,7 @@ async def upsert_user_from_google(  # Создание/обновление по
     Your DB schema requires non-null `password_hash`, so for Google users we store
     a random internal password hash (password login won't be used).
     """
-    await _ensure_town_exists(db, town_id)
+    await _ensure_town_allowed_for_profile(db, town_id)
     existing = await get_user(db=db, email=email)  # Уже есть аккаунт с этим email
     password_hash = hash_password(
         secrets.token_urlsafe(32)
@@ -240,7 +258,7 @@ async def add_user_common(
     existing_user.first_name = user.first_name  # имя
     existing_user.last_name = user.last_name  # фамилия
     if user.town_id is not None:
-        await _ensure_town_exists(db, user.town_id)
+        await _ensure_town_allowed_for_profile(db, user.town_id)
         existing_user.town_id = user.town_id
     await db.commit()  # commit
     await db.refresh(existing_user)  # актуальные данные

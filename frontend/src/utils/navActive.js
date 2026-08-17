@@ -32,7 +32,7 @@ export function isExecutorsNavActive(pathname = "") {
   return path.startsWith("/catalog") || isPublicExecutorProfilePath(path);
 }
 
-/** Каталог заказов и карточка заказа: `/orders`, `/order/:slug`. */
+/** Каталог заказов и карточка заказа: `/orders`, `/orders/:id`, `/order/:slug`. */
 export function isOrdersNavActive(pathname = "") {
   const path = String(pathname);
   return path === "/orders" || path.startsWith("/orders/") || path.startsWith("/order/");

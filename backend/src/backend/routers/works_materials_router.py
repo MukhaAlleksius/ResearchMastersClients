@@ -21,6 +21,7 @@ from cruds.works_materials_crud import (  # CRUD: категории и рабо
     change_category_work_master,
     change_work_master_from_admin,
     change_work_master_myself,
+    delete_category_work_master,
     delete_work_master_from_admin,
     delete_work_master_myself,
     get_categories_works,
@@ -204,6 +205,30 @@ async def get_category_work_master_api(
         categories_works = await get_categories_works_master(db=db, master_id=master_id)  # Читаем специализации
         return categories_works  # Список категорий мастера
     except HTTPException as e:  # Ошибка доступа
+        raise HTTPException(status_code=403, detail=f"Ошибка {e}")
+
+
+# Удаление специализации мастера вместе с работами этой категории
+@router.delete("/delete_category_work_master/{master_id}/{category_work_id}")
+async def delete_category_work_master_api(
+    master_id: int,  # ID мастера из URL
+    category_work_id: int,  # ID категории из URL
+    db: AsyncSession = Depends(get_db),  # Сессия БД
+    current_user: UserCommonSchema = Depends(get_current_user),  # Авторизованный мастер
+):
+    ensure_same_user(current_user, master_id)  # Только сам мастер
+    try:
+        deleted = await delete_category_work_master(  # Удаляем специализацию и работы
+            db=db, master_id=master_id, category_work_id=category_work_id
+        )
+        if not deleted:  # Нет такой специализации
+            raise HTTPException(status_code=404, detail="Специализация не найдена")
+        return JSONResponse(  # Успешный JSON-ответ
+            content={"detail": "Удаление успешно"}, status_code=status.HTTP_200_OK
+        )
+    except HTTPException:  # Бизнес-ошибки пробрасываем как есть
+        raise
+    except Exception as e:  # Прочие ошибки
         raise HTTPException(status_code=403, detail=f"Ошибка {e}")
 
 

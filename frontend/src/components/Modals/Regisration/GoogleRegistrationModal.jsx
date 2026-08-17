@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react"; // хуки React
 import Select from "react-select"; // выпадающие списки страны/региона
-import CreatableSelect from "react-select/creatable"; // город: список + свой ввод
 import { createPortal } from "react-dom"; // рендер модалки в body
 import { apiFetch, buildApiUrl, formatApiDetail } from "../../../utils/api.js"; // HTTP + URL + текст ошибки
+import GeoTownSelect from "../../Common/GeoTownSelect.jsx";
 import {
   canCreateTownInRegion,
   createTownByUser,
@@ -11,6 +11,7 @@ import {
   getFallbackRegistrationGeography, // локальный дефолт без API
   isCityAsRegion,
   loadDefaultRegistrationGeography, // дефолт с API (Беларусь и т.д.)
+  townFieldHint,
 } from "../../../utils/geographyApi.js";
 import {
   normalizeTownName,
@@ -278,7 +279,7 @@ export default function GoogleRegistrationModal({
     setInvalidFields(nextInvalid);
 
     if (nextInvalid.countryId || nextInvalid.regionId || nextInvalid.townId) {
-      await uiWarn("Выберите страну, регион и город (из списка или введите свой).");
+      await uiWarn("Выберите страну, регион и город.");
       return;
     }
 
@@ -421,78 +422,31 @@ export default function GoogleRegistrationModal({
               <FieldRow
                 label="Город *"
                 htmlFor="google-reg-town"
-                hint={
-                  !regionId
-                    ? "сначала регион"
-                    : isCityAsRegion(findOption(regions, regionId)?.label)
-                      ? "только из справочника"
-                      : "см. правила"
-                }
+                hint={townFieldHint(findOption(regions, regionId)?.label, {
+                  hasRegion: Boolean(regionId),
+                })}
               >
-                {isCityAsRegion(findOption(regions, regionId)?.label) ? (
-                  <Select
-                    inputId="google-reg-town"
-                    classNamePrefix="reg-geo"
-                    options={towns}
-                    value={findOption(towns, townId)}
-                    onChange={(option) => {
-                      setTownId(option ? String(option.value) : "");
-                      clearInvalid("townId");
-                    }}
-                    isDisabled={fieldsDisabled || !regionId || geoLoading}
-                    isClearable={false}
-                    placeholder={
-                      !regionId
-                        ? "Сначала выберите регион"
-                        : "Выберите город"
-                    }
-                    noOptionsMessage={() => "Нет городов в справочнике"}
-                    menuPortalTarget={document.body}
-                    menuPosition="fixed"
-                    styles={buildGeoSelectStyles(Boolean(invalidFields.townId))}
-                  />
-                ) : (
-                  <CreatableSelect
-                    inputId="google-reg-town"
-                    classNamePrefix="reg-geo"
-                    options={towns}
-                    value={findOption(towns, townId)}
-                    onChange={(option) => {
-                      setTownId(option ? String(option.value) : "");
-                      clearInvalid("townId");
-                    }}
-                    onCreateOption={handleCreateTown}
-                    isValidNewOption={(inputValue) =>
-                      Boolean(regionId) &&
-                      canCreateTownInRegion(
-                        findOption(regions, regionId)?.label,
-                      ) &&
-                      Boolean(normalizeTownName(inputValue))
-                    }
-                    formatCreateLabel={(inputValue) =>
-                      `Добавить город «${normalizeTownName(inputValue)}»`
-                    }
-                    isDisabled={fieldsDisabled || !regionId || geoLoading}
-                    isLoading={false}
-                    isClearable={false}
-                    placeholder={
-                      !regionId
-                        ? "Сначала выберите регион"
-                        : "Выберите или введите город"
-                    }
-                    noOptionsMessage={({ inputValue }) =>
-                      inputValue
-                        ? "Нет совпадений — проверьте правила названия"
-                        : "Нет городов — можно ввести свой"
-                    }
-                    menuPortalTarget={document.body}
-                    menuPosition="fixed"
-                    styles={buildGeoSelectStyles(Boolean(invalidFields.townId))}
-                    aria-describedby="google-reg-town-rules"
-                  />
-                )}
+                <GeoTownSelect
+                  inputId="google-reg-town"
+                  classNamePrefix="reg-geo"
+                  regionLabel={findOption(regions, regionId)?.label}
+                  options={towns}
+                  value={findOption(towns, townId)}
+                  onChange={(option) => {
+                    setTownId(option ? String(option.value) : "");
+                    clearInvalid("townId");
+                  }}
+                  onCreateOption={handleCreateTown}
+                  isDisabled={fieldsDisabled || !regionId || geoLoading}
+                  isClearable={false}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  styles={buildGeoSelectStyles(Boolean(invalidFields.townId))}
+                  aria-describedby="google-reg-town-rules"
+                />
               </FieldRow>
 
+              {!isCityAsRegion(findOption(regions, regionId)?.label) && (
               <RulesDisclosure
                 id="google-reg-town-rules"
                 title="Правила названия города"
@@ -507,6 +461,7 @@ export default function GoogleRegistrationModal({
                   </li>
                 </ul>
               </RulesDisclosure>
+              )}
             </div>
           </div>
 

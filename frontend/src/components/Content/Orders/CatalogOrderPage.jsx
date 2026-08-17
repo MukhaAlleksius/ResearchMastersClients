@@ -1,22 +1,25 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch, buildApiUrl, readApiError } from "../../../utils/api.js";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { resolveCatalogOrderId } from "../../../utils/orderSlug.js";
 import OrderCustomer from "./OrderCustomer.jsx";
 import "../shared/public_content_layout.css";
 import "./orders_customers.css";
 export default function CatalogOrderPage({ openModal }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const params = useParams();
 
-  const orderId = useMemo(() => {
-    const fromState = location.state?.orderId;
-    if (fromState) return String(fromState);
-
-    const fromQuery = new URLSearchParams(location.search).get("id");
-    if (fromQuery) return fromQuery;
-
-    return null;
-  }, [location.state?.orderId, location.search]);
+  const orderId = useMemo(
+    () =>
+      resolveCatalogOrderId({
+        orderId: params.orderId,
+        slug: params.slug,
+        search: location.search,
+        state: location.state,
+      }),
+    [params.orderId, params.slug, location.search, location.state],
+  );
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);

@@ -122,7 +122,14 @@ function App() {
               />
               <Route path="/catalog" element={<CatalogPage />} />
               <Route path="/orders" element={<CatalogOrdersCustomers />} />
-              <Route path="/order/:slug" element={<CatalogOrderPage openModal={openModal} />} />
+              <Route
+                path="/orders/:orderId/:slug?"
+                element={<CatalogOrderPage openModal={openModal} />}
+              />
+              <Route
+                path="/order/:slug"
+                element={<CatalogOrderPage openModal={openModal} />}
+              />
               <Route path="/add_order" element={<OrderPage />} />
 
               <Route path="/legal/terms" element={<TermsOfService />} />
@@ -292,7 +299,14 @@ function App() {
               />
               <Route path="/catalog" element={<CatalogPage />} />
               <Route path="/orders" element={<CatalogOrdersCustomers />} />
-              <Route path="/order/:slug" element={<CatalogOrderPage openModal={openModal} />} />
+              <Route
+                path="/orders/:orderId/:slug?"
+                element={<CatalogOrderPage openModal={openModal} />}
+              />
+              <Route
+                path="/order/:slug"
+                element={<CatalogOrderPage openModal={openModal} />}
+              />
               <Route path="/add_order" element={<OrderPage openModal={openModal} />} />
               <Route path="/legal/terms" element={<TermsOfService />} />
               <Route path="/legal/privacy" element={<PrivacyPolicy />} />

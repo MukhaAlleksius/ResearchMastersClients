@@ -28,14 +28,22 @@ from schemas.works_materials_schemas import (  # Pydantic-схемы запро�
 DEFAULT_CURRENCY = "BYN"  # Валюта по умолчанию
 
 
-def _resolve_cost_currency(master_cost, master_currency, fallback_cost, fallback_currency):  # Стоимость и валюта с fallback
-    cost = float(master_cost if master_cost is not None else (fallback_cost or 0))  # Цена мастера или базовая
-    currency = master_currency or fallback_currency or DEFAULT_CURRENCY  # Валюта с запасным вариантом
+def _resolve_cost_currency(
+    master_cost, master_currency, fallback_cost, fallback_currency
+):  # Стоимость и валюта с fallback
+    cost = float(
+        master_cost if master_cost is not None else (fallback_cost or 0)
+    )  # Цена мастера или базовая
+    currency = (
+        master_currency or fallback_currency or DEFAULT_CURRENCY
+    )  # Валюта с запасным вариантом
     return cost, currency  # Пара для ответа
 
 
 # добавление в базу данных категории работ
-async def add_category_work(db: AsyncSession, category_work: CategoryWorkSchema):  # Создание/обновление категории работ
+async def add_category_work(
+    db: AsyncSession, category_work: CategoryWorkSchema
+):  # Создание/обновление категории работ
     result = await db.execute(  # Ищем категорию по id из схемы
         select(CategoryWork).where(CategoryWork.id == category_work.category_work_id)
     )
@@ -86,7 +94,9 @@ async def change_access_users(  # Переключение access_users у ка�
             raise HTTPException(status_code=404, detail="Категория не найдена")
 
         category.access_users = access_users  # Меняем флаг доступа
-        print(f"🔄 ИЗМЕНИЛИ: {category.name} → access_users={access_users}")  # Отладочный вывод
+        print(
+            f"🔄 ИЗМЕНИЛИ: {category.name} → access_users={access_users}"
+        )  # Отладочный вывод
 
         await db.commit()  # Сохраняем
         print("✅ COMMIT выполнен!")  # Отладка commit
@@ -96,7 +106,9 @@ async def change_access_users(  # Переключение access_users у ка�
         )
         fresh_category = result.scalar_one_or_none()
 
-        print(f"🔍 ИЗ БАЗЫ: access_users={fresh_category.access_users}")  # Отладка значения
+        print(
+            f"🔍 ИЗ БАЗЫ: access_users={fresh_category.access_users}"
+        )  # Отладка значения
         return fresh_category
 
     except Exception as e:  # Любая ошибка — откат и 500
@@ -106,7 +118,9 @@ async def change_access_users(  # Переключение access_users у ка�
 
 
 # метод для предоставления информации о категориях работ для пользователей
-async def get_categories_works_for_users(db: AsyncSession):  # Категории с access_users=True
+async def get_categories_works_for_users(
+    db: AsyncSession,
+):  # Категории с access_users=True
     try:
         list_categories_works = []  # Список схем для ответа
         result = await db.execute(  # Только доступные пользователям категории
@@ -162,9 +176,13 @@ async def get_categories_works(db: AsyncSession):  # Все категории �
 
 
 # добавление в базу данных работ
-async def add_work(db: AsyncSession, work: WorkSchema):  # Создание/обновление работы по имени
+async def add_work(
+    db: AsyncSession, work: WorkSchema
+):  # Создание/обновление работы по имени
 
-    result_work = await db.execute(select(Work).where(Work.name_work == work.name_work))  # По имени
+    result_work = await db.execute(
+        select(Work).where(Work.name_work == work.name_work)
+    )  # По имени
     existing_work = result_work.scalar_one_or_none()
 
     if existing_work:  # Обновляем существующую работу
@@ -172,7 +190,9 @@ async def add_work(db: AsyncSession, work: WorkSchema):  # Создание/об
         existing_work.name_work = work.name_work
         existing_work.unit_measurement = work.unit_measurement
         existing_work.cost = work.cost
-        existing_work.currency = work.currency or existing_work.currency or DEFAULT_CURRENCY
+        existing_work.currency = (
+            work.currency or existing_work.currency or DEFAULT_CURRENCY
+        )
         existing_work.category_work_id = work.category_work_id
 
         await db.commit()
@@ -282,7 +302,9 @@ async def add_category_work_for_master(  # Специализация масте
 
 # Выбираем категории работ для предоставления их в виде
 # карточек на экране со специализациями мастера
-async def get_categories_works_master(db: AsyncSession, master_id: int):  # Карточки специализаций мастера
+async def get_categories_works_master(
+    db: AsyncSession, master_id: int
+):  # Карточки специализаций мастера
     try:
         list_categories_works_master = []  # Список для ответа
         result = await db.execute(  # JOIN категории и специализации мастера
@@ -298,7 +320,10 @@ async def get_categories_works_master(db: AsyncSession, master_id: int):  # Ка
         if not result_categories_works_master:  # Нет специализаций
             return []
 
-        for category_work, category_work_master in result_categories_works_master:  # Пара ORM → схема
+        for (
+            category_work,
+            category_work_master,
+        ) in result_categories_works_master:  # Пара ORM → схема
             category_work_master_schema = CategoryWorkMasterReadSchema(
                 category_work_id=category_work.id,
                 name=category_work.name or "",
@@ -346,7 +371,9 @@ async def change_category_work_master(  # Редактирование спец�
         # Обновление состояния объекта из базы
         await db.refresh(existing_category_work_master)
 
-        return CategoryWorkMasterSchema.from_orm(existing_category_work_master)  # Схема для ответа
+        return CategoryWorkMasterSchema.from_orm(
+            existing_category_work_master
+        )  # Схема для ответа
 
     except Exception as e:  # Ошибка с трассировкой
         import traceback
@@ -356,7 +383,9 @@ async def change_category_work_master(  # Редактирование спец�
 
 
 # Выбираем работы, относящиеся к конкретной категории работ
-async def get_works_for_category_work(db: AsyncSession, category_work_id: int):  # Работы категории для каталога
+async def get_works_for_category_work(
+    db: AsyncSession, category_work_id: int
+):  # Работы категории для каталога
     try:
         result = await db.execute(  # JOIN работа + категория
             select(Work, CategoryWork)
@@ -501,7 +530,12 @@ async def ensure_work_master_myself(  # Upsert своей работы маст�
 ) -> WorkMasterMyself:
     normalized_name = (name_work or "").strip()
     normalized_unit = (unit_measurement or "").strip()
-    if not master_id or not category_work_id or not normalized_name or not normalized_unit:
+    if (
+        not master_id
+        or not category_work_id
+        or not normalized_name
+        or not normalized_unit
+    ):
         raise ValueError("Недостаточно данных для сохранения работы мастера")
 
     result = await db.execute(
@@ -533,7 +567,9 @@ async def ensure_work_master_myself(  # Upsert своей работы маст�
     return db_work_master
 
 
-async def add_work_master_myself(db: AsyncSession, work_master: WorkMasterMyselfSchema):  # Своя работа мастера
+async def add_work_master_myself(
+    db: AsyncSession, work_master: WorkMasterMyselfSchema
+):  # Своя работа мастера
     db_work_master = await ensure_work_master_myself(
         db,
         master_id=work_master.master_id,
@@ -566,7 +602,9 @@ async def delete_work_master_from_admin(  # Удаление WorkMasterFromAdmin
 
 
 # Удаление работы мастера добавленной самим или измененной от администратора
-async def delete_work_master_myself(db: AsyncSession, work_master_myself_id: int):  # Удаление своей работы
+async def delete_work_master_myself(
+    db: AsyncSession, work_master_myself_id: int
+):  # Удаление своей работы
     result = await db.execute(  # Ищем запись
         select(WorkMasterMyself).where(WorkMasterMyself.id == work_master_myself_id)
     )
@@ -576,6 +614,45 @@ async def delete_work_master_myself(db: AsyncSession, work_master_myself_id: int
     await db.delete(work_master_myself)  # Удаляем
     await db.commit()  # Фиксируем
     return True  # Успех
+
+
+# удаление категории работ мастера
+async def delete_category_work_master(
+    db: AsyncSession, master_id: int, category_work_id: int
+):
+    result_category_work_master = await db.execute(
+        select(CategoryWorkMaster).where(
+            CategoryWorkMaster.master_id == master_id,
+            CategoryWorkMaster.category_work_id == category_work_id,
+        )
+    )
+    category_work_master = result_category_work_master.scalars().first()
+    if not category_work_master:
+        return False
+
+    result_work_master_from_admin = await db.execute(
+        select(WorkMasterFromAdmin)
+        .join(Work, WorkMasterFromAdmin.work_id == Work.id)
+        .where(
+            WorkMasterFromAdmin.master_id == master_id,
+            Work.category_work_id == category_work_id,
+        )
+    )
+    for work_master_from_admin in result_work_master_from_admin.scalars().all():
+        await db.delete(work_master_from_admin)
+
+    result_work_master_myself = await db.execute(
+        select(WorkMasterMyself).where(
+            WorkMasterMyself.master_id == master_id,
+            WorkMasterMyself.category_work_id == category_work_id,
+        )
+    )
+    for work_master_myself in result_work_master_myself.scalars().all():
+        await db.delete(work_master_myself)
+
+    await db.delete(category_work_master)
+    await db.commit()
+    return True
 
 
 # Изменяем информацию о работе мастера для определенной категории, из собственных работ, или измененной
@@ -598,7 +675,10 @@ async def change_work_master_from_admin(  # Обновление цены раб
                 status_code=404, detail="Такой работы нет для этого мастера"
             )
 
-        if existing_work_master_from_admin.master_id != work_master_from_admin.master_id:  # Чужая работа
+        if (
+            existing_work_master_from_admin.master_id
+            != work_master_from_admin.master_id
+        ):  # Чужая работа
             raise HTTPException(status_code=403, detail="Нет доступа к этой работе")
 
         existing_work_master_from_admin.cost = work_master_from_admin.cost  # Новая цена
@@ -657,7 +737,9 @@ async def change_work_master_myself(  # Редактирование своей 
                 status_code=404, detail="Такой специализации нет для этого мастера"
             )
 
-        existing_work_master_myself.name_work = work_master_myself.name_work  # Обновляем поля
+        existing_work_master_myself.name_work = (
+            work_master_myself.name_work
+        )  # Обновляем поля
         existing_work_master_myself.unit_measurement = (
             work_master_myself.unit_measurement
         )

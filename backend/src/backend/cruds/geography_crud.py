@@ -20,14 +20,14 @@ logger = logging.getLogger(__name__)  # Логгер модуля
 
 def _is_city_as_region(region_name: str | None) -> bool:
     """Регион-город (напр. «г. Минск») — города только из справочника."""
-    label = str(region_name or "").strip().lower()
+    label = " ".join(str(region_name or "").strip().lower().replace("ё", "е").split())
     if not label:
         return False
     return (
         label.startswith("г.")
         or label.startswith("г ")
         or label.startswith("город ")
-        or label in {"минск", "г минск"}
+        or label == "минск"
     )
 
 
@@ -430,7 +430,15 @@ async def get_towns_for_region(
     db: AsyncSession, region_id: int
 ) -> list[TownReadSchema]:  # READ городов региона
     try:  # обработка ошибок
-        result = await db.execute(select(Town).where(Town.region_id == region_id))  # по region_id
+        region = await db.get(Region, region_id)
+        query = select(Town).where(Town.region_id == region_id)
+        if region and _is_city_as_region(region.name_region):
+            # г. Минск и аналоги: только проверенные пункты справочника
+            query = query.where(
+                Town.is_verified.is_(True),
+                or_(Town.source == "admin", Town.source.is_(None)),
+            )
+        result = await db.execute(query)
         towns = result.scalars().all()  # список ORM
         return [
             TownReadSchema(

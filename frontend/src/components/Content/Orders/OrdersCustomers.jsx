@@ -4,7 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import CatalogPagination from "../shared/CatalogPagination";
 import FiltersShell from "../shared/FiltersShell";
 import { CATALOG_PAGE_SIZE, getCatalogPageFromSearch } from "../../../utils/pagination";
-import { buildOrderSlug } from "../../../utils/orderSlug.js";
+import { buildOrderPath } from "../../../utils/orderSlug.js";
 import { dedupeOrdersById } from "../../../utils/orders.js";
 import { formatMoney } from "../../../utils/currency.js";
 import { IconClipboard, IconPin } from "../Profile/ProfileIcons.jsx";
@@ -419,8 +419,7 @@ function FilterSelect({ label, options, value, onChange }) {
 }
 
 function OrderCatalogCard({ order, returnTo }) {
-  const slug = buildOrderSlug(order.title);
-  const linkTo = `/order/${slug}?id=${order.id}`;
+  const linkTo = buildOrderPath(order);
   const linkState = { orderId: order.id, returnTo };
 
   const locationLabel = [order.country, order.region, order.town]

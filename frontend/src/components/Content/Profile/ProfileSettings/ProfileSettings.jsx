@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { API, apiFetch, buildApiUrl, formatApiDetail } from "../../../../utils/api.js";
 import CreatableSelect from "react-select/creatable";
 import Select from "react-select";
+import GeoTownSelect from "../../../Common/GeoTownSelect.jsx";
 import ModalShowContacts from "./ModalShowContacts";
 import ModalShowGeography from "./ModalShowGeography";
 import {
@@ -15,6 +16,7 @@ import {
   canCreateTownInRegion,
   createTownByUser,
   isCityAsRegion,
+  townFieldHint,
 } from "../../../../utils/geographyApi.js";
 import {
   normalizeTownName,
@@ -507,7 +509,9 @@ export default function ProfileSettings() {
               )) ||
             (common?.town &&
               loadedTowns.find((t) => t.label === common.town)) ||
-            null;
+            (isCityAsRegion(regionOpt.label) && loadedTowns.length === 1
+              ? loadedTowns[0]
+              : null);
           setGeoTown(townOpt);
         } else {
           setGeoRegion(null);
@@ -799,56 +803,21 @@ export default function ProfileSettings() {
               </div>
               <div className="ps-select-wrap">
                 <span className="ps-label">Город</span>
-                {isCityAsRegion(geoRegion?.label) ? (
-                  <Select
-                    {...selectMenuProps}
-                    options={townOptions}
-                    value={geoTown}
-                    onChange={setGeoTown}
-                    isClearable
-                    styles={selectStyles}
-                    placeholder={
-                      geoRegion
-                        ? "Выберите город"
-                        : "Сначала выберите область"
-                    }
-                    isDisabled={!geoRegion}
-                    noOptionsMessage={() =>
-                      !geoRegion
-                        ? "Сначала выберите область"
-                        : "Нет городов в справочнике"
-                    }
-                  />
-                ) : (
-                  <CreatableSelect
-                    {...selectMenuProps}
-                    options={townOptions}
-                    value={geoTown}
-                    onChange={setGeoTown}
-                    onCreateOption={handleCreateTown}
-                    isValidNewOption={(inputValue) =>
-                      canCreateTownInRegion(geoRegion?.label) &&
-                      Boolean(normalizeTownName(inputValue))
-                    }
-                    formatCreateLabel={(inputValue) =>
-                      `Добавить город «${normalizeTownName(inputValue)}»`
-                    }
-                    isClearable
-                    styles={selectStyles}
-                    placeholder={
-                      geoRegion
-                        ? "Выберите или введите город"
-                        : "Сначала выберите область"
-                    }
-                    isDisabled={!geoRegion}
-                    noOptionsMessage={({ inputValue }) =>
-                      !geoRegion
-                        ? "Сначала выберите область"
-                        : inputValue
-                          ? "Нет совпадений — можно добавить свой город"
-                          : "Нет городов — можно ввести свой"
-                    }
-                  />
+                <GeoTownSelect
+                  {...selectMenuProps}
+                  regionLabel={geoRegion?.label}
+                  options={townOptions}
+                  value={geoTown}
+                  onChange={setGeoTown}
+                  onCreateOption={handleCreateTown}
+                  isClearable={!isCityAsRegion(geoRegion?.label)}
+                  styles={selectStyles}
+                  isDisabled={!geoRegion}
+                />
+                {isCityAsRegion(geoRegion?.label) && (
+                  <p className="ps-section__hint" style={{ marginTop: 6 }}>
+                    {townFieldHint(geoRegion.label, { hasRegion: true })}
+                  </p>
                 )}
               </div>
             </div>
@@ -1058,56 +1027,26 @@ export default function ProfileSettings() {
               </div>
               <div className="ps-select-wrap">
                 <span className="ps-label">Город</span>
-                {isCityAsRegion(geoRegionOrder?.label) ? (
-                  <Select
-                    {...selectMenuProps}
-                    isClearable
-                    options={townOrderOptions}
-                    value={geoTownOrder}
-                    onChange={(newValue) => setGeoTownOrder(newValue)}
-                    placeholder={
-                      geoRegionOrder
-                        ? "Выберите город"
-                        : "Сначала выберите область"
-                    }
-                    isDisabled={!geoRegionOrder}
-                    noOptionsMessage={() =>
-                      !geoRegionOrder
-                        ? "Сначала выберите область"
-                        : "Нет городов в справочнике"
-                    }
-                    styles={selectStyles}
-                  />
-                ) : (
-                  <CreatableSelect
-                    {...selectMenuProps}
-                    isClearable
-                    options={townOrderOptions}
-                    value={geoTownOrder}
-                    onChange={(newValue) => setGeoTownOrder(newValue)}
-                    onCreateOption={handleCreateTownForOrders}
-                    isValidNewOption={(inputValue) =>
-                      canCreateTownInRegion(geoRegionOrder?.label) &&
-                      Boolean(normalizeTownName(inputValue))
-                    }
-                    formatCreateLabel={(inputValue) =>
-                      `Добавить город «${normalizeTownName(inputValue)}»`
-                    }
-                    placeholder={
-                      geoRegionOrder
-                        ? "Выберите или введите город"
-                        : "Сначала выберите область"
-                    }
-                    isDisabled={!geoRegionOrder}
-                    noOptionsMessage={({ inputValue }) =>
-                      !geoRegionOrder
-                        ? "Сначала выберите область"
-                        : inputValue
-                          ? "Нет совпадений — можно добавить свой город"
-                          : "Нет городов — можно ввести свой"
-                    }
-                    styles={selectStyles}
-                  />
+                <GeoTownSelect
+                  {...selectMenuProps}
+                  regionLabel={geoRegionOrder?.label}
+                  options={townOrderOptions}
+                  value={geoTownOrder}
+                  onChange={(newValue) => setGeoTownOrder(newValue)}
+                  onCreateOption={handleCreateTownForOrders}
+                  isClearable={!isCityAsRegion(geoRegionOrder?.label)}
+                  placeholder={
+                    geoRegionOrder
+                      ? "Выберите или введите город"
+                      : "Сначала выберите область"
+                  }
+                  isDisabled={!geoRegionOrder}
+                  styles={selectStyles}
+                />
+                {isCityAsRegion(geoRegionOrder?.label) && (
+                  <p className="ps-section__hint" style={{ marginTop: 6 }}>
+                    {townFieldHint(geoRegionOrder.label, { hasRegion: true })}
+                  </p>
                 )}
               </div>
             </div>

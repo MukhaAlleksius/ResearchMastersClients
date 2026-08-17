@@ -71,14 +71,24 @@ export function findOptionByLabel(options, label) {
  * свободный ввод города запрещён.
  */
 export function isCityAsRegion(regionLabel) {
-  const label = String(regionLabel || "").trim().toLowerCase();
+  const label = String(regionLabel || "")
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/\s+/g, " ");
   if (!label) return false;
-  return (
-    /^г\.\s*/.test(label) ||
-    /^город\s+/.test(label) ||
-    label === "минск" ||
-    label === "г минск"
-  );
+  if (/^г\.\s*/.test(label) || /^г\s/.test(label) || /^город\s+/.test(label)) {
+    return true;
+  }
+  return label === "минск";
+}
+
+export function townFieldHint(regionLabel, { hasRegion } = {}) {
+  if (!hasRegion) return "сначала регион";
+  if (isCityAsRegion(regionLabel)) {
+    return "город задаётся справочником, другой ввести нельзя";
+  }
+  return "см. правила";
 }
 
 /** Можно ли создавать новый город в выбранном регионе. */

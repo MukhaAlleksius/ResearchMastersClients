@@ -61,6 +61,8 @@ export default function EditSpecialization({
   specialization,
   currency: worksCurrency = "BYN",
   onUpdated,
+  onDelete,
+  deleting = false,
 }) {
   const displayCurrency = normalizeCurrencyCode(worksCurrency);
 
@@ -218,6 +220,23 @@ export default function EditSpecialization({
             Сохранено
           </span>
         )}
+      </div>
+
+      <div className="spec-danger-zone">
+        <h3 className="spec-danger-zone__title">Удаление специализации</h3>
+        <p className="spec-danger-zone__text">
+          Специализация исчезнет из профиля. Вместе с ней будут удалены работы
+          каталога и собственные работы этой категории.
+        </p>
+        <button
+          type="button"
+          className="spec-btn spec-btn--danger"
+          disabled={deleting || saving}
+          onClick={onDelete}
+        >
+          <i className="fas fa-trash-alt" aria-hidden="true" />
+          {deleting ? "Удаление…" : "Удалить специализацию"}
+        </button>
       </div>
     </form>
   );

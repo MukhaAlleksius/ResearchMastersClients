@@ -10,7 +10,7 @@ import {
   normalizeCurrencyCode,
 } from "../../../../utils/currency";
 import "./specializations.css";
-import { uiAlert } from "../../../UiDialog/uiDialog.js";
+import { uiAlert, uiConfirm } from "../../../UiDialog/uiDialog.js";
 
 const selectStyles = {
   control: (base, state) => ({
@@ -23,7 +23,7 @@ const selectStyles = {
   menu: (base) => ({ ...base, borderRadius: 10, zIndex: 40 }),
 };
 
-function SpecializationDetail({ specialization, onBack }) {
+function SpecializationDetail({ specialization, onBack, onDelete, deleting }) {
   const [activeInnerTab, setActiveInnerTab] = useState("works");
   const [currency, setCurrency] = useState("BYN");
   const [specInfo, setSpecInfo] = useState(specialization);
@@ -44,10 +44,11 @@ function SpecializationDetail({ specialization, onBack }) {
     setCurrency(normalizedNew);
   };
 
-  return (    <div className="spec-page">
+  return (
+    <div className="spec-page">
       <button type="button" className="spec-back" onClick={onBack}>
-        <i className="fas fa-arrow-left" aria-hidden="true" />
-        К списку специализаций
+        <i className="fas fa-arrow-left" aria-hidden="true" />К списку
+        специализаций
       </button>
 
       <header className="spec-page__header">
@@ -78,11 +79,7 @@ function SpecializationDetail({ specialization, onBack }) {
       <div className="spec-detail__meta">
         <span className="spec-pill">
           <i className="fas fa-clock" aria-hidden="true" />
-          {formatMoney(
-            specInfo.cost_hour,
-            specInfo.currency || "BYN",
-          )}{" "}
-          / час
+          {formatMoney(specInfo.cost_hour, specInfo.currency || "BYN")} / час
         </span>
         {specInfo.experience != null && specInfo.experience !== "" && (
           <span className="spec-pill">
@@ -121,9 +118,11 @@ function SpecializationDetail({ specialization, onBack }) {
           <EditSpecialization
             specialization={specInfo}
             currency={currency}
+            deleting={deleting}
             onUpdated={(updates) =>
               setSpecInfo((prev) => ({ ...prev, ...updates }))
             }
+            onDelete={() => onDelete(specialization)}
           />
         )}
         {activeInnerTab === "works" && (
@@ -137,7 +136,8 @@ function SpecializationDetail({ specialization, onBack }) {
             category_work_id={specialization.category_work_id}
             currency={currency}
           />
-        )}      </div>
+        )}{" "}
+      </div>
     </div>
   );
 }
@@ -152,6 +152,7 @@ export default function Specializations() {
   const [costHour, setCostHour] = useState("");
   const [categoriesWorks, setCategoriesWorks] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchCategoriesWorksMaster = async () => {
     try {
@@ -225,6 +226,40 @@ export default function Specializations() {
     }
   };
 
+  const handleDeleteSpecialization = async (spec) => {
+    const name = spec?.name || "эту специализацию";
+    const confirmed = await uiConfirm(
+      `Удалить «${name}»? Вместе со специализацией будут удалены все работы каталога и собственные работы. Действие нельзя отменить.`,
+      { title: "Удалить специализацию?", danger: true },
+    );
+    if (!confirmed) return;
+
+    const master_id = localStorage.getItem("user_id");
+    const category_work_id = spec?.category_work_id;
+    if (!master_id || !category_work_id) {
+      await uiAlert("Не удалось определить специализацию");
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await apiFetch(
+        buildApiUrl(
+          `/delete_category_work_master/${master_id}/${category_work_id}`,
+        ),
+        { method: "DELETE" },
+      );
+      if (!response.ok) throw new Error("Ошибка удаления");
+      await fetchCategoriesWorksMaster();
+      setSelectedSpecialization(null);
+    } catch (error) {
+      console.error(error);
+      await uiAlert("Не удалось удалить специализацию");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   useEffect(() => {
     fetchCategoriesWorks();
     fetchCategoriesWorksMaster();
@@ -235,6 +270,8 @@ export default function Specializations() {
       <SpecializationDetail
         specialization={selectedSpecialization}
         onBack={() => setSelectedSpecialization(null)}
+        onDelete={handleDeleteSpecialization}
+        deleting={deleting}
       />
     );
   }
@@ -277,8 +314,8 @@ export default function Specializations() {
           <p className="spec-hint__text">
             Здесь вы указываете, какие виды работ выполняете: добавляете
             специализации, ставку за час, стаж и прайс. Эти данные показываются
-            в вашем профиле, помогают заказчикам найти вас и предложить заказ
-            по нужной услуге.
+            в вашем профиле, помогают заказчикам найти вас и предложить заказ по
+            нужной услуге.
           </p>
         </div>
       )}
@@ -293,24 +330,38 @@ export default function Specializations() {
           ) : (
             <div className="spec-grid">
               {categoriesWorksMaster.map((spec) => (
-                <button
+                <article
                   key={
                     spec.category_works_master_id ||
                     spec.category_work_master_id ||
                     spec.category_work_id
                   }
-                  type="button"
                   className="spec-card"
-                  onClick={() => setSelectedSpecialization(spec)}
                 >
-                  <h3 className="spec-card__title">{spec.name}</h3>
-                  <p className="spec-card__desc">
-                    {spec.description_master || "Без описания"}
-                  </p>
-                  <span className="spec-card__rate">
-                    {formatMoney(spec.cost_hour, spec.currency || "BYN")} / час
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    className="spec-card__open"
+                    onClick={() => setSelectedSpecialization(spec)}
+                  >
+                    <h3 className="spec-card__title">{spec.name}</h3>
+                    <p className="spec-card__desc">
+                      {spec.description_master || "Без описания"}
+                    </p>
+                    <span className="spec-card__rate">
+                      {formatMoney(spec.cost_hour, spec.currency || "BYN")} /
+                      час
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="spec-card__delete"
+                    aria-label={`Удалить специализацию ${spec.name || ""}`}
+                    disabled={deleting}
+                    onClick={() => handleDeleteSpecialization(spec)}
+                  >
+                    <i className="fas fa-trash-alt" aria-hidden="true" />
+                  </button>
+                </article>
               ))}
             </div>
           )}
