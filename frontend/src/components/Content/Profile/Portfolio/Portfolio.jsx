@@ -272,6 +272,10 @@ export default function Portfolio() {
         project={selectedProject}
         onBack={() => setSelectedProject(null)}
         onImagesChanged={fetchPortfolioMaster}
+        onDeleted={() => {
+          setSelectedProject(null);
+          fetchPortfolioMaster();
+        }}
       />
     );
   }

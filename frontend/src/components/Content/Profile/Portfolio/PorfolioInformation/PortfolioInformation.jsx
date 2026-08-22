@@ -1,16 +1,26 @@
 import { useState, useEffect, useCallback } from "react";
-import { API, apiFetch, buildApiUrl, readApiError } from "../../../../../utils/api.js";
+import {
+  API,
+  apiFetch,
+  buildApiUrl,
+  readApiError,
+} from "../../../../../utils/api.js";
 import "../portfolio.css";
 import "./portfolio_information.css";
 
-import { uiAlert } from "../../../../UiDialog/uiDialog.js";
+import { uiAlert, uiConfirm } from "../../../../UiDialog/uiDialog.js";
 
 function resolveImageUrl(path) {
   if (!path) return null;
   return path.startsWith("http") ? path : `${API.baseURL}${path}`;
 }
 
-function PortfolioInformation({ project, onBack, onImagesChanged }) {
+function PortfolioInformation({
+  project,
+  onBack,
+  onImagesChanged,
+  onDeleted,
+}) {
   const [activeInnerTab, setActiveInnerTab] = useState("info");
 
   const [title, setTitle] = useState(project.title);
@@ -19,6 +29,7 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [loadingImages, setLoadingImages] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [modalImage, setModalImage] = useState(null);
   const [selectedForDelete, setSelectedForDelete] = useState(new Set());
@@ -151,7 +162,10 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
         });
 
         if (!response.ok) {
-          const detail = await readApiError(response, `Ошибка удаления (${response.status})`);
+          const detail = await readApiError(
+            response,
+            `Ошибка удаления (${response.status})`,
+          );
           console.error(`Ошибка удаления файла ${filename}:`, detail);
           await uiAlert(`Не удалось удалить файл: ${detail}`);
           return;
@@ -170,6 +184,44 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
 
   const handleSave = () => {
     console.log("Сохраняем изменения:", { title, description, images });
+  };
+
+  const handleDeleteProject = async () => {
+    if (!portfolioItemId) {
+      await uiAlert("Не удалось определить проект портфолио");
+      return;
+    }
+
+    const projectTitle = (project.title || "этот проект").trim();
+    const confirmed = await uiConfirm(
+      `Удалить «${projectTitle}»? Проект и все его фотографии будут удалены. Действие нельзя отменить.`,
+      { title: "Удалить проект?", danger: true },
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      const url = buildApiUrl("/delete_project_portfolio_master", {
+        portfolio_item_id: portfolioItemId,
+      });
+      const response = await apiFetch(url, { method: "DELETE" });
+
+      if (!response.ok) {
+        const detail = await readApiError(
+          response,
+          `Ошибка удаления (${response.status})`,
+        );
+        await uiAlert(detail);
+        return;
+      }
+
+      onDeleted?.();
+    } catch (error) {
+      console.error("Ошибка при удалении проекта:", error);
+      await uiAlert("Ошибка при удалении: " + error.message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const toggleSelectImage = (img) => {
@@ -210,7 +262,9 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
           <h2 className="pf-detail__title">{project.title}</h2>
           <div className="pf-detail__meta">
             {project.category_work && (
-              <span className="pf-detail__category">{project.category_work}</span>
+              <span className="pf-detail__category">
+                {project.category_work}
+              </span>
             )}
             <span className="pf-detail__meta-pill">
               {images.length} {images.length === 1 ? "фото" : "фото"}
@@ -280,7 +334,10 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
             <div className="pf-gallery">
               {loadingImages ? (
                 <div className="pf-gallery-loading">
-                  <span className="pf-gallery-loading__spinner" aria-hidden="true" />
+                  <span
+                    className="pf-gallery-loading__spinner"
+                    aria-hidden="true"
+                  />
                   Загрузка фотографий…
                 </div>
               ) : images.length > 0 ? (
@@ -430,6 +487,22 @@ function PortfolioInformation({ project, onBack, onImagesChanged }) {
             <button type="submit" className="pf-btn-primary">
               Сохранить
             </button>
+
+            <div className="pf-danger-zone">
+              <h3 className="pf-danger-zone__title">Удаление проекта</h3>
+              <p className="pf-danger-zone__text">
+                Проект исчезнет из портфолио. Вместе с ним будут удалены все
+                загруженные фотографии. Это действие нельзя отменить.
+              </p>
+              <button
+                type="button"
+                className="pf-btn-danger pf-btn-danger--block"
+                disabled={deleting}
+                onClick={handleDeleteProject}
+              >
+                {deleting ? "Удаление…" : "Удалить проект"}
+              </button>
+            </div>
           </form>
         )}
       </div>

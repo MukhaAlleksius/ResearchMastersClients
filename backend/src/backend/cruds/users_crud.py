@@ -956,6 +956,23 @@ async def get_projects_portfolio_master(
         raise HTTPException(status_code=403, detail=f"Ошибка: {str(e)}")  # 403
 
 
+async def delete_project_portfolio_master(  # Удалить проект портфолио мастера
+    db: AsyncSession, *, user_id: int, portfolio_item_id: int
+) -> bool:
+    result = await db.execute(
+        select(PortfolioItem).where(
+            PortfolioItem.id == portfolio_item_id,
+            PortfolioItem.user_id == user_id,
+        )
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        return False
+    await db.delete(item)
+    await db.commit()
+    return True
+
+
 async def get_users_for_admin(  # Список пользователей для админки с фильтрами
     db: AsyncSession,
     category_work_slug: Optional[str] = None,

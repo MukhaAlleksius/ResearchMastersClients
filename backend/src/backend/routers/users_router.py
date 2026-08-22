@@ -60,6 +60,7 @@ from cruds.users_crud import (  # CRUD пользователей
     add_business_form,  # справочник ОПФ
     add_profile_user,  # профиль исполнителя
     add_project_portfolio_master,  # проект портфолио
+    delete_project_portfolio_master,  # удалить проект портфолио
     add_user,
     is_specialization_user,  # проверка специализации исполнителя
     upsert_user_from_google,  # Google upsert
@@ -1034,6 +1035,79 @@ async def delete_image_portfolio_master_api(
         raise HTTPException(status_code=500, detail=f"Ошибка удаления файла: {str(e)}")
 
     return {"success": True, "deleted_file": storage_key}  # Подтверждение удаления
+
+
+def _delete_portfolio_item_files(
+    *,
+    storage,
+    master_id: int,
+    portfolio_item_id: int,
+    title: str | None,
+    delete_legacy: bool,
+) -> list[str]:  # Удалить файлы проекта из storage
+    prefixes = [f"{master_id}/{portfolio_item_id}/"]
+    if delete_legacy and title and not str(title).isdigit():
+        prefixes.append(f"{master_id}/{title}/")
+
+    deleted: list[str] = []
+    for prefix in prefixes:
+        for key in storage.list_keys(prefix):
+            try:
+                storage.delete(key)
+                deleted.append(key)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to delete portfolio file %s: %s", key, exc
+                )
+    return deleted
+
+
+@router.delete(
+    "/delete_project_portfolio_master"
+)  # Удаление проекта портфолио вместе с фотографиями
+async def delete_project_portfolio_master_api(
+    portfolio_item_id: int = Query(..., gt=0),
+    db: AsyncSession = Depends(get_db),  # сессия БД
+    current_user: UserCommonSchema = Depends(get_current_user),  # JWT
+):
+    master_id = current_user.user_id  # Только свой проект
+    item = await _get_owned_portfolio_item(
+        db, master_id=master_id, portfolio_item_id=portfolio_item_id
+    )
+    title = item.title
+
+    oldest_same_title = await db.execute(
+        select(PortfolioItem.id)
+        .where(
+            PortfolioItem.user_id == master_id,
+            PortfolioItem.title == title,
+        )
+        .order_by(PortfolioItem.id.asc())
+        .limit(1)
+    )
+    oldest_id = oldest_same_title.scalar_one_or_none()
+    delete_legacy = oldest_id == item.id
+
+    storage = get_portfolio_storage()
+    deleted_files = _delete_portfolio_item_files(
+        storage=storage,
+        master_id=master_id,
+        portfolio_item_id=portfolio_item_id,
+        title=title,
+        delete_legacy=delete_legacy,
+    )
+
+    deleted = await delete_project_portfolio_master(
+        db, user_id=master_id, portfolio_item_id=portfolio_item_id
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Проект портфолио не найден")
+
+    return {
+        "success": True,
+        "portfolio_item_id": portfolio_item_id,
+        "deleted_files": deleted_files,
+    }
 
 
 @router.get(
