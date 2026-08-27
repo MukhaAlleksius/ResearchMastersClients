@@ -84,14 +84,22 @@ async def lifespan(app: FastAPI):
                 "AUTO_CREATE_DB=false; schema is managed by Alembic migrations."
             )
 
-        if SEED_DEFAULT_WORKS:
+        # Docker entrypoint already seeds after migrations. Skip here so
+        # each gunicorn worker does not re-run the catalog on startup.
+        seeded_in_entrypoint = os.getenv(
+            "RUN_MIGRATIONS_ON_STARTUP", "false"
+        ).lower() in {"1", "true", "yes", "on"}
+        if SEED_DEFAULT_WORKS and not seeded_in_entrypoint:
             from seed_works import seed_default_works
 
-            works_seeded = await seed_default_works()
-            logger.info(
-                "Default works catalog %s.",
-                "seeded" if works_seeded else "already present",
-            )
+            try:
+                works_seeded = await seed_default_works()
+                logger.info(
+                    "Default works catalog %s.",
+                    "seeded" if works_seeded else "already present",
+                )
+            except Exception:
+                logger.exception("Default works catalog seed failed")
 
         async with async_session_maker() as session:
             await preload_nbrb_rates(session)

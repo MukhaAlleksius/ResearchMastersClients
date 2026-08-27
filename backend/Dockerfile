@@ -45,14 +45,14 @@ RUN sed -i 's/\r$//' docker-entrypoint.sh \
 EXPOSE 8000
 
 # Значения по умолчанию для контейнера (можно переопределить в .env / compose)
-ENV GUNICORN_WORKERS=4 \
+ENV GUNICORN_WORKERS=2 \
     GUNICORN_TIMEOUT=120 \
     RUN_MIGRATIONS_ON_STARTUP=true \
     AUTO_CREATE_DB=false \
     SQL_ECHO=false
 
 # Проверка живости контейнера: раз в 30с дергает /health
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8000/health || exit 1
 
 # При старте контейнера запускается этот скрипт

@@ -238,20 +238,9 @@ async def main() -> int:
             await conn.run_sync(Base.metadata.create_all)
             created = True
 
-    seeded = await seed_default_geography()
-    if seeded:
-        print("geography_seeded", file=sys.stderr)
-
-    try:
-        from seed_works import seed_default_works
-
-        works_seeded = await seed_default_works()
-        if works_seeded:
-            print("works_seeded", file=sys.stderr)
-    except Exception as exc:  # noqa: BLE001
-        # Geography must not fail because of an optional catalog seed.
-        print(f"works seed skipped: {exc}", file=sys.stderr)
-
+    # Seeds run later in docker-entrypoint.sh, AFTER Alembic migrations.
+    # Applying ORM seeds here breaks existing Docker volumes whose schema
+    # is still one revision behind (missing towns.source, works.slug, etc.).
     print("created" if created else "exists")
     return 0
 

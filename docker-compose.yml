@@ -57,7 +57,7 @@ services:
       SQL_ECHO: "false"
       RUN_MIGRATIONS_ON_STARTUP: "true"
       SEED_DEFAULT_WORKS: "true"
-      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       AVATARS_DIR: /app/avatars
       PORTFOLIO_DIR: /app/portfolio
@@ -81,7 +81,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 40s
+      start_period: 90s
 
   frontend:
     build:

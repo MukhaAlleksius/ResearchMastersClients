@@ -17,22 +17,24 @@ if [ "${RUN_MIGRATIONS_ON_STARTUP:-true}" = "true" ]; then
     alembic upgrade head
   fi
 
-  # Always ensure registration geography exists (Беларусь / Минская область / Солигорск).
-  # Runs after migrations so tables/constraints are present.
+  # Seeds must run after migrations so existing volumes get new columns first.
   echo "Ensuring default geography..."
-  python -c "import asyncio; from bootstrap_schema import seed_default_geography; print('geography_seeded' if asyncio.run(seed_default_geography()) else 'geography_ok')"
+  if ! python -c "import asyncio; from bootstrap_schema import seed_default_geography; print('geography_seeded' if asyncio.run(seed_default_geography()) else 'geography_ok')"; then
+    echo "WARNING: geography seed failed; continuing startup" >&2
+  fi
 
-  # Catalog of categories/works from data/works_dictionary.json (idempotent).
   if [ "${SEED_DEFAULT_WORKS:-true}" = "true" ]; then
     echo "Ensuring default works catalog..."
-    python -c "import asyncio; from seed_works import seed_default_works; print('works_seeded' if asyncio.run(seed_default_works()) else 'works_ok')"
+    if ! python -c "import asyncio; from seed_works import seed_default_works; print('works_seeded' if asyncio.run(seed_default_works()) else 'works_ok')"; then
+      echo "WARNING: works seed failed; continuing startup" >&2
+    fi
   fi
 fi
 
 echo "Starting gunicorn..."
 exec gunicorn main:app \
   -k uvicorn.workers.UvicornWorker \
-  -w "${GUNICORN_WORKERS:-4}" \
+  -w "${GUNICORN_WORKERS:-2}" \
   -b 0.0.0.0:8000 \
   --timeout "${GUNICORN_TIMEOUT:-120}" \
   --access-logfile - \
