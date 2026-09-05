@@ -40,7 +40,11 @@ export default function OrderCustomer({
   }, [order?.customer_id, userId]);
 
   const canOfferService =
-    showOfferActions && isLoggedIn && Boolean(userId) && !isOwnOrder;
+    showOfferActions &&
+    isLoggedIn &&
+    Boolean(userId) &&
+    !isOwnOrder &&
+    order?.can_offer_service !== false;
   const showGuestOfferHint =
     showOfferActions && !isLoggedIn && !isOwnOrder;
   const displayCustomerSection = showCustomerSection;

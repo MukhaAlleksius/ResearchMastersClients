@@ -27,6 +27,14 @@ function OrdersIcon() {
   );
 }
 
+function ServicesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function MoneyIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
@@ -70,39 +78,16 @@ function RatingStars({ rating }) {
   );
 }
 
-function OrdersBreakdown({ orders }) {
-  const total = Math.max(orders?.total_orders ?? 0, 1);
-  const segments = [
-    {
-      key: "completed",
-      label: "Выполнено",
-      value: orders?.completed_orders ?? 0,
-      className: "an-breakdown__segment--success",
-      dot: "var(--an-success)",
-    },
-    {
-      key: "progress",
-      label: "В работе",
-      value: orders?.in_progress_orders ?? 0,
-      className: "an-breakdown__segment--primary",
-      dot: "var(--an-primary)",
-    },
-    {
-      key: "cancelled",
-      label: "Отменено",
-      value: orders?.cancelled_orders ?? 0,
-      className: "an-breakdown__segment--danger",
-      dot: "var(--an-danger)",
-    },
-  ];
+function StatusBreakdown({ totalCount, emptyText, ariaLabel, segments }) {
+  const total = Math.max(totalCount ?? 0, 1);
 
-  if ((orders?.total_orders ?? 0) === 0) {
-    return <p className="an-empty">За выбранный период заказов нет</p>;
+  if ((totalCount ?? 0) === 0) {
+    return <p className="an-empty">{emptyText}</p>;
   }
 
   return (
     <div className="an-breakdown">
-      <div className="an-breakdown__bar" role="img" aria-label="Распределение заказов по статусам">
+      <div className="an-breakdown__bar" role="img" aria-label={ariaLabel}>
         {segments.map((item) =>
           item.value > 0 ? (
             <div
@@ -209,10 +194,18 @@ export default function AnalyticsDashboard() {
       iconClass: "an-kpi__icon--blue",
     },
     {
+      key: "services",
+      label: "Услуги",
+      value: data?.services?.total_services ?? 0,
+      hint: `Выполнено ${data?.services?.completed_services ?? 0} · в работе ${data?.services?.in_progress_services ?? 0}`,
+      icon: ServicesIcon,
+      iconClass: "an-kpi__icon--violet",
+    },
+    {
       key: "money",
-      label: "Доход",
+      label: "Прибыль",
       value: formatMoney(data?.money?.total_amount, currency),
-      hint: `Средний чек ${formatMoney(data?.money?.average_amount, currency)}`,
+      hint: `Среднее с заказа ${formatMoney(data?.money?.average_amount, currency)}`,
       icon: MoneyIcon,
       iconClass: "an-kpi__icon--green",
     },
@@ -245,7 +238,7 @@ export default function AnalyticsDashboard() {
           <div>
             <h1 className="an-header__title">Аналитика</h1>
             <p className="an-header__subtitle">
-              Заказы, доход, рейтинг и отмены за выбранный период
+              Заказы, услуги, прибыль от выполненных работ, рейтинг и отмены за период
             </p>
           </div>
         </div>
@@ -334,7 +327,73 @@ export default function AnalyticsDashboard() {
           <div className="an-panels">
             <section className="an-panel">
               <h2 className="an-panel__title">Распределение заказов</h2>
-              <OrdersBreakdown orders={data?.orders} />
+              <StatusBreakdown
+                totalCount={data?.orders?.total_orders}
+                emptyText="За выбранный период заказов нет"
+                ariaLabel="Распределение заказов по статусам"
+                segments={[
+                  {
+                    key: "completed",
+                    label: "Выполнено",
+                    value: data?.orders?.completed_orders ?? 0,
+                    className: "an-breakdown__segment--success",
+                    dot: "var(--an-success)",
+                  },
+                  {
+                    key: "progress",
+                    label: "В работе",
+                    value: data?.orders?.in_progress_orders ?? 0,
+                    className: "an-breakdown__segment--primary",
+                    dot: "var(--an-primary)",
+                  },
+                  {
+                    key: "cancelled",
+                    label: "Отменено",
+                    value: data?.orders?.cancelled_orders ?? 0,
+                    className: "an-breakdown__segment--danger",
+                    dot: "var(--an-danger)",
+                  },
+                ]}
+              />
+            </section>
+
+            <section className="an-panel">
+              <h2 className="an-panel__title">Распределение услуг</h2>
+              <StatusBreakdown
+                totalCount={data?.services?.total_services}
+                emptyText="За выбранный период услуг нет"
+                ariaLabel="Распределение услуг по статусам"
+                segments={[
+                  {
+                    key: "completed",
+                    label: "Выполнено",
+                    value: data?.services?.completed_services ?? 0,
+                    className: "an-breakdown__segment--success",
+                    dot: "var(--an-success)",
+                  },
+                  {
+                    key: "progress",
+                    label: "В работе",
+                    value: data?.services?.in_progress_services ?? 0,
+                    className: "an-breakdown__segment--primary",
+                    dot: "var(--an-primary)",
+                  },
+                  {
+                    key: "awaiting",
+                    label: "Ожидают",
+                    value: data?.services?.awaiting_services ?? 0,
+                    className: "an-breakdown__segment--violet",
+                    dot: "var(--an-violet)",
+                  },
+                  {
+                    key: "refused",
+                    label: "Отказы",
+                    value: data?.services?.refused_services ?? 0,
+                    className: "an-breakdown__segment--danger",
+                    dot: "var(--an-danger)",
+                  },
+                ]}
+              />
             </section>
 
             <section className="an-panel">
@@ -342,13 +401,13 @@ export default function AnalyticsDashboard() {
               {(data?.money?.total_amount ?? 0) > 0 ? (
                 <ul className="an-stat-list">
                   <li className="an-stat-list__item">
-                    <span className="an-stat-list__label">Сумма за период</span>
+                    <span className="an-stat-list__label">Прибыль от работ</span>
                     <span className="an-stat-list__value">
                       {formatMoney(data?.money?.total_amount, currency)}
                     </span>
                   </li>
                   <li className="an-stat-list__item">
-                    <span className="an-stat-list__label">Средний чек</span>
+                    <span className="an-stat-list__label">Среднее с заказа</span>
                     <span className="an-stat-list__value">
                       {formatMoney(data?.money?.average_amount, currency)}
                     </span>
@@ -367,7 +426,7 @@ export default function AnalyticsDashboard() {
                   </li>
                 </ul>
               ) : (
-                <p className="an-empty">Нет финансовых данных за период</p>
+                <p className="an-empty">Нет прибыли от выполненных работ за период</p>
               )}
             </section>
 

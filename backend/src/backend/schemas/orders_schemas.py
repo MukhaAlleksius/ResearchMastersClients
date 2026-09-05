@@ -1,8 +1,10 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 import re
 from typing import Dict, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, validator
+
+from core.future_dates import DEADLINE_PRESETS, ensure_not_before_today
 
 
 class OrderServiceSchema(BaseModel):
@@ -28,6 +30,14 @@ class OrderUserSchema(OrderServiceSchema):
     category_work_id: Optional[int] = None
     executor_id: Optional[int] = None
     status_order_customer: Optional[str] = Field(None)
+    description: Optional[str] = Field(None, description="Описание заказа")
+    country: Optional[str] = Field(None, max_length=100)
+    region: Optional[str] = Field(None, max_length=100)
+    town: Optional[str] = Field(None, max_length=100)
+    location: Optional[str] = Field(None, max_length=200)
+    responses_count: int = Field(
+        0, ge=0, description="Сколько исполнителей откликнулись на заказ"
+    )
 
 
 # валидатор для предоставления информации пользователю в карточках
@@ -66,6 +76,15 @@ class OrderCreateSchema(BaseModel):
         default=False, description="Требуется страховка"
     )
 
+    @field_validator("deadline")
+    @classmethod
+    def validate_deadline_not_past(cls, v: str) -> str:
+        if cls.__name__ == "OrderReadSchema":
+            return v
+        if not v or v in DEADLINE_PRESETS:
+            return v
+        return ensure_not_before_today(v, field_name="Дата выполнения") or v
+
 
 # ✅ Валидатор для обновления заказа заказчиком
 class OrderUpdateSchema(OrderCreateSchema):
@@ -83,6 +102,13 @@ class OrderReadSchema(OrderCreateSchema):
     category_work_id: int = Field(None, gt=0, description="ID категории работ")
     created_at: datetime = Field(..., description="Дата создания")
     updated_at: datetime = Field(..., description="Дата обновления")
+    responses_count: int = Field(
+        0, ge=0, description="Сколько исполнителей откликнулись на заказ"
+    )
+    can_offer_service: bool = Field(
+        True,
+        description="Можно ли текущему исполнителю предложить услугу по этому заказу",
+    )
 
     model_config = ConfigDict(from_attributes=True)  # ✅ Pydantic v2
 
@@ -104,7 +130,6 @@ class OrderResponseExecutorSchema(BaseModel):
     proposed_price: Optional[float] = Field(None, ge=0)
     budget_type: Optional[str] = Field(None, max_length=50)
     currency: Optional[str] = Field(default="BYN", max_length=100)
-    estimated_time: Optional[str] = Field(None)
     start_time_work: Optional[str] = Field(None, max_length=10)
     message: Optional[str] = Field(None, max_length=2000)
 
@@ -114,9 +139,9 @@ class OrderResponseExecutorSchema(BaseModel):
         if not v or not v.strip():
             return None
         date_str = v.strip()
-        if re.match(r"^\d{2}\.\d{2}\.\d{2}$", date_str):
-            return date_str
-        raise ValueError("Формат: dd.mm.yy")
+        if not re.match(r"^\d{2}\.\d{2}\.\d{2}$", date_str):
+            raise ValueError("Формат: dd.mm.yy")
+        return ensure_not_before_today(date_str, field_name="Дата начала работы")
 
 
 # ✅ Схема для OUTPUT (чтение из БД)
@@ -129,7 +154,6 @@ class OrderResponseExecutorReadSchema(BaseModel):
     proposed_price: Optional[float] = None
     budget_type: Optional[str] = None
     currency: Optional[str] = None
-    estimated_time: Optional[str] = None
     start_time_work: Optional[str] = None
     message: Optional[str] = None
     created_at: Optional[datetime] = None  # Дополнение из БД
@@ -150,7 +174,6 @@ class StatusOrderCustomerSchema(BaseModel):
     order_id: int
     customer_id: int
     status: str
-    suppress_executor_notification: bool = False
 
 
 # валидатор для добавления статуса заказа пользователя относительно исполнителя
@@ -321,8 +344,6 @@ class NotificationSchema(BaseModel):
     is_read: bool = False
     order_id: Optional[int] = None
     order_title: Optional[str] = None
-    executor_reaction: Optional[str] = None
-    acknowledged_at: Optional[datetime] = None
     action_path: Optional[str] = None
     created_at: Optional[datetime] = None
 
@@ -473,6 +494,14 @@ class GraphicOrderMasterCreate(BaseModel):
     user_id: int
     order_id: int
     date_start: datetime
+
+    @field_validator("date_start")
+    @classmethod
+    def validate_date_start_not_past(cls, v: datetime) -> datetime:
+        start = v.date() if isinstance(v, datetime) else v
+        if start < date.today():
+            raise ValueError("Нельзя запланировать заказ на прошедшую дату")
+        return v
 
 
 class GraphicOrderMasterRead(BaseModel):

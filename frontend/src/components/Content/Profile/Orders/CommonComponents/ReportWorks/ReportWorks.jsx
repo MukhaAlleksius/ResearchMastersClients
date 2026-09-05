@@ -6,6 +6,7 @@ import {
   formatDate,
   formatMoney,
   getPriceForWork,
+  normalizeWorkNote,
 } from "../../../Services/CommonComponent/GraphicWorks/Report/reportUtils";
 import "../../../Services/CommonComponent/GraphicWorks/Report/report_works.css";
 import { API, apiFetch } from "../../../../../../utils/api.js";
@@ -85,6 +86,7 @@ export default function ReportWorks({ order }) {
             unit: w.unit_measurement || "",
             pricePerUnit,
             earned: qty * pricePerUnit,
+            note: normalizeWorkNote(w),
           };
         }),
     [worksFromGraphicWorks, priceMap],

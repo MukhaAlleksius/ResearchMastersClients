@@ -16,6 +16,45 @@ import "../report_works.css";
 
 const formatChartDate = (dateStr) => isoToDisplayDate(dateStr);
 
+function ChartTooltip({ active, payload, label, currency, workLabel }) {
+  if (!active || !payload?.length) return null;
+
+  const point = payload[0]?.payload || {};
+  const notes = Array.isArray(point.notes)
+    ? point.notes.filter(Boolean)
+    : [];
+
+  return (
+    <div className="rw-chart__tooltip">
+      <div className="rw-chart__tooltip-date">
+        Дата: {formatChartDate(label)}
+      </div>
+      {payload.map((entry) => {
+        const isMoney = entry.dataKey === "earned" || entry.name === "earned";
+        return (
+          <div key={entry.dataKey || entry.name} className="rw-chart__tooltip-row">
+            <span>
+              {isMoney ? "Заработок" : `${workLabel || "Работа"} (кол-во)`}
+            </span>
+            <strong>
+              {isMoney
+                ? formatMoney(entry.value, currency)
+                : Number(entry.value).toFixed(2)}
+            </strong>
+          </div>
+        );
+      })}
+      {notes.length > 0 ? (
+        <div className="rw-chart__tooltip-notes">
+          {notes.map((note, index) => (
+            <p key={`${label}-note-${index}`}>{note}</p>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function WorkPeriodChart({
   workData = [],
   workOptions = [],
@@ -55,9 +94,13 @@ export default function WorkPeriodChart({
       const earned = Number(item.earned || 0);
 
       if (!date) return acc;
-      if (!acc[date]) acc[date] = { date, quantity: 0, earned: 0 };
+      if (!acc[date]) acc[date] = { date, quantity: 0, earned: 0, notes: [] };
       acc[date].quantity += qty;
       acc[date].earned += earned;
+      const note = String(item.note || "").trim();
+      if (note && !acc[date].notes.includes(note)) {
+        acc[date].notes.push(note);
+      }
       return acc;
     }, {});
 
@@ -144,22 +187,12 @@ export default function WorkPeriodChart({
                   tickFormatter={(v) => Number(v).toFixed(0)}
                 />
                 <Tooltip
-                  contentStyle={{
-                    borderRadius: 10,
-                    border: "1px solid #e2e8f0",
-                    boxShadow: "0 8px 24px rgba(15,23,42,0.1)",
-                    fontSize: 13,
-                  }}
-                  labelFormatter={(label) => `Дата: ${formatChartDate(label)}`}
-                  formatter={(value, name) => {
-                    if (name === "earned") {
-                      return [formatMoney(value, currency), "Заработок"];
-                    }
-                    return [
-                      Number(value).toFixed(2),
-                      `${selectedWorkOption.label} (кол-во)`,
-                    ];
-                  }}
+                  content={
+                    <ChartTooltip
+                      currency={currency}
+                      workLabel={selectedWorkOption.label}
+                    />
+                  }
                 />
                 <Legend
                   wrapperStyle={{ fontSize: 12, paddingTop: 12 }}

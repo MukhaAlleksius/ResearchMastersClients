@@ -184,7 +184,11 @@ async def get_order_api(
         await assert_can_read_order(  # Каталог публичен; иначе — участник/staff
             db, order_id=order_id, current_user=current_user  # аргументы access
         )
-        order = await get_order(db=db, order_id=order_id)  # Полная карточка заказа
+        order = await get_order(  # Полная карточка заказа
+            db=db,
+            order_id=order_id,
+            viewer_executor_id=current_user.user_id if current_user else None,
+        )
         if not order:  # Нет записи
             raise HTTPException(status_code=404, detail="Заказ не найден")  # 404
         return order  # Полная карточка
@@ -283,11 +287,13 @@ async def get_orders_customers_api(
     page: int = Query(1, ge=1, description="Номер страницы"),
     page_size: int = Query(12, ge=1, le=100, description="Размер страницы"),
     db: AsyncSession = Depends(get_db),  # сессия БД  # Сессия БД (публичный каталог)
+    current_user: UserCommonSchema | None = Depends(get_optional_current_user),
 ):
     """
     Каталог заказов клиентов.
     Всегда возвращает список (даже если он пустой), без 409 ошибки.
     Свои заказы тоже видны владельцу; кнопка «Предложить услугу» скрывается на фронте.
+    Заказы с отказом остаются в каталоге; can_offer_service=false для этой пары.
     """
     try:  # публичный каталог
         orders_customers, total = await get_orders_customers(  # Фильтры + пагинация
@@ -298,6 +304,7 @@ async def get_orders_customers_api(
             town=town,  # город
             page=page,  # страница
             page_size=page_size,  # размер
+            viewer_executor_id=current_user.user_id if current_user else None,
         )
         return PaginatedResponse.create(  # обёртка
             orders_customers, total, page, page_size  # данные
@@ -557,14 +564,22 @@ async def get_cancel_orders_customers_for_admin_api(
 async def get_graphic_orders_master_api(
     user_id: int,  # id мастера
     db: AsyncSession = Depends(get_db),  # сессия БД  # Сессия БД
-    current_user: UserCommonSchema = Depends(get_current_user),  # JWT  # Владелец графика
+    current_user: UserCommonSchema | None = Depends(get_optional_current_user),
 ):
-    ensure_same_user(current_user, user_id)  # Только свой график
+    """График дат исполнителя: свой кабинет и публичный профиль."""
     try:  # график мастера
         graphic_orders_master = await get_dates_start_execute_orders(  # Даты для календаря
-            db=db, user_id=current_user.user_id  # id мастера
+            db=db, user_id=user_id  # id мастера
         )
-        return graphic_orders_master  # Точки на графике
+        is_owner = (
+            current_user is not None and current_user.user_id == user_id
+        )
+        if is_owner:
+            return graphic_orders_master
+        return [
+            item.model_copy(update={"address": None})
+            for item in graphic_orders_master
+        ]
     except HTTPException as e:  # Ожидаемая HTTP-ошибка
         logger.error(  # лог
             f"HTTP ошибка при получении услуг пользователя {user_id}: {e}",  # сообщение

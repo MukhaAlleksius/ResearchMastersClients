@@ -41,28 +41,30 @@ export default function SupportAdminPanel() {
   const loadAllConversations = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch(`${API.baseURL}/support/conversations`);
-      if (res.ok) {
-        const convs = await res.json();
-        setAllConversations(convs || []);
-
-        const usersMap = new Map();
-        (convs || []).forEach((conv) => {
-          if (!usersMap.has(conv.user_id)) {
-            usersMap.set(conv.user_id, {
-              user_id: conv.user_id,
-              username: conv.user_name || `Пользователь #${conv.user_id}`,
-            });
-          }
-        });
-        setUsersList(Array.from(usersMap.values()));
-      } else {
-        const altRes = await apiFetch(`${API.baseURL}/support/all`);
-        if (altRes.ok) {
-          const convs = await altRes.json();
-          setAllConversations(convs || []);
-        }
+      let res = await apiFetch(`${API.baseURL}/support/all`);
+      if (!res.ok) {
+        res = await apiFetch(`${API.baseURL}/support/conversations`);
       }
+      if (!res.ok) {
+        setAllConversations([]);
+        setUsersList([]);
+        return;
+      }
+
+      const convs = await res.json();
+      const list = Array.isArray(convs) ? convs : [];
+      setAllConversations(list);
+
+      const usersMap = new Map();
+      list.forEach((conv) => {
+        if (!usersMap.has(conv.user_id)) {
+          usersMap.set(conv.user_id, {
+            user_id: conv.user_id,
+            username: conv.user_name || `Пользователь #${conv.user_id}`,
+          });
+        }
+      });
+      setUsersList(Array.from(usersMap.values()));
     } catch (err) {
       console.error("Ошибка загрузки бесед:", err);
     } finally {
@@ -112,14 +114,14 @@ export default function SupportAdminPanel() {
 
     setIsSending(true);
     try {
-      const adminId = Number(localStorage.getItem("admin_id")) || 1;
+      const senderId = Number(localStorage.getItem("user_id")) || 0;
       const res = await apiFetch(SUPPORT.SEND_MESSAGE, {
         method: "POST",
         body: JSON.stringify({
           support_conversation_id: convId,
           sender_type: "admin",
-          sender_id: adminId,
-          content: message,
+          sender_id: senderId,
+          content: message.trim(),
           message_type: "text",
         }),
       });
@@ -128,6 +130,8 @@ export default function SupportAdminPanel() {
         const msg = await res.json();
         setMessages((prev) => [...prev, msg]);
         setMessage("");
+      } else {
+        console.error("Ошибка отправки:", res.status);
       }
     } catch (err) {
       console.error("Ошибка отправки:", err);

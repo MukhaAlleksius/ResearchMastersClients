@@ -9,6 +9,7 @@ from cruds.analitycs.analitycs_users_crud import (  # CRUD аналитики п
     get_order_status_stats,  # Статистика статусов заказов
     get_orders_money_stats,  # Денежная статистика
     get_rating_stats,  # Статистика рейтингов
+    get_service_status_stats,  # Статистика услуг исполнителя
 )
 from schemas.analitycs.analitycs_schemas import AnalyticsSummaryOut  # Схема сводки
 from schemas.users_schemas import UserCommonSchema  # Схема текущего пользователя
@@ -31,7 +32,10 @@ async def get_analytics_summary(
 
     user_id = current_user.user_id  # id пользователя для выборок
     orders_stats = await get_order_status_stats(session, user_id, start_date, end_date)  # Заказы по статусам
-    money_stats = await get_orders_money_stats(session, user_id, start_date, end_date)  # Суммы по заказам
+    services_stats = await get_service_status_stats(  # Услуги исполнителя
+        session, user_id, start_date, end_date
+    )
+    money_stats = await get_orders_money_stats(session, user_id, start_date, end_date)  # Прибыль с работ
     cancellation_stats = await get_cancellation_stats(  # Отмены за период
         session, user_id, start_date, end_date
     )
@@ -43,6 +47,7 @@ async def get_analytics_summary(
             "end_date": end_date,
         },
         "orders": orders_stats,  # Блок заказов
+        "services": services_stats,  # Блок услуг
         "money": money_stats,  # Блок денег
         "cancellations": cancellation_stats,  # Блок отмен
         "ratings": rating_stats,  # Блок рейтингов

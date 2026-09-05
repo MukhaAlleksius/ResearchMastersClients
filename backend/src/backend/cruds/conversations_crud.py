@@ -724,11 +724,13 @@ async def create_support_conversation(  # Тема обращения в под�
         )
         support_conversation = result.scalar_one_or_none()
         if support_conversation is not None:
-            return support_conversation  # Возвращаем существующий
+            counted = await _with_support_message_counts(db, [support_conversation])
+            return counted[0]
         db_conv = SupportConversation(user_id=conv.user_id, topic=conv.topic)
         db.add(db_conv)
         await db.commit()
         await db.refresh(db_conv)
+        db_conv.message_count = 0
         return db_conv
 
     except Exception as e:  # Откат и 500
@@ -748,12 +750,44 @@ async def get_support_conversation(  # Один диалог поддержки 
     return result.scalar_one_or_none()
 
 
+async def _with_support_message_counts(  # Добавляет message_count к беседам
+    db: AsyncSession, conversations: list[SupportConversation]
+) -> list[SupportConversation]:
+    if not conversations:
+        return []
+    ids = [conv.id for conv in conversations]
+    rows = await db.execute(
+        select(
+            SupportMessage.support_conversation_id,
+            func.count(SupportMessage.id),
+        )
+        .where(SupportMessage.support_conversation_id.in_(ids))
+        .group_by(SupportMessage.support_conversation_id)
+    )
+    counts = {conv_id: count for conv_id, count in rows.all()}
+    for conv in conversations:
+        conv.message_count = counts.get(conv.id, 0)
+    return conversations
+
+
 async def get_user_conversations(  # Все диалоги поддержки пользователя
     db: AsyncSession, user_id: int
 ) -> list[SupportConversation]:
-    stmt = select(SupportConversation).where(SupportConversation.user_id == user_id)
+    stmt = (
+        select(SupportConversation)
+        .where(SupportConversation.user_id == user_id)
+        .order_by(SupportConversation.created_at.desc())
+    )
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    return await _with_support_message_counts(db, list(result.scalars().all()))
+
+
+async def get_all_support_conversations(  # Все обращения — для администратора
+    db: AsyncSession,
+) -> list[SupportConversation]:
+    stmt = select(SupportConversation).order_by(SupportConversation.created_at.desc())
+    result = await db.execute(stmt)
+    return await _with_support_message_counts(db, list(result.scalars().all()))
 
 
 async def create_support_message(  # Сообщение в чат поддержки

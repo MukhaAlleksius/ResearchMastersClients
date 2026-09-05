@@ -114,9 +114,13 @@ export default function HeaderUser({ onLogout }) {
         <div className="site-header__actions">
           <NotificationsBell />
           {userName && (
-            <span className="site-header__user" title={userName}>
+            <Link
+              to="/profile/main_page"
+              className="site-header__user"
+              title="Моя страница"
+            >
               <span className="site-header__user-name">{userName}</span>
-            </span>
+            </Link>
           )}
           <button
             type="button"
@@ -147,9 +151,14 @@ export default function HeaderUser({ onLogout }) {
         aria-label="Мобильная навигация"
       >
         {userName && (
-          <span className="site-header__user site-header__user--mobile">
+          <Link
+            to="/profile/main_page"
+            className="site-header__user site-header__user--mobile"
+            title="Моя страница"
+            onClick={closeMenu}
+          >
             <span className="site-header__user-name">{userName}</span>
-          </span>
+          </Link>
         )}
         <NavLinks className="site-header__link" onNavigate={closeMenu} items={navItems} />
         <button

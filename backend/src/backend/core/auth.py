@@ -111,6 +111,25 @@ async def get_optional_current_user(  # Пользователь, если то�
         return None  # Тихо как гость
 
 
+async def has_admin_access(  # Есть ли у пользователя доступ в админку
+    current_user: UserCommonSchema,
+    db: AsyncSession,
+) -> bool:
+    user_orm = await db.get(User, current_user.user_id)  # Полная запись из БД
+    if not user_orm:  # Вдруг удалили
+        return False
+    if user_orm.role in {"admin", "moderator"}:  # Есть роль staff
+        return True
+    if OPEN_ADMIN_ACCESS:  # Режим открытого админа (dev)
+        return True
+    staff_count = await db.scalar(  # Сколько уже есть admin/moderator
+        select(func.count())
+        .select_from(User)
+        .where(User.role.in_(["admin", "moderator"]))
+    )
+    return not staff_count  # Bootstrap, пока staff никого нет
+
+
 async def get_current_admin_user(  # Текущий пользователь с правами админа/модератора
     current_user: UserCommonSchema = Depends(get_current_user),  # Сначала обычный логин
     db: AsyncSession = Depends(get_db),
@@ -122,21 +141,8 @@ async def get_current_admin_user(  # Текущий пользователь с 
             detail="User not found",
         )
 
-    if user_orm.role in {"admin", "moderator"}:  # Есть роль staff
-        return current_user  # Пускаем
-
-    # Тестирование / пустая БД: любой вошедший пользователь получает доступ
-    # к админ-API, пока нет ни одного admin/moderator либо включён OPEN_ADMIN_ACCESS.
-    if OPEN_ADMIN_ACCESS:  # Режим открытого админа (dev)
-        return current_user  # Пускаем любого залогиненного
-
-    staff_count = await db.scalar(  # Сколько уже есть admin/moderator
-        select(func.count())
-        .select_from(User)
-        .where(User.role.in_(["admin", "moderator"]))
-    )
-    if not staff_count:  # Staff ещё никого нет — bootstrap
-        return current_user  # Первый вошедший может в админку
+    if await has_admin_access(current_user, db):  # Staff или bootstrap
+        return current_user
 
     raise HTTPException(  # Иначе запрет
         status_code=status.HTTP_403_FORBIDDEN,

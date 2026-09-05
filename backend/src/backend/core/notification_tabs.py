@@ -24,8 +24,6 @@ NOTIFICATION_TYPE_TO_TAB: dict[str, str] = {
     "order_completed": "orderInfo",
     "start_date_updated": "orderInfo",
     "executor_assigned": "orderInfo",
-    "customer_status_changed": "orderInfo",
-    "executor_status_changed": "orderInfo",
     "customer_order_offer": "orderInfo",
     "customer_accepted_proposal": "orderInfo",
 }
@@ -45,8 +43,5 @@ def resolve_notification_tab(
         return (
             "customerCancelOrder" if recipient_is_customer else "executorCancelOrder"
         )
-
-    if notification_type == "counterparty_info_updated":
-        return "executorInfo" if recipient_is_customer else "customerInfo"
 
     return NOTIFICATION_TYPE_TO_TAB.get(notification_type)

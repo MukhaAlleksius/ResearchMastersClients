@@ -6,6 +6,7 @@ import {
   formatDate,
   getPriceForWork,
   normalizeIsoDate,
+  normalizeWorkNote,
 } from "./reportUtils.js";
 
 export function useWorksReportData(orderId) {
@@ -78,6 +79,7 @@ export function useWorksReportData(orderId) {
             unit: w.unit_measurement || "",
             pricePerUnit,
             earned: qty * pricePerUnit,
+            note: normalizeWorkNote(w),
           };
         }),
     [worksFromGraphicWorks, priceMap],

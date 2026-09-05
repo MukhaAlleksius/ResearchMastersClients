@@ -61,6 +61,50 @@ import traceback  # Трассировка ошибок
 
 logger = logging.getLogger(__name__)  # Логгер модуля
 
+REFUSED_BY_CUSTOMER_STATUS = "Отказано заказчиком"
+REFUSED_BY_ORDER_STATUS = "Отказ от заказа"
+
+
+def _is_refused_pair_status(status: Optional[str]) -> bool:
+    text = status or ""
+    return REFUSED_BY_CUSTOMER_STATUS in text or REFUSED_BY_ORDER_STATUS in text
+
+
+async def get_refused_order_ids_for_executor(
+    db: AsyncSession,
+    executor_id: Optional[int],
+) -> set[int]:
+    """Заказы, по которым этот исполнитель уже в отказе с заказчиком."""
+    if executor_id is None:
+        return set()
+
+    status_result = await db.execute(
+        select(StatusOrderExecutor.order_id, StatusOrderExecutor.status).where(
+            StatusOrderExecutor.executor_id == executor_id,
+        )
+    )
+    refused_ids = {
+        order_id
+        for order_id, status in status_result.all()
+        if _is_refused_pair_status(status)
+    }
+
+    customer_cancel = await db.execute(
+        select(CustomerOrderCancellation.order_id).where(
+            CustomerOrderCancellation.executor_id == executor_id,
+            CustomerOrderCancellation.status == "agree",
+        )
+    )
+    executor_cancel = await db.execute(
+        select(ExecutorOrderCancellation.order_id).where(
+            ExecutorOrderCancellation.executor_id == executor_id,
+            ExecutorOrderCancellation.status == "agree",
+        )
+    )
+    refused_ids.update(customer_cancel.scalars().all())
+    refused_ids.update(executor_cancel.scalars().all())
+    return refused_ids
+
 
 def _user_address_load():
     """Eager-load географии и бизнеса пользователя (не на уровне import)."""
@@ -102,36 +146,51 @@ def _format_user_address(user: User | None) -> str:
     return ", ".join(parts) or "—"
 
 
+async def get_order_response_counts(  # Число откликов по списку заказов
+    db: AsyncSession,  # Продолжение выражения
+    order_ids: list[int],  # ID заказов
+) -> dict[int, int]:  # order_id → число уникальных исполнителей
+    if not order_ids:  # Проверка отрицания
+        return {}  # Пустой словарь
+
+    result = await db.execute(  # Группировка откликов
+        select(  # SQL SELECT
+            OrderResponseExecutor.order_id,  # ID заказа
+            func.count(func.distinct(OrderResponseExecutor.executor_id)),  # Уникальные исполнители
+        )  # Закрытие вызова/выражения
+        .where(OrderResponseExecutor.order_id.in_(order_ids))  # Условие WHERE
+        .group_by(OrderResponseExecutor.order_id)  # Группировка
+    )  # Закрытие вызова/выражения
+    return {order_id: int(count or 0) for order_id, count in result.all()}  # Словарь счётчиков
+
+
 async def get_orders_customer(  # Карточки заказов заказчика
     db: AsyncSession,  # Продолжение выражения
     user_id: int,  # Продолжение выражения
     exclude_offered_to_executor_id: Optional[int] = None,  # ID исполнителя
 ) -> list[OrderUserSchema]:  # Закрытие вызова/выражения
     try:  # Начало блока try
-        result = await db.execute(  # Заказы с категорией, статусами, исполнителем
-            select(
-                Order, StatusOrderCustomer, CategoryWork, StatusOrderExecutor, User
-            )  # SQL SELECT
-            .outerjoin(  # JOIN таблиц
-                StatusOrderCustomer,  # Продолжение выражения
-                StatusOrderCustomer.order_id == Order.id,  # ID заказа
-            )  # Закрытие вызова/выражения
+        result = await db.execute(
+            select(Order, StatusOrderCustomer, CategoryWork, ExecutorOrder, User)
             .outerjoin(
-                CategoryWork, Order.category_id == CategoryWork.id
-            )  # JOIN таблиц
-            .outerjoin(ExecutorOrder, ExecutorOrder.order_id == Order.id)  # JOIN таблиц
-            .outerjoin(
-                StatusOrderExecutor, StatusOrderExecutor.order_id == Order.id
-            )  # JOIN таблиц
-            .outerjoin(User, User.id == StatusOrderExecutor.executor_id)  # JOIN таблиц
-            .filter(Order.customer_id == user_id)  # Условие WHERE
-            .order_by(Order.created_at.desc())  # Сортировка результата
-        )  # Закрытие вызова/выражения
+                StatusOrderCustomer,
+                StatusOrderCustomer.order_id == Order.id,
+            )
+            .outerjoin(CategoryWork, Order.category_id == CategoryWork.id)
+            .outerjoin(ExecutorOrder, ExecutorOrder.order_id == Order.id)
+            .outerjoin(User, User.id == ExecutorOrder.executor_id)
+            .filter(Order.customer_id == user_id)
+            .order_by(Order.created_at.desc())
+        )
 
         rows = result.unique().all()  # Уникальные строки JOIN
 
         if not rows:  # Проверка отрицания
             return []  # Пустой список
+
+        response_counts = await get_order_response_counts(
+            db, [order.id for order, *_ in rows]
+        )  # Число откликов по заказам
 
         list_orders: list[OrderUserSchema] = []  # Накопленный список
 
@@ -139,13 +198,11 @@ async def get_orders_customer(  # Карточки заказов заказчи
             order,
             status_order_customer,
             category,
-            status_order_executor,
+            executor_order,
             user,
-        ) in rows:  # Цикл по элементам
+        ) in rows:
             executor_id = (
-                status_order_executor.executor_id
-                if status_order_executor
-                else None
+                executor_order.executor_id if executor_order else None
             )
             display_budget, display_currency, display_budget_type = (
                 await resolve_order_display_budget(
@@ -160,8 +217,13 @@ async def get_orders_customer(  # Карточки заказов заказчи
                     category_work=(
                         category.name if category else "Без категории"
                     ),  # Категория работ
-                    category_work_id=category.id,  # Категория работ
+                    category_work_id=category.id if category else None,  # Категория работ
                     title=order.title,  # Заголовок
+                    description=order.description,  # Описание
+                    country=order.country,  # Страна
+                    region=order.region,  # Регион
+                    town=order.town,  # Город
+                    location=order.location,  # Адрес
                     budget=(
                         float(display_budget)
                         if display_budget is not None
@@ -177,6 +239,7 @@ async def get_orders_customer(  # Карточки заказов заказчи
                         if status_order_customer
                         else None  # Строка кода
                     ),  # Продолжение выражения
+                    responses_count=response_counts.get(order.id, 0),  # Число откликов
                 )  # Закрытие вызова/выражения
             )  # Закрытие вызова/выражения
 
@@ -202,10 +265,22 @@ async def get_orders_customer(  # Карточки заказов заказчи
                     CustomerOrderCancellation.status == "agree",  # Статус
                 )  # Закрытие вызова/выражения
             )  # Закрытие вызова/выражения
+            refused_by_executor_result = await db.execute(
+                select(ExecutorOrderCancellation.order_id).where(
+                    ExecutorOrderCancellation.executor_id
+                    == exclude_offered_to_executor_id,
+                    ExecutorOrderCancellation.status == "agree",
+                )
+            )
+            refused_status_ids = await get_refused_order_ids_for_executor(
+                db, exclude_offered_to_executor_id
+            )
             excluded_order_ids = (  # Объединение ID для фильтра
                 set(offered_result.scalars().all())  # Множество ID
                 | set(assigned_result.scalars().all())  # Множество ID
                 | set(refused_by_customer_result.scalars().all())  # Множество ID
+                | set(refused_by_executor_result.scalars().all())
+                | refused_status_ids
             )  # Закрытие вызова/выражения
             if excluded_order_ids:  # Условная проверка
                 list_orders = [  # Убираем исключённые
@@ -361,7 +436,9 @@ async def get_services_executor(  # Карточки услуг исполнит
 
 
 async def get_order(
-    db: AsyncSession, order_id: int
+    db: AsyncSession,
+    order_id: int,
+    viewer_executor_id: Optional[int] = None,
 ) -> OrderReadSchema:  # Полный заказ по ID
     try:  # Начало блока try
         result = await db.execute(  # Результат запроса
@@ -406,6 +483,10 @@ async def get_order(
             insurance_required=order.insurance_required,  # Страхование
             created_at=order.created_at or datetime.utcnow(),  # Дата создания
             updated_at=order.updated_at or datetime.utcnow(),  # Дата обновления
+            can_offer_service=order.id
+            not in await get_refused_order_ids_for_executor(
+                db, viewer_executor_id
+            ),
         )  # Закрытие вызова/выражения
 
         return order_schema  # Возвращаем результат
@@ -448,7 +529,6 @@ async def get_order_responses_executors(  # Все отклики исполни
                 proposed_price=ore.proposed_price,  # Предложенная цена
                 budget_type=ore.budget_type,  # Бюджет
                 currency=ore.currency or "BYN",  # Валюта
-                estimated_time=ore.estimated_time,  # Оценка времени
                 start_time_work=ore.start_time_work,  # Время начала работ
                 message=ore.message or "",  # Сообщение
                 created_at=ore.created_at,  # Дата создания
@@ -523,7 +603,6 @@ async def get_order_response_executor(  # Один отклик исполнит
             proposed_price=order_response_executor.proposed_price,  # Предложенная цена
             budget_type=order_response_executor.budget_type,  # Бюджет
             currency=order_response_executor.currency or "BYN",  # Валюта
-            estimated_time=order_response_executor.estimated_time,  # Оценка времени
             start_time_work=order_response_executor.start_time_work,  # Время начала работ
             message=order_response_executor.message or "",  # Сообщение
             created_at=order_response_executor.created_at,  # Дата создания
@@ -582,7 +661,6 @@ async def get_executors_for_order(  # Поиск исполнителей (за�
             proposed_price=order_response_executor.proposed_price,  # Предложенная цена
             budget_type=order_response_executor.budget_type,  # Бюджет
             currency=order_response_executor.currency or "BYN",  # Валюта
-            estimated_time=order_response_executor.estimated_time,  # Оценка времени
             start_time_work=order_response_executor.start_time_work,  # Время начала работ
             message=order_response_executor.message or "",  # Сообщение
             created_at=order_response_executor.created_at,  # Дата создания
@@ -606,6 +684,7 @@ async def get_orders_customers(  # Каталог заказов «в поиск
     page: int = 1,  # Продолжение выражения
     page_size: int = 12,  # Продолжение выражения
     exclude_customer_id: Optional[int] = None,  # ID заказчика
+    viewer_executor_id: Optional[int] = None,
 ):  # Закрытие вызова/выражения
     try:  # Начало блока try
         conditions = [
@@ -665,6 +744,13 @@ async def get_orders_customers(  # Каталог заказов «в поиск
             f"🔍 Получено заказов на странице {page}: {len(orders_data)}"
         )  # Отладочный вывод
 
+        response_counts = await get_order_response_counts(
+            db, [order.id for order, _ in orders_data]
+        )  # Число откликов по заказам
+        refused_order_ids = await get_refused_order_ids_for_executor(
+            db, viewer_executor_id
+        )
+
         return [  # Список + total
             OrderReadSchema(  # Схема заказа
                 id=order.id,  # Продолжение выражения
@@ -685,6 +771,8 @@ async def get_orders_customers(  # Каталог заказов «в поиск
                 insurance_required=order.insurance_required,  # Страхование
                 created_at=order.created_at,  # Дата создания
                 updated_at=order.updated_at,  # Дата обновления
+                responses_count=response_counts.get(order.id, 0),  # Число откликов
+                can_offer_service=order.id not in refused_order_ids,
             )  # Закрытие вызова/выражения
             for order, category_work in orders_data  # Цикл по элементам
         ], total  # Строка кода

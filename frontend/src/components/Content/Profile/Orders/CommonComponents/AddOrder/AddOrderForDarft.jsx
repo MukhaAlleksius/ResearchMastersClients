@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from "react";
-import CreatableSelect from "react-select/creatable";
 import Select from "react-select";
 import { API, apiFetch, buildApiUrl, formatApiDetail } from "../../../../../../utils/api.js";
 import DeadlineField, {
@@ -196,7 +195,7 @@ export default function AddOrderForDraft({ onSuccess }) {
       return;
     }
     if (!isValidDeadline(deadline)) {
-      await uiAlert("Выберите точную дату выполнения");
+      await uiAlert("Выберите дату выполнения не раньше сегодняшней");
       return;
     }
     if (!budgetType) {
@@ -377,7 +376,7 @@ export default function AddOrderForDraft({ onSuccess }) {
             <label htmlFor="category" className="aod-label">
               Категория услуги <span className="aod-required">*</span>
             </label>
-            <CreatableSelect
+            <Select
               {...selectProps}
               inputId="category"
               options={categoriesWorksOptions}
@@ -385,6 +384,7 @@ export default function AddOrderForDraft({ onSuccess }) {
               onChange={handleSelectCategoryWorkMaster}
               isClearable
               placeholder="Выберите категорию работ"
+              noOptionsMessage={() => "Нет подходящих категорий"}
             />
           </div>
 

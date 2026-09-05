@@ -17,6 +17,10 @@ import {
   BUDGET_TYPE_PLACEHOLDER,
   isFixedBudgetType,
 } from "../../../../../../utils/budgetTypes.js";
+import {
+  isNotBeforeToday,
+  todayIsoDate,
+} from "../../../../Common/DeadlineField.jsx";
 
 function OfferServiceIcon() {
   return (
@@ -70,8 +74,6 @@ export default function OrderInfoAnswerExecutor({
     budget_type: "",
 
     currency: "BYN",
-
-    estimated_time: "",
 
     start_time_work: "",
 
@@ -173,8 +175,6 @@ export default function OrderInfoAnswerExecutor({
 
         currency: "BYN",
 
-        estimated_time: data.estimated_time || "",
-
         start_time_work: data.start_time_work || "",
 
         message: data.message || "",
@@ -205,8 +205,11 @@ export default function OrderInfoAnswerExecutor({
       }
     }
 
-    if (!formData.estimated_time.trim()) {
-      setError("Укажите срок выполнения");
+    if (
+      formData.start_time_work &&
+      !isNotBeforeToday(formData.start_time_work)
+    ) {
+      setError("Дата начала не может быть раньше сегодняшней");
       return false;
     }
 
@@ -225,8 +228,6 @@ export default function OrderInfoAnswerExecutor({
     budget_type: formData.budget_type || null,
 
     currency: "BYN",
-
-    estimated_time: formData.estimated_time,
 
     start_time_work: formatDateForBackend(formData.start_time_work),
 
@@ -422,8 +423,6 @@ export default function OrderInfoAnswerExecutor({
 
       currency: "BYN",
 
-      estimated_time: "",
-
       start_time_work: "",
 
       message: "",
@@ -535,37 +534,21 @@ export default function OrderInfoAnswerExecutor({
           ) : null}
 
           <label className="oi-modal__field">
-            <span className="oi-modal__field-label">Срок выполнения</span>
-
-            <input
-              type="text"
-              className="oi-modal__input"
-              placeholder="2 недели"
-              value={formData.estimated_time}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-
-                  estimated_time: e.target.value,
-                })
-              }
-            />
-          </label>
-
-          <label className="oi-modal__field">
             <span className="oi-modal__field-label">Дата начала</span>
 
             <input
               type="date"
               className="oi-modal__input"
+              min={todayIsoDate()}
               value={formatDateForInput(formData.start_time_work)}
-              onChange={(e) =>
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next && next < todayIsoDate()) return;
                 setFormData({
                   ...formData,
-
-                  start_time_work: e.target.value,
-                })
-              }
+                  start_time_work: next,
+                });
+              }}
             />
           </label>
 

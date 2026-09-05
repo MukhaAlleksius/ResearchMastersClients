@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { API, apiFetch, buildApiUrl, resolveMediaUrl } from "../../../utils/api.js";
 import { useLocation } from "react-router-dom";
 import MakeOrderExecutorModal from "./MakeOrderExecutor/MakeOrderExecutorModal";
+import ExecutorOrdersSchedule from "../Profile/Services/GraphicOrders/GraphicOrders";
 import { dedupeOrdersById } from "../../../utils/orders.js";
 import { formatMoney } from "../../../utils/currency";
 import {
@@ -19,12 +20,16 @@ import {
 } from "../Profile/ProfileIcons.jsx";
 import "./executor_profile.css";
 import { uiAlert } from "../../UiDialog/uiDialog.js";
+import { preferOwnSpecializationWorks } from "../../../utils/workNames.js";
 
 const STATUS_SEARCHING_EXECUTOR = "в поиске исполнителя";
 
 function isOrderAvailableForExecutorOffer(order, executorId) {
   const status = (order?.status_order_customer || "").trim().toLowerCase();
   if (status !== STATUS_SEARCHING_EXECUTOR) {
+    return false;
+  }
+  if (order?.can_offer_service === false) {
     return false;
   }
   if (
@@ -667,7 +672,7 @@ export default function ExecutorProfile({ openModal }) {
       if (!res1.ok || !res2.ok) throw new Error("Не получили данных с сервера");
       const worksFromAdmin = await res1.json();
       const worksMyself = await res2.json();
-      setMasterWorks([...worksFromAdmin, ...worksMyself]);
+      setMasterWorks(preferOwnSpecializationWorks(worksFromAdmin, worksMyself));
     } catch (error) {
       console.log("Ошибка:", error);
       setMasterWorks([]);
@@ -867,7 +872,7 @@ export default function ExecutorProfile({ openModal }) {
               className="ep-btn ep-btn--cta"
               onClick={handleShowSelectOrders}
             >
-              Заказать услугу
+              Сделать заказ
             </button>
           )}
 
@@ -953,6 +958,29 @@ export default function ExecutorProfile({ openModal }) {
               )}
             </div>
           </section>
+
+          {executorId && (
+            <section className="ep-card" aria-labelledby="ep-schedule-title">
+              <div className="ep-card__head">
+                <span className="ep-card__icon" aria-hidden="true">
+                  <IconCalendar />
+                </span>
+                <h2 id="ep-schedule-title" className="ep-card__title">
+                  График заказов
+                </h2>
+              </div>
+              <div className="ep-card__body">
+                <p className="ep-specs__hint" style={{ marginTop: 0 }}>
+                  Занятые дни исполнителя. Выберите дату, чтобы увидеть заказы.
+                </p>
+                <ExecutorOrdersSchedule
+                  executorId={executorId}
+                  readOnly
+                  embedded
+                />
+              </div>
+            </section>
+          )}
 
           <section className="ep-card" aria-labelledby="ep-portfolio-title">
             <div className="ep-card__head">

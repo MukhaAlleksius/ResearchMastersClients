@@ -187,6 +187,11 @@ export function buildConvertedPriceMap(sourceMap, displayCurrency, ratesResponse
   return { byId, byName };
 }
 
+export function normalizeWorkNote(rawWork) {
+  const text = String(rawWork?.note ?? rawWork?.comment ?? "").trim();
+  return text;
+}
+
 export function getPriceForWork(rawWork, priceMap) {
   const fromRow = Number(rawWork.cost_unit ?? rawWork.cost ?? rawWork.price ?? 0);
   if (fromRow > 0) return fromRow;

@@ -204,8 +204,8 @@ class SupportMessageRead(BaseModel):
     sender_id: int
     content: str
     message_type: str
-    file_url: Optional[str]
-    is_read: bool
+    file_url: Optional[str] = None
+    is_read: bool = False
     created_at: datetime
 
     class Config:
@@ -213,16 +213,16 @@ class SupportMessageRead(BaseModel):
 
 
 class SupportConversationCreate(BaseModel):
-    user_id: int
-    topic: str  
+    user_id: Optional[int] = None
+    topic: str
 
 
 class SupportConversationRead(BaseModel):
     id: int
     user_id: int
-    created_at: datetime
-    is_closed: bool
-    messages: list[SupportMessageRead] = []
+    topic: Optional[str] = None
+    created_at: Optional[datetime] = None
+    message_count: int = 0
 
     class Config:
         from_attributes = True

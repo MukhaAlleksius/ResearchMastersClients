@@ -3,7 +3,6 @@ import React, { useState } from "react";
 function ExecutorResponseCard({
   executor,
   startDate = "не указано",
-  workDuration = "не указано",
   workCost = "не указана",
   initialMessage,
   onAccept,
@@ -70,11 +69,6 @@ function ExecutorResponseCard({
       </div>
 
       <div>
-        <label style={labelStyle}>Сроки выполнения:</label>
-        <div style={readonlyFieldStyle}>{workDuration}</div>
-      </div>
-
-      <div>
         <label style={labelStyle}>Стоимость работы:</label>
         <div style={readonlyFieldStyle}>{workCost}</div>
       </div>
@@ -128,7 +122,6 @@ export default function ExecutorsResponsesList({
      {
        executor: { name, profession, experience, email, phone },
        startDate,
-       workDuration,
        workCost,
        initialMessage,
      },
@@ -145,7 +138,6 @@ export default function ExecutorsResponsesList({
           key={idx}
           executor={resp.executor}
           startDate={resp.startDate}
-          workDuration={resp.workDuration}
           workCost={resp.workCost}
           initialMessage={resp.initialMessage}
           onAccept={(text) => onAccept && onAccept(resp.executor, text)}

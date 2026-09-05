@@ -139,6 +139,7 @@ export const TAB_PRESETS = {
     "estimateWorks",
     "schedule",
     "customerExecutorContract",
+    "chat",
     "executorInfo",
     "commentsRating",
   ],
@@ -183,7 +184,7 @@ export const GROUP_LABELS = {
 
 /**
  * Тип уведомления → вкладка (зеркало backend/core/notification_tabs.py).
- * Роль-зависимые типы (cancel / counterparty) — в resolveNotificationTab().
+ * Роль-зависимые типы (cancel) — в resolveNotificationTab().
  */
 export const NOTIFICATION_TYPE_TO_TAB = {
   new_message: "chat",
@@ -200,8 +201,6 @@ export const NOTIFICATION_TYPE_TO_TAB = {
   order_completed: "orderInfo",
   start_date_updated: "orderInfo",
   executor_assigned: "orderInfo",
-  customer_status_changed: "orderInfo",
-  executor_status_changed: "orderInfo",
   customer_order_offer: "orderInfo",
   customer_accepted_proposal: "orderInfo",
 };
@@ -224,10 +223,6 @@ export function resolveNotificationTab(
 
   if (CANCEL_NOTIFICATION_TYPES.has(notificationType)) {
     return isCustomerSide ? "customerCancelOrder" : "executorCancelOrder";
-  }
-
-  if (notificationType === "counterparty_info_updated") {
-    return isCustomerSide ? "executorInfo" : "customerInfo";
   }
 
   return NOTIFICATION_TYPE_TO_TAB[notificationType] || null;

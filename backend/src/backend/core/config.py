@@ -104,6 +104,21 @@ REQUIRE_EMAIL_VERIFICATION = _env_bool(  # Требовать подтвержд
     "REQUIRE_EMAIL_VERIFICATION", "false" if not IS_PRODUCTION else "true"
 )
 
+SMTP_HOST = (os.getenv("SMTP_HOST") or "").strip()  # Хост SMTP (пусто = письма только в лог)
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))  # Порт SMTP
+SMTP_USERNAME = (os.getenv("SMTP_USERNAME") or "").strip()  # Логин SMTP
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD") or ""  # Пароль SMTP
+SMTP_FROM_EMAIL = (os.getenv("SMTP_FROM_EMAIL") or "").strip()  # Адрес отправителя
+SMTP_FROM_NAME = (os.getenv("SMTP_FROM_NAME") or "Fixer").strip()  # Имя отправителя
+SMTP_USE_TLS = _env_bool("SMTP_USE_TLS", "true")  # STARTTLS (обычно порт 587)
+SMTP_USE_SSL = _env_bool("SMTP_USE_SSL", "false")  # SMTP_SSL (обычно порт 465)
+
+PUBLIC_APP_URL = (os.getenv("PUBLIC_APP_URL") or "").strip().rstrip("/")  # Публичный URL фронта
+if not PUBLIC_APP_URL:  # Если не задан — берём первый CORS origin
+    PUBLIC_APP_URL = (CORS_ORIGINS[0] if CORS_ORIGINS else "http://localhost:3000").rstrip(
+        "/"
+    )
+
 # Любой вошедший пользователь может пользоваться админ-API (удобно для Docker/тестов).
 OPEN_ADMIN_ACCESS = _env_bool(  # Открытый админ-доступ без роли admin
     "OPEN_ADMIN_ACCESS", "true" if not IS_PRODUCTION else "false"

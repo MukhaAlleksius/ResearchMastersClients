@@ -388,8 +388,8 @@ function CustomerOrderEditForm({
     if (!geoCountry) return "Укажите страну";
     if (!geoRegion) return "Укажите область";
     if (!geoTown) return "Укажите населённый пункт";
-    if (!isValidDeadline(deadline)) {
-      return "Выберите точную дату выполнения";
+    if (!isValidDeadline(deadline, { allowPast: true })) {
+      return "Выберите дату выполнения не раньше сегодняшней";
     }
     if (!budgetType) return "Выберите тип бюджета";
     if (isFixedBudgetType(budgetType)) {

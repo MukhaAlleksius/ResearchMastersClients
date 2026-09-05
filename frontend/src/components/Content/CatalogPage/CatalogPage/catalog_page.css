@@ -96,6 +96,7 @@
   display: grid;
   gap: 1.25rem;
   grid-template-columns: 1fr;
+  align-items: stretch;
 }
 
 @media (min-width: 640px) {
@@ -114,7 +115,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
@@ -133,15 +135,20 @@
 }
 
 .executor-content {
-  padding: 1.25rem;
+  flex: 1;
+  padding: 0.95rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  justify-content: space-between;
+  gap: 0.65rem;
+  min-height: 0;
 }
 
 .executor-header {
   display: flex;
   align-items: flex-start;
+  flex: 1;
+  min-height: 0;
   gap: 0.875rem;
 }
 
@@ -151,8 +158,8 @@
 
 .executor-avatar-img,
 .executor-avatar-placeholder {
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   border-radius: 14px;
   object-fit: cover;
   border: 2px solid #e2e8f0;
@@ -170,33 +177,49 @@
 .executor-info {
   min-width: 0;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .executor-name {
   margin: 0 0 0.25rem;
-  font-size: 1.0625rem;
+  font-size: 0.9375rem;
   font-weight: 700;
   color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .executor-description {
   margin: 0;
+  flex: 1;
+  min-height: 0;
   font-size: 0.8125rem;
   color: #64748b;
   line-height: 1.45;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 .executor-location {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.35rem;
+  min-width: 0;
   font-size: 0.8125rem;
   color: #475569;
   line-height: 1.45;
+}
+
+.executor-location span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .executor-location svg {
@@ -224,15 +247,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-top: 0.25rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid #f1f5f9;
+  margin-top: 0;
+  padding-top: 0.15rem;
 }
 
 .executor-price {
+  min-width: 0;
   font-size: 0.8125rem;
   font-weight: 600;
   color: #047857;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .executor-card__cta {
@@ -240,9 +266,9 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.5rem 0.875rem;
+  padding: 0.35rem 0.7rem;
   border-radius: 10px;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
   font-family: inherit;
   color: #fff;

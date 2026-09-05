@@ -43,17 +43,25 @@ export function isExactDeadline(value) {
   return value === EXACT_DATE_OPTION || Boolean(toIsoDate(value));
 }
 
-export function isValidDeadline(value) {
-  if (DEADLINE_PRESETS.includes(value)) return true;
-  return Boolean(toIsoDate(value));
-}
-
 export function todayIsoDate() {
   const now = new Date();
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+export function isNotBeforeToday(value) {
+  const iso = toIsoDate(value);
+  if (!iso) return false;
+  return iso >= todayIsoDate();
+}
+
+export function isValidDeadline(value, { allowPast = false } = {}) {
+  if (DEADLINE_PRESETS.includes(value)) return true;
+  const iso = toIsoDate(value);
+  if (!iso) return false;
+  return allowPast || iso >= todayIsoDate();
 }
 
 /**
@@ -109,6 +117,7 @@ export default function DeadlineField({
 
   const handleDateChange = (e) => {
     const iso = e.target.value;
+    if (iso && iso < min) return;
     onChange(iso ? toDisplayDate(iso) : EXACT_DATE_OPTION);
   };
 

@@ -5,6 +5,11 @@ import {
   isEstimateBudgetType,
 } from "../../../../../../utils/budgetTypes.js";
 import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+import {
+  isNotBeforeToday,
+  todayIsoDate,
+  toIsoDate,
+} from "../../../../Common/DeadlineField.jsx";
 import "../../../Services/CommonComponent/CustomerExecutorContractOrder/contract_order_executor.css";
 import "../../../Services/CommonComponent/CustomerOrderInfo/customer_order_info.css";
 
@@ -374,6 +379,21 @@ export default function ContractAgreement({
         return;
       }
 
+      const startIso = toIsoDate(snapshot.workPeriodFrom);
+      const endIso = toIsoDate(snapshot.workPeriodTo);
+      if (startIso && !isNotBeforeToday(startIso)) {
+        setError("Дата начала работ не может быть раньше сегодняшней");
+        return;
+      }
+      if (endIso && !isNotBeforeToday(endIso)) {
+        setError("Дата окончания работ не может быть раньше сегодняшней");
+        return;
+      }
+      if (startIso && endIso && endIso < startIso) {
+        setError("Дата окончания не может быть раньше даты начала");
+        return;
+      }
+
       // Сметная цена: сумму в БД не сохраняем — она определяется сметой
       const budgetToSave = estimateBased ? null : numericPrice;
 
@@ -728,13 +748,13 @@ export default function ContractAgreement({
               <input
                 type="date"
                 className="oi-modal__input"
+                min={todayIsoDate()}
                 value={formatDateToInput(contract.workPeriodFrom)}
-                onChange={(e) =>
-                  updateContractField(
-                    "workPeriodFrom",
-                    formatDateToRu(e.target.value),
-                  )
-                }
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (next && next < todayIsoDate()) return;
+                  updateContractField("workPeriodFrom", formatDateToRu(next));
+                }}
               />
             </label>
 
@@ -743,13 +763,17 @@ export default function ContractAgreement({
               <input
                 type="date"
                 className="oi-modal__input"
-                value={formatDateToInput(contract.workPeriodTo)}
-                onChange={(e) =>
-                  updateContractField(
-                    "workPeriodTo",
-                    formatDateToRu(e.target.value),
-                  )
+                min={
+                  formatDateToInput(contract.workPeriodFrom) || todayIsoDate()
                 }
+                value={formatDateToInput(contract.workPeriodTo)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  const minTo =
+                    formatDateToInput(contract.workPeriodFrom) || todayIsoDate();
+                  if (next && next < minTo) return;
+                  updateContractField("workPeriodTo", formatDateToRu(next));
+                }}
               />
             </label>
           </div>

@@ -10,6 +10,7 @@ import {
 import { useNbrbRates } from "../../../../../hooks/useNbrbRates";
 import "../specializations.css";
 import { uiAlert, uiConfirm } from "../../../../UiDialog/uiDialog.js";
+import { normalizeWorkName } from "../../../../../utils/workNames.js";
 
 const unitOptions = ["шт", "м", "м²", "м³", "кг", "т"];
 
@@ -157,9 +158,15 @@ export default function MyWorks({ category_work_id, currency = "BYN" }) {
 
       const myself = myselfRes.ok ? await myselfRes.json() : [];
 
-      setWorksMasterFromAdmin(admin);
-
+      const ownNames = new Set(
+        myself.map((work) => normalizeWorkName(work.name_work)).filter(Boolean),
+      );
       setWorksMasterMyself(myself);
+      setWorksMasterFromAdmin(
+        admin.filter(
+          (work) => !ownNames.has(normalizeWorkName(work.name_work)),
+        ),
+      );
 
       priceAnchorsRef.current = rebuildMasterWorkAnchors(admin, myself);
 

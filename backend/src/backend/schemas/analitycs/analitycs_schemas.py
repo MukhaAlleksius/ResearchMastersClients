@@ -15,6 +15,14 @@ class PeriodStatsOut(BaseModel):
     cancelled_orders: int
 
 
+class ServiceStatsOut(BaseModel):
+    total_services: int
+    completed_services: int
+    in_progress_services: int
+    awaiting_services: int
+    refused_services: int
+
+
 class MoneyStatsOut(BaseModel):
     total_amount: float = Field(default=0)
     average_amount: float = Field(default=0)
@@ -37,6 +45,7 @@ class RatingStatsOut(BaseModel):
 class AnalyticsSummaryOut(BaseModel):
     period: DateRangeIn
     orders: PeriodStatsOut
+    services: ServiceStatsOut
     money: MoneyStatsOut
     cancellations: CancellationStatsOut
     ratings: RatingStatsOut

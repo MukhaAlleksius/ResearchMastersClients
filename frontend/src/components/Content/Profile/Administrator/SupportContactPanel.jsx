@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { API, apiFetch } from "../../../../utils/api.js";
+import { API, apiFetch, getStoredUserId } from "../../../../utils/api.js";
 import "./support_contact_panel.css";
 import { uiAlert } from "../../../UiDialog/uiDialog.js";
 
@@ -71,6 +71,18 @@ function ChatIcon() {
   );
 }
 
+async function readApiError(res, fallback) {
+  try {
+    const data = await res.json();
+    const detail = data?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (Array.isArray(detail) && detail[0]?.msg) return detail[0].msg;
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
+
 const getTopic = (topicValue) =>
   TOPICS.find((t) => t.value === topicValue) || {
     value: topicValue,
@@ -115,28 +127,30 @@ export default function SupportContactPanel() {
   const [userConversations, setUserConversations] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
-  const messagesEndRef = useRef(null);
-  const userId = useMemo(() => Number(localStorage.getItem("user_id")), []);
+  const userId = useMemo(() => Number(getStoredUserId() || localStorage.getItem("user_id")), []);
 
   const activeConversation = userConversations.find((c) => c.id === convId);
   const activeTopic = activeConversation ? getTopic(activeConversation.topic) : null;
 
+  const messagesListRef = useRef(null);
+
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = messagesListRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
   }, []);
 
   const loadUserConversations = useCallback(async () => {
     try {
       const res = await apiFetch(`${API.baseURL}/support/conversations`);
-      if (res.ok) {
-        const allConvs = await res.json();
-        const userConvs = allConvs.filter((conv) => conv.user_id === userId);
-        setUserConversations(userConvs);
+      if (!res.ok) {
+        throw new Error(await readApiError(res, "Не удалось загрузить обращения"));
       }
+      const allConvs = await res.json();
+      setUserConversations(Array.isArray(allConvs) ? allConvs : []);
     } catch (err) {
       console.error("Ошибка загрузки бесед:", err);
     }
-  }, [userId]);
+  }, []);
 
   const loadMessages = useCallback(async (conversationId, silent = false) => {
     if (!conversationId) return;
@@ -146,7 +160,18 @@ export default function SupportContactPanel() {
       const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data);
+        const next = Array.isArray(data) ? data : [];
+        setMessages((prev) => {
+          const prevLast = prev[prev.length - 1];
+          const nextLast = next[next.length - 1];
+          if (
+            prev.length === next.length &&
+            prevLast?.id === nextLast?.id
+          ) {
+            return prev;
+          }
+          return next;
+        });
       }
     } catch (err) {
       console.error("Ошибка загрузки сообщений:", err);
@@ -173,14 +198,19 @@ export default function SupportContactPanel() {
 
       const res = await apiFetch(SUPPORT.START_CONVERSATION, {
         method: "POST",
-        body: JSON.stringify({ user_id: userId, topic: topicValue }),
+        body: JSON.stringify({ topic: topicValue }),
       });
 
-      if (res.ok) {
-        const conv = await res.json();
-        setUserConversations((prev) => [conv, ...prev]);
-        openConversation(conv.id);
+      if (!res.ok) {
+        throw new Error(await readApiError(res, "Не удалось открыть обращение"));
       }
+
+      const conv = await res.json();
+      setUserConversations((prev) => {
+        if (prev.some((item) => item.id === conv.id)) return prev;
+        return [conv, ...prev];
+      });
+      openConversation(conv.id);
     } catch (err) {
       await uiAlert("Ошибка: " + err.message);
     }
@@ -202,11 +232,13 @@ export default function SupportContactPanel() {
         }),
       });
 
-      if (res.ok) {
-        const msg = await res.json();
-        setMessages((prev) => [...prev, msg]);
-        setMessage("");
+      if (!res.ok) {
+        throw new Error(await readApiError(res, "Не удалось отправить сообщение"));
       }
+
+      const msg = await res.json();
+      setMessages((prev) => [...prev, msg]);
+      setMessage("");
     } catch (err) {
       await uiAlert("Ошибка отправки: " + err.message);
     } finally {
@@ -263,9 +295,6 @@ export default function SupportContactPanel() {
           <h2 className="sup-section-title">Тема обращения</h2>
           <div className="sup-topic-cards">
             {TOPICS.map((topic) => {
-              const hasDialog = userConversations.some(
-                (conv) => conv.topic === topic.value,
-              );
               const isActive =
                 convId != null && activeConversation?.topic === topic.value;
 
@@ -283,9 +312,6 @@ export default function SupportContactPanel() {
                     <span className="sup-topic-card__label">{topic.label}</span>
                     <span className="sup-topic-card__desc">{topic.desc}</span>
                   </span>
-                  {hasDialog && !isActive && (
-                    <span className="sup-topic-card__dot" title="Есть переписка" />
-                  )}
                 </button>
               );
             })}
@@ -314,7 +340,7 @@ export default function SupportContactPanel() {
                 </button>
               </header>
 
-              <div className="sup-chat__messages">
+              <div className="sup-chat__messages" ref={messagesListRef}>
                 {loadingMessages ? (
                   <div className="sup-chat__loading">
                     <span className="sup-chat__loading-spinner" aria-hidden="true" />
@@ -336,7 +362,6 @@ export default function SupportContactPanel() {
                     {messages.map((msg) => (
                       <ChatMessage key={msg.id} msg={msg} />
                     ))}
-                    <div ref={messagesEndRef} />
                   </>
                 )}
               </div>

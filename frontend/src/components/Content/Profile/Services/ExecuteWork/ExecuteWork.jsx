@@ -6,7 +6,7 @@ import CustomerInfo from "../CommonComponent/InformationAboutCustomer/Informatio
 import EstimateWorks from "../CommonComponent/EstimateWorksMaterials/EstimateWorks";
 import OrderInfoWithMyResponse from "../CommonComponent/CustomerOrderInfo/OrderInfoWithMyResponse";
 import ContractAgreement from "../../Orders/CommonComponents/CustomerExecutorContractOrder/CustomerExecutorContract";
-import ReportWorks from "../CommonComponent/GraphicWorks/Report/ReportWorks";
+import GraphicWorks from "../CommonComponent/GraphicWorks/GraphicWorks";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
 import { EstimateEarningsMeta } from "../../Common/EstimateEarningsSummary";
 import {
@@ -93,7 +93,12 @@ export default function ExecuteWorkServiceInfo({ service, onBack }) {
         />
       )}
 
-      {activeTab === "schedule" && <ReportWorks />}
+      {activeTab === "schedule" && (
+        <GraphicWorks
+          orderId={orderId}
+          categoryWorkId={categoryWorkId}
+        />
+      )}
 
       {activeTab === "customerExecutorContract" && (
         <ContractAgreement

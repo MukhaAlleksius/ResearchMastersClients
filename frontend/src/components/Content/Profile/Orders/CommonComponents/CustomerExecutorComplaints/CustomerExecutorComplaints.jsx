@@ -7,7 +7,7 @@ export default function CustomerExecutorComplaints({ orderId, userType }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
-  const messagesEndRef = useRef(null);
+  const messagesListRef = useRef(null);
 
   const sender_id = localStorage.getItem("user_id");
 
@@ -54,7 +54,8 @@ export default function CustomerExecutorComplaints({ orderId, userType }) {
   }, [messages]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = messagesListRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
   }, [sortedMessages]);
 
   const sendMessage = async () => {
@@ -156,7 +157,7 @@ export default function CustomerExecutorComplaints({ orderId, userType }) {
         </span>
       </header>
 
-      <div className="order-chat__messages">
+      <div className="order-chat__messages" ref={messagesListRef}>
         {loadError && (
           <div className="order-chat__empty" style={{ minHeight: "auto", paddingBottom: 8 }}>
             <p className="order-chat__empty-hint">{loadError}</p>
@@ -225,7 +226,6 @@ export default function CustomerExecutorComplaints({ orderId, userType }) {
             })}
           </ul>
         )}
-        <div ref={messagesEndRef} className="order-chat__anchor" />
       </div>
 
       <footer className="order-chat__composer">

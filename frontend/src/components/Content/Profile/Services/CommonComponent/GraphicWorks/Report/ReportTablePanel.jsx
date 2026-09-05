@@ -70,6 +70,7 @@ export default function ReportTablePanel({
         quantity: row.totalQuantity,
         earned: row.earned,
         pricePerUnit: row.pricePerUnit,
+        note: row.note || "",
       });
       groups[row.date].totalQuantity += row.totalQuantity;
       groups[row.date].totalEarned += row.earned;
@@ -143,7 +144,18 @@ export default function ReportTablePanel({
                 <tbody>
                   {group.works.map((work) => (
                     <tr key={work.key}>
-                      <td>{work.workName}</td>
+                      <td>
+                        <div className="rw-report__work-cell">
+                          <span className="rw-report__work-name">
+                            {work.workName}
+                          </span>
+                          {work.note ? (
+                            <span className="rw-report__work-note">
+                              {work.note}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
                       <td className="rw-report__td-num">
                         {formatMoney(work.pricePerUnit, currency)}
                       </td>

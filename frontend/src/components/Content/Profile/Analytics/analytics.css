@@ -231,6 +231,12 @@
   border: 1px solid #fecaca;
 }
 
+.an-kpi__icon--violet {
+  background: var(--an-violet-soft);
+  color: var(--an-violet);
+  border: 1px solid #ddd6fe;
+}
+
 .an-kpi__body {
   min-width: 0;
 }
@@ -317,6 +323,10 @@
 
 .an-breakdown__segment--danger {
   background: var(--an-danger);
+}
+
+.an-breakdown__segment--violet {
+  background: var(--an-violet);
 }
 
 .an-breakdown__legend {

@@ -112,6 +112,7 @@ export function isPublicRequest(url, method = "GET") {
   if (/^\/users\/\d+\/contacts$/.test(path)) return true;
   if (/^\/users\/\d+\/reviews$/.test(path)) return true;
   if (/^\/users\/\d+\/geography_execute_orders$/.test(path)) return true;
+  if (/^\/graphic_orders_master\/\d+$/.test(path)) return true;
   if (/^\/countries\/\d+\/regions$/.test(path)) return true;
   if (/^\/regions\/\d+\/towns$/.test(path)) return true;
   if (/^\/order\/\d+$/.test(path)) return true;

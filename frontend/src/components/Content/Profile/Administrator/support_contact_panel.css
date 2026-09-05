@@ -172,17 +172,6 @@
   line-height: 1.35;
 }
 
-.sup-topic-card__dot {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--sup-primary);
-  box-shadow: 0 0 0 2px #fff;
-}
-
 /* Main / chat */
 .sup-main {
   min-width: 0;

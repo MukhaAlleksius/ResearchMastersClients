@@ -47,11 +47,6 @@ export default function ExecutorResponseDisplay({
       valueClass: "order-info__def--emphasis",
     },
     {
-      key: "time",
-      label: "Срок выполнения",
-      value: response.estimated_time || "—",
-    },
-    {
       key: "start",
       label: "Начало работ",
       value: response.start_time_work || "—",

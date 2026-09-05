@@ -6,6 +6,7 @@ import CustomerEstimateWorks from "../CommonComponents/CustomerEstimateWorksMate
 import CustomerReportWorks from "../CommonComponents/CustomerReportWorks/CustomerReportWorks";
 import ExecutorInfo from "../CommonComponents/CustomerOrderInfo/ExecutorInfo";
 import OrderInfoWithExecutorResponse from "../../Services/CommonComponent/CustomerOrderInfo/OrderInfoWithExecutorResponse";
+import Chat from "../../Services/CommonComponent/ChatOrderMaster/ChatOrderMaster";
 import ContractAgreement from "../CommonComponents/CustomerExecutorContractOrder/CustomerExecutorContract";
 import WorkDetailLayout from "../../Common/WorkDetailLayout";
 import { EstimateEarningsMeta } from "../../Common/EstimateEarningsSummary";
@@ -128,7 +129,13 @@ export default function ExecutedOrder({ order, onBack, userId }) {
     fetchOrderResponseExecutor();
   }, [fetchOrderResponseExecutor]);
 
-  const tabs = useMemo(() => getWorkDetailTabs("customer_completed"), []);
+  const tabs = useMemo(
+    () =>
+      getWorkDetailTabs("customer_completed", {
+        chatLabel: "Чат с исполнителем",
+      }),
+    [],
+  );
 
   const layoutError =
     error ||
@@ -187,6 +194,8 @@ export default function ExecutedOrder({ order, onBack, userId }) {
           executor_id={resolvedExecutorId}
         />
       )}
+
+      {activeTab === "chat" && <Chat order_id={orderId} />}
 
       {activeTab === "executorInfo" && (
         <ExecutorInfo

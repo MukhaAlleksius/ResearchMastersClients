@@ -4,7 +4,12 @@ from typing import Optional  # Optional для query и полей
 from fastapi import APIRouter, Depends, HTTPException, Query  # Роутер, DI, ошибки, query
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
-from core.auth import ensure_same_user, get_current_admin_user, get_current_user  # Авторизация
+from core.auth import (  # Авторизация
+    ensure_same_user,
+    get_current_admin_user,
+    get_current_user,
+    has_admin_access,
+)
 from cruds.conversations_crud import (  # CRUD бесед, жалоб, поддержки
     add_complaint_conversation,  # Создать жалобу
     add_complaint_message,  # Сообщение в жалобе
@@ -13,6 +18,7 @@ from cruds.conversations_crud import (  # CRUD бесед, жалоб, подд�
     add_verdict_admin,  # Вердикт модератора
     create_support_conversation,  # Беседа поддержки
     create_support_message,  # Сообщение поддержки
+    get_all_support_conversations,  # Все обращения поддержки
     get_complaint,  # Одна жалоба
     get_complaint_chat_for_admin,  # Чат жалобы для админа
     get_complaints_for_admin,  # Все жалобы для админа
@@ -182,71 +188,94 @@ async def add_verdict_admin_api(
         )
 
 
+async def _can_access_support_conversation(  # Владелец или администратор
+    db: AsyncSession,
+    conv,
+    current_user: UserCommonSchema,
+) -> bool:
+    if conv is None:
+        return False
+    if conv.user_id == current_user.user_id:
+        return True
+    return await has_admin_access(current_user, db)
+
+
 # Поддержка пользователей администратором
-@router.post("/support/add_conversation")  # POST начать беседу поддержки
+@router.post("/support/add_conversation", response_model=SupportConversationRead)
 async def start_conversation(
-    data: SupportConversationCreate,  # user_id и тема
+    data: SupportConversationCreate,  # Тема обращения
     db: AsyncSession = Depends(get_db),  # Сессия БД
     current_user: UserCommonSchema = Depends(get_current_user),  # Пользователь
 ):
-    ensure_same_user(current_user, data.user_id)  # Только для себя
+    if data.user_id is not None:  # Если клиент прислал user_id — только свой
+        ensure_same_user(current_user, data.user_id)
+    payload = data.model_copy(update={"user_id": current_user.user_id})
+    return await create_support_conversation(db, payload)
 
-    conv = await create_support_conversation(db, data)  # CRUD
-    return conv  # Созданная беседа
 
-
-@router.get("/support/conversations", response_model=list[SupportConversationRead])  # GET беседы пользователя
+@router.get("/support/conversations", response_model=list[SupportConversationRead])
 async def list_user_conversations(
-    db: AsyncSession = Depends(get_db),  # Сессия БД
-    current_user: UserCommonSchema = Depends(get_current_user),  # Текущий пользователь
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_user),
 ):
-    convs = await get_user_conversations(db, user_id=current_user.user_id)  # CRUD
-    return convs  # Список бесед
+    return await get_user_conversations(db, user_id=current_user.user_id)
 
 
-@router.get("/support/conversation/{conv_id}", response_model=SupportConversationRead)  # GET одна беседа поддержки
+@router.get("/support/all", response_model=list[SupportConversationRead])
+async def list_all_support_conversations(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    return await get_all_support_conversations(db)
+
+
+@router.get("/support/conversation/{conv_id}", response_model=SupportConversationRead)
 async def get_support_conversation_api(
-    conv_id: int,  # id беседы
-    db: AsyncSession = Depends(get_db),  # Сессия БД
-    current_user: UserCommonSchema = Depends(get_current_user),  # Владелец беседы
+    conv_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_user),
 ):
-    conv = await get_support_conversation(db, conv_id, user_id=current_user.user_id)  # С проверкой user_id
-    if not conv:  # Не найдена или чужая
-        raise HTTPException(status_code=404, detail="Conversation not found")  # 404
-    return conv  # Данные беседы
+    conv = await get_support_conversation(db, conv_id)
+    if not await _can_access_support_conversation(db, conv, current_user):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conv
 
 
-@router.post("/support/add_message", response_model=SupportMessageRead)  # POST сообщение поддержки
+@router.post("/support/add_message", response_model=SupportMessageRead)
 async def send_message(
-    payload: SupportMessageCreate,  # Текст и id беседы
-    db: AsyncSession = Depends(get_db),  # Сессия БД
-    current_user: UserCommonSchema = Depends(get_current_user),  # Отправитель
+    payload: SupportMessageCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_user),
 ):
-    ensure_same_user(current_user, payload.sender_id)  # Только от своего имени
-
-    conv = await get_support_conversation(db, conv_id=payload.support_conversation_id)  # Без фильтра user
-    if not conv:  # Беседа не существует
+    conv = await get_support_conversation(db, conv_id=payload.support_conversation_id)
+    if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    msg = await create_support_message(db, payload)  # CRUD
-    return msg  # Созданное сообщение
+    sender_type = payload.sender_type
+    if sender_type == "admin":
+        if not await has_admin_access(current_user, db):
+            raise HTTPException(status_code=403, detail="Требуются права администратора")
+    elif conv.user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    msg_payload = payload.model_copy(update={"sender_id": current_user.user_id})
+    return await create_support_message(db, msg_payload)
 
 
-@router.get(  # GET сообщения беседы поддержки
+@router.get(
     "/support/conversation/{conv_id}/messages",
     response_model=list[SupportMessageRead],
 )
 async def get_conversation_messages(
-    conv_id: int,  # id беседы
-    db: AsyncSession = Depends(get_db),  # Сессия БД
-    current_user: UserCommonSchema = Depends(get_current_user),  # Участник
+    conv_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_user),
 ):
-    conv = await get_support_conversation(db, conv_id, user_id=current_user.user_id)  # Проверка доступа
-    if not conv:
-        raise HTTPException(status_code=404, detail="Conversation not found")  # 404
+    conv = await get_support_conversation(db, conv_id)
+    if not await _can_access_support_conversation(db, conv, current_user):
+        raise HTTPException(status_code=404, detail="Conversation not found")
 
-    msgs = await get_messages_by_conversation(db, conv_id)  # Все сообщения
-    return msgs  # Список SupportMessageRead
+    return await get_messages_by_conversation(db, conv_id)
 
 
 @router.post("/support/conversation/{conv_id}/mark_as_read")  # POST пометить прочитанным (админ)

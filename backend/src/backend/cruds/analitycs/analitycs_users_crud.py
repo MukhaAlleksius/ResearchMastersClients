@@ -1,13 +1,18 @@
 from datetime import datetime, time  # Границы периода для аналитики
-from sqlalchemy import select, func, and_, case  # SQL-выражения и агрегаты
+from sqlalchemy import select, func, and_, or_  # SQL-выражения и агрегаты
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
+from models.estimate_graphic_works_models import (  # Смета и выполненные работы
+    GraphicWork,
+    WorkEstimate,
+)
 from models.orders_models import (  # Модели заказов и отзывов
     CustomerOrderCancellation,
     ExecutorOrderCancellation,
     Order,
     Review,
     StatusOrderCustomer,
+    StatusOrderExecutor,
 )
 
 
@@ -33,19 +38,40 @@ async def get_orders_count_by_period(
 
 async def get_orders_money_stats(
     session: AsyncSession, user_id: int, start_date, end_date
-):  # Денежная статистика по бюджетам заказов
-    start_dt, end_dt = _period_bounds(start_date, end_date)
+):  # Прибыль с выполненных работ (график × цена из сметы)
+    line_amount = func.coalesce(GraphicWork.quantity, 0) * func.coalesce(
+        WorkEstimate.cost_unit, 0
+    )
+    order_earnings = (
+        select(
+            GraphicWork.order_id.label("order_id"),
+            func.sum(line_amount).label("earned"),
+            func.max(WorkEstimate.currency).label("currency"),
+        )
+        .select_from(GraphicWork)
+        .join(
+            WorkEstimate,
+            and_(
+                WorkEstimate.user_id == GraphicWork.user_id,
+                WorkEstimate.order_id == GraphicWork.order_id,
+                WorkEstimate.name_work == GraphicWork.name_work,
+            ),
+        )
+        .where(
+            GraphicWork.user_id == user_id,
+            GraphicWork.work_date >= start_date,
+            GraphicWork.work_date <= end_date,
+        )
+        .group_by(GraphicWork.order_id)
+        .subquery()
+    )
 
     stmt = select(
-        func.coalesce(func.sum(Order.budget), 0),  # Сумма бюджетов
-        func.coalesce(func.avg(Order.budget), 0),  # Средний бюджет
-        func.coalesce(func.min(Order.budget), 0),  # Минимальный
-        func.coalesce(func.max(Order.budget), 0),  # Максимальный
-        func.coalesce(func.max(Order.currency), None),  # Валюта (любая из периода)
-    ).where(
-        Order.customer_id == user_id,
-        Order.created_at >= start_dt,
-        Order.created_at <= end_dt,
+        func.coalesce(func.sum(order_earnings.c.earned), 0),
+        func.coalesce(func.avg(order_earnings.c.earned), 0),
+        func.coalesce(func.min(order_earnings.c.earned), 0),
+        func.coalesce(func.max(order_earnings.c.earned), 0),
+        func.max(order_earnings.c.currency),
     )
     result = await session.execute(stmt)
     total_amount, average_amount, min_amount, max_amount, currency = result.one()
@@ -165,4 +191,73 @@ async def get_order_status_stats(
         "completed_orders": completed_res.scalar() or 0,
         "in_progress_orders": in_progress_res.scalar() or 0,
         "cancelled_orders": cancelled_res.scalar() or 0,
+    }
+
+
+def _executor_services_query(user_id, start_dt, end_dt, *extra_filters):
+    stmt = (
+        select(func.count(func.distinct(StatusOrderExecutor.order_id)))
+        .select_from(StatusOrderExecutor)
+        .join(Order, Order.id == StatusOrderExecutor.order_id)
+        .where(
+            StatusOrderExecutor.executor_id == user_id,
+            Order.customer_id != user_id,
+            Order.created_at >= start_dt,
+            Order.created_at <= end_dt,
+            *extra_filters,
+        )
+    )
+    return stmt
+
+
+async def get_service_status_stats(
+    session: AsyncSession, user_id: int, start_date, end_date
+):  # Распределение услуг исполнителя по статусам
+    start_dt, end_dt = _period_bounds(start_date, end_date)
+
+    total_res = await session.execute(
+        _executor_services_query(user_id, start_dt, end_dt)
+    )
+    completed_res = await session.execute(
+        _executor_services_query(
+            user_id,
+            start_dt,
+            end_dt,
+            StatusOrderExecutor.status.contains("Выполнен"),
+        )
+    )
+    in_progress_res = await session.execute(
+        _executor_services_query(
+            user_id,
+            start_dt,
+            end_dt,
+            StatusOrderExecutor.status.contains("В процессе выполнения"),
+        )
+    )
+    awaiting_res = await session.execute(
+        _executor_services_query(
+            user_id,
+            start_dt,
+            end_dt,
+            StatusOrderExecutor.status.contains("Ожидают выполнения"),
+        )
+    )
+    refused_res = await session.execute(
+        _executor_services_query(
+            user_id,
+            start_dt,
+            end_dt,
+            or_(
+                StatusOrderExecutor.status.contains("Отказано заказчиком"),
+                StatusOrderExecutor.status.contains("Отказ от заказа"),
+            ),
+        )
+    )
+
+    return {
+        "total_services": total_res.scalar() or 0,
+        "completed_services": completed_res.scalar() or 0,
+        "in_progress_services": in_progress_res.scalar() or 0,
+        "awaiting_services": awaiting_res.scalar() or 0,
+        "refused_services": refused_res.scalar() or 0,
     }

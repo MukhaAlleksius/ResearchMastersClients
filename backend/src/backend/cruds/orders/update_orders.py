@@ -144,7 +144,6 @@ async def update_order_response_executor(
         row.proposed_price = order_response_executor.proposed_price  # Обновляем отклик
         row.budget_type = order_response_executor.budget_type
         row.currency = order_response_executor.currency
-        row.estimated_time = order_response_executor.estimated_time
         row.start_time_work = order_response_executor.start_time_work
         row.message = order_response_executor.message
 

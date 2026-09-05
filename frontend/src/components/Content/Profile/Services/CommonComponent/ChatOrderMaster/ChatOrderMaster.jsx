@@ -16,13 +16,24 @@ function normalizeConversation(data) {
   return data;
 }
 
+function messagesSignature(list) {
+  if (!list.length) return "0";
+  const last = list[list.length - 1];
+  return `${list.length}:${last?.id ?? ""}:${last?.created_at ?? ""}`;
+}
+
+function scrollListToBottom(listEl) {
+  if (!listEl) return;
+  listEl.scrollTop = listEl.scrollHeight;
+}
+
 export default function ChatOrderMaster({ order_id }) {
   const [messages, setMessages] = useState([]);
   const [conversation, setConversation] = useState(null);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef(null);
   const messagesListRef = useRef(null);
+  const stickToBottomRef = useRef(true);
   const current_user_id = localStorage.getItem("user_id");
 
   const fetchConversation = useCallback(async () => {
@@ -38,7 +49,12 @@ export default function ChatOrderMaster({ order_id }) {
       }
 
       const data = await response.json();
-      setMessages(normalizeMessages(data));
+      const nextMessages = normalizeMessages(data);
+      setMessages((prev) =>
+        messagesSignature(prev) === messagesSignature(nextMessages)
+          ? prev
+          : nextMessages,
+      );
       setConversation(normalizeConversation(data));
     } catch (error) {
       console.error("Ошибка загрузки чата:", error);
@@ -59,8 +75,17 @@ export default function ChatOrderMaster({ order_id }) {
     });
   }, [messages]);
 
+  const handleMessagesScroll = () => {
+    const list = messagesListRef.current;
+    if (!list) return;
+    const distance = list.scrollHeight - list.scrollTop - list.clientHeight;
+    stickToBottomRef.current = distance < 72;
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (stickToBottomRef.current) {
+      scrollListToBottom(messagesListRef.current);
+    }
   }, [sortedMessages]);
 
   const sendMessage = useCallback(async () => {
@@ -76,6 +101,7 @@ export default function ChatOrderMaster({ order_id }) {
       created_at: new Date().toISOString(),
     };
 
+    stickToBottomRef.current = true;
     setMessages((prev) => [...prev, tempMessage]);
     setInput("");
     setIsLoading(true);
@@ -152,7 +178,11 @@ export default function ChatOrderMaster({ order_id }) {
         </span>
       </header>
 
-      <div className="order-chat__messages" ref={messagesListRef}>
+      <div
+        className="order-chat__messages"
+        ref={messagesListRef}
+        onScroll={handleMessagesScroll}
+      >
         {sortedMessages.length === 0 && !isLoading ? (
           <div className="order-chat__empty">
             <div className="order-chat__empty-icon" aria-hidden="true">
@@ -201,7 +231,6 @@ export default function ChatOrderMaster({ order_id }) {
             })}
           </ul>
         )}
-        <div ref={messagesEndRef} className="order-chat__anchor" />
       </div>
 
       <footer className="order-chat__composer">

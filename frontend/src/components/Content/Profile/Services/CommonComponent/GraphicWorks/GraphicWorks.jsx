@@ -34,6 +34,29 @@ function buildWorkSelectOptions(worksList) {
   return Array.from(map.values());
 }
 
+function graphicWorkSourceKey(userId, orderId) {
+  return `graphic_work_source:${userId || ""}:${orderId || ""}`;
+}
+
+function readStoredWorkSource(userId, orderId) {
+  if (!userId || !orderId) return "common";
+  try {
+    const value = localStorage.getItem(graphicWorkSourceKey(userId, orderId));
+    return value === "estimate" ? "estimate" : "common";
+  } catch {
+    return "common";
+  }
+}
+
+function saveWorkSource(userId, orderId, type) {
+  if (!userId || !orderId) return;
+  try {
+    localStorage.setItem(graphicWorkSourceKey(userId, orderId), type);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 function getDaysInMonth(year, month) {
   const date = new Date(year, month, 1);
   const days = [];
@@ -65,10 +88,11 @@ export default function GraphicWorks({ orderId, categoryWorkId }) {
   const [worksMasterFromAdmin, setWorksMasterFromAdmin] = useState([]);
   const [worksMasterMyself, setWorksMasterMyself] = useState([]);
   const [worksFromEstimate, setWorksFromEstimate] = useState([]);
-  const [workSourceType, setWorkSourceType] = useState("common");
-  const [loadingCatalog, setLoadingCatalog] = useState(false);
-
   const user_id = localStorage.getItem("user_id");
+  const [workSourceType, setWorkSourceType] = useState(() =>
+    readStoredWorkSource(localStorage.getItem("user_id"), orderId),
+  );
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
   const { tableData, currency, loading: reportLoading, refresh: refreshReportData } =
     useWorksReportData(orderId);
   const safeCategoryWorkId =
@@ -91,14 +115,18 @@ export default function GraphicWorks({ orderId, categoryWorkId }) {
     setSelectedWorkOption(null);
     setSelectedWorkId("");
     setQuantity("");
-    setWorkSourceType("common");
   };
 
   const handleWorkSourceChange = (type) => {
     setWorkSourceType(type);
+    saveWorkSource(user_id, orderId, type);
     setSelectedWorkOption(null);
     setSelectedWorkId("");
   };
+
+  useEffect(() => {
+    setWorkSourceType(readStoredWorkSource(user_id, orderId));
+  }, [user_id, orderId]);
 
   const fetchGraphicWorks = useCallback(async () => {
     if (!orderId || !user_id) return;
@@ -175,7 +203,7 @@ export default function GraphicWorks({ orderId, categoryWorkId }) {
   }, [safeCategoryWorkId, user_id, apiGet, fetchWorksFromEstimate]);
 
   const commonWorksOptions = useMemo(
-    () => buildWorkSelectOptions([...worksMasterFromAdmin, ...worksMasterMyself]),
+    () => buildWorkSelectOptions([...worksMasterMyself, ...worksMasterFromAdmin]),
     [worksMasterFromAdmin, worksMasterMyself],
   );
 
@@ -262,7 +290,6 @@ export default function GraphicWorks({ orderId, categoryWorkId }) {
       setSelectedWorkOption(null);
       setSelectedWorkId("");
       setQuantity("");
-      setWorkSourceType("common");
     }
     openDayModal(dateKey);
   };

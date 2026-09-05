@@ -55,6 +55,7 @@ import UserProfileAdmin from "./components/Content/Admin/ManageUsers/Users/UserP
 import UserServiceProfileAdmin from "./components/Content/Admin/ManageUsers/Users/UserProfileAdmin/UserServicesProfileAdmin/UserServiceProfileAdmin/UserServiceProfileAdmin.jsx";
 import UserServicesProfileAdmin from "./components/Content/Admin/ManageUsers/Users/UserProfileAdmin/UserServicesProfileAdmin/UserServicesProfileAdmin.jsx";
 import WaitExecuteWorkServiceInfo from "./components/Content/Profile/Services/WaitExecuteWork/WaitExecuteWork.jsx";
+import ScrollToTop from "./components/ScrollToTop.jsx";
 import UiDialogProvider from "./components/UiDialog/UiDialogProvider.jsx";
 import "./index.css";
 function App() {
@@ -111,6 +112,7 @@ function App() {
   return (
     <UiDialogProvider>
     <div>
+      <ScrollToTop />
       {isLoggedIn ? (
         <>
           <HeaderUser onLogout={handleLogout} />
@@ -121,7 +123,7 @@ function App() {
                 element={<HomePage openModal={openModal} />}
               />
               <Route path="/catalog" element={<CatalogPage />} />
-              <Route path="/orders" element={<CatalogOrdersCustomers />} />
+              <Route path="/orders" element={<CatalogOrdersCustomers openModal={openModal} />} />
               <Route
                 path="/orders/:orderId/:slug?"
                 element={<CatalogOrderPage openModal={openModal} />}
@@ -298,7 +300,7 @@ function App() {
                 element={<HomePage openModal={openModal} />}
               />
               <Route path="/catalog" element={<CatalogPage />} />
-              <Route path="/orders" element={<CatalogOrdersCustomers />} />
+              <Route path="/orders" element={<CatalogOrdersCustomers openModal={openModal} />} />
               <Route
                 path="/orders/:orderId/:slug?"
                 element={<CatalogOrderPage openModal={openModal} />}

@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from decimal import Decimal
+
+from core.future_dates import ensure_not_before_today, parse_user_date
 
 
 class ContractCreate(BaseModel):
@@ -18,6 +20,25 @@ class ContractCreate(BaseModel):
     budget_type: str | None = None
     subscribe_customer: bool = False
     subscribe_executor: bool = False
+
+    @field_validator("date_start_work")
+    @classmethod
+    def validate_start_not_past(cls, v: str) -> str:
+        if cls.__name__ == "ContractResponse":
+            return v
+        return ensure_not_before_today(v, field_name="Дата начала работ") or v
+
+    @field_validator("date_end_work")
+    @classmethod
+    def validate_end_date(cls, v: str | None, info) -> str | None:
+        if cls.__name__ == "ContractResponse" or not v:
+            return v
+        ensure_not_before_today(v, field_name="Дата окончания работ")
+        start = parse_user_date(info.data.get("date_start_work"))
+        end = parse_user_date(v)
+        if start and end and end < start:
+            raise ValueError("Дата окончания не может быть раньше даты начала")
+        return v
 
 
 class ContractResponse(ContractCreate):

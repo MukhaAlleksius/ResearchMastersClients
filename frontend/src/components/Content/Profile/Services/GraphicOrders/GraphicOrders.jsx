@@ -52,7 +52,11 @@ function useFlashMessage(timeout = 3500) {
   return [message, show];
 }
 
-export default function ExecutorOrdersSchedule() {
+export default function ExecutorOrdersSchedule({
+  executorId,
+  readOnly = false,
+  embedded = false,
+} = {}) {
   const today = new Date();
   const todayKey = formatLocalDate(today);
 
@@ -67,7 +71,9 @@ export default function ExecutorOrdersSchedule() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
 
-  const userId = Number(localStorage.getItem("user_id"));
+  const userId = Number(
+    executorId ?? localStorage.getItem("user_id") ?? "",
+  );
 
   const normalizedGraphicOrders = useMemo(
     () =>
@@ -92,6 +98,10 @@ export default function ExecutorOrdersSchedule() {
   const dateOrders = ordersByDate[selectedDate] || [];
 
   const fetchOrders = useCallback(async () => {
+    if (readOnly) {
+      setOrders([]);
+      return;
+    }
     try {
       const res = await apiFetch(`${API.baseURL}/services_executor`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -106,9 +116,13 @@ export default function ExecutorOrdersSchedule() {
       console.error("Ошибка загрузки заказов:", err);
       showFlash("error", "Не удалось загрузить заказы");
     }
-  }, [showFlash]);
+  }, [readOnly, showFlash]);
 
   const fetchGraphicOrders = useCallback(async () => {
+    if (!userId) {
+      setGraphicOrders([]);
+      return;
+    }
     try {
       const res = await apiFetch(
         `${API.baseURL}/graphic_orders_master/${userId}`,
@@ -162,6 +176,10 @@ export default function ExecutorOrdersSchedule() {
   const addOrderDate = async (e) => {
     e.preventDefault();
     if (!newOrderId || !selectedDate) return;
+    if (selectedDate < todayKey) {
+      showFlash("error", "Нельзя запланировать заказ на прошедшую дату");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -218,7 +236,7 @@ export default function ExecutorOrdersSchedule() {
 
   if (loading && orders.length === 0 && graphicOrders.length === 0) {
     return (
-      <div className="gos-page">
+      <div className={`gos-page${embedded ? " gos-page--embedded" : ""}`}>
         <div className="gos-loading">
           <span className="gos-spinner" />
           Загружаем график…
@@ -228,7 +246,8 @@ export default function ExecutorOrdersSchedule() {
   }
 
   return (
-    <div className="gos-page">
+    <div className={`gos-page${embedded ? " gos-page--embedded" : ""}`}>
+      {!embedded && (
       <header className="gos-hero">
         <div className="gos-hero__text">
           <span className="gos-hero__badge">Личный кабинет</span>
@@ -254,6 +273,7 @@ export default function ExecutorOrdersSchedule() {
           </div>
         </div>
       </header>
+      )}
 
       {flash.text && (
         <div className={`gos-alert gos-alert--${flash.type}`} role="alert">
@@ -346,6 +366,7 @@ export default function ExecutorOrdersSchedule() {
                   const dateKey = formatLocalDate(day);
                   const isSelected = dateKey === selectedDate;
                   const isToday = dateKey === todayKey;
+                  const isPast = dateKey < todayKey;
                   const dayOrders = ordersByDate[dateKey] || [];
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                   return (
@@ -357,12 +378,13 @@ export default function ExecutorOrdersSchedule() {
                         "gos-cal__cell",
                         isSelected ? "gos-cal__cell--selected" : "",
                         isToday ? "gos-cal__cell--today" : "",
+                        isPast ? "gos-cal__cell--past" : "",
                         dayOrders.length > 0 ? "gos-cal__cell--has-work" : "",
                         isWeekend ? "gos-cal__cell--weekend" : "",
                       ]
                         .filter(Boolean)
                         .join(" ")}
-                      aria-label={`${day.getDate()}${dayOrders.length ? `, заказов: ${dayOrders.length}` : ""}`}
+                      aria-label={`${day.getDate()}${isPast ? ", прошедшая дата" : ""}${dayOrders.length ? `, заказов: ${dayOrders.length}` : ""}`}
                       aria-pressed={isSelected}
                     >
                       <span className="gos-cal__day-num">{day.getDate()}</span>
@@ -391,6 +413,7 @@ export default function ExecutorOrdersSchedule() {
         </section>
 
         <div className="gos-layout__side">
+          {!readOnly && (
           <section className="gos-card" aria-label="Запланировать заказ">
             <div className="gos-card__head">
               <h2 className="gos-card__title">Запланировать</h2>
@@ -416,13 +439,19 @@ export default function ExecutorOrdersSchedule() {
                 </label>
 
                 <p className="gos-form__hint">
-                  Дата берётся из выбранного дня в календаре слева.
+                  Дата берётся из выбранного дня в календаре слева. На прошедшую
+                  дату заказ запланировать нельзя.
                 </p>
 
                 <button
                   type="submit"
                   className="gos-btn gos-btn--primary"
-                  disabled={!newOrderId || !selectedDate || loading}
+                  disabled={
+                    !newOrderId ||
+                    !selectedDate ||
+                    selectedDate < todayKey ||
+                    loading
+                  }
                 >
                   <FaCalendarAlt aria-hidden="true" />
                   {loading ? "Сохранение…" : "Запланировать на выбранный день"}
@@ -430,6 +459,7 @@ export default function ExecutorOrdersSchedule() {
               </form>
             </div>
           </section>
+          )}
 
           <section className="gos-card" aria-label="Заказы на выбранный день">
             <div className="gos-card__head">
@@ -440,8 +470,9 @@ export default function ExecutorOrdersSchedule() {
               {dateOrders.length === 0 ? (
                 <div className="gos-empty">
                   <p className="gos-empty__text">
-                    На выбранный день заказов нет. Выберите другой день или
-                    запланируйте заказ выше.
+                    {readOnly
+                      ? "На выбранный день заказов нет."
+                      : "На выбранный день заказов нет. Выберите другой день или запланируйте заказ выше."}
                   </p>
                 </div>
               ) : (
@@ -450,7 +481,12 @@ export default function ExecutorOrdersSchedule() {
                     <OrderRow
                       key={item.id}
                       item={item}
-                      onDelete={() => confirmDeleteOrder(item.id)}
+                      readOnly={readOnly}
+                      onDelete={
+                        readOnly
+                          ? undefined
+                          : () => confirmDeleteOrder(item.id)
+                      }
                     />
                   ))}
                 </div>
@@ -460,7 +496,7 @@ export default function ExecutorOrdersSchedule() {
         </div>
       </div>
 
-      {showDeleteConfirm && (
+      {!readOnly && showDeleteConfirm && (
         <div
           className="gos-modal-overlay"
           onClick={() => !loading && setShowDeleteConfirm(false)}
@@ -510,7 +546,7 @@ export default function ExecutorOrdersSchedule() {
   );
 }
 
-function OrderRow({ item, onDelete, onSelectDate }) {
+function OrderRow({ item, onDelete, onSelectDate, readOnly = false }) {
   const timeLabel = item.date_start
     ? new Date(item.date_start).toLocaleTimeString("ru-RU", {
         hour: "2-digit",
@@ -518,40 +554,51 @@ function OrderRow({ item, onDelete, onSelectDate }) {
       })
     : "—";
 
+  const body = (
+    <>
+      <h3 className="gos-order__title">
+        {item.name_order || "Без названия"}
+      </h3>
+      <div className="gos-order__meta">
+        <span className="gos-order__meta-item">
+          <FaClock aria-hidden="true" />
+          {timeLabel}
+        </span>
+        {!readOnly && item.address && (
+          <span className="gos-order__meta-item">
+            <FaMapMarkerAlt aria-hidden="true" />
+            {item.address}
+          </span>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div className="gos-order">
-      <button
-        type="button"
-        className="gos-order__body gos-order__body--clickable"
-        onClick={onSelectDate}
-        disabled={!onSelectDate}
-      >
-        <h3 className="gos-order__title">
-          {item.name_order || "Без названия"}
-        </h3>
-        <div className="gos-order__meta">
-          <span className="gos-order__meta-item">
-            <FaClock aria-hidden="true" />
-            {timeLabel}
-          </span>
-          {item.address && (
-            <span className="gos-order__meta-item">
-              <FaMapMarkerAlt aria-hidden="true" />
-              {item.address}
-            </span>
-          )}
-        </div>
-      </button>
-      <div className="gos-order__actions">
+      {onSelectDate ? (
         <button
           type="button"
-          className="gos-btn gos-btn--danger gos-btn--sm"
-          onClick={onDelete}
-          title="Удалить дату"
+          className="gos-order__body gos-order__body--clickable"
+          onClick={onSelectDate}
         >
-          <FaTrashAlt aria-hidden="true" />
+          {body}
         </button>
-      </div>
+      ) : (
+        <div className="gos-order__body">{body}</div>
+      )}
+      {!readOnly && onDelete && (
+        <div className="gos-order__actions">
+          <button
+            type="button"
+            className="gos-btn gos-btn--danger gos-btn--sm"
+            onClick={onDelete}
+            title="Удалить дату"
+          >
+            <FaTrashAlt aria-hidden="true" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,4 +7,5 @@ os.environ.setdefault(
     "postgresql+asyncpg://test_user:test_password@localhost:5432/test_db",
 )
 os.environ.setdefault("PUBLIC_API_URL", "http://localhost:8000")
+os.environ.setdefault("PUBLIC_APP_URL", "http://localhost:3000")
 os.environ.setdefault("PAYMENT_CALLBACK_SECRET", "test-payment-callback-secret")

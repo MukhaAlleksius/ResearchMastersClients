@@ -1,27 +1,58 @@
 import React, { useState, useEffect } from "react";
-import { API, apiFetch, buildApiUrl } from "../../../utils/api.js";
+import { apiFetch, buildApiUrl } from "../../../utils/api.js";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import CatalogPagination from "../shared/CatalogPagination";
 import FiltersShell from "../shared/FiltersShell";
 import { CATALOG_PAGE_SIZE, getCatalogPageFromSearch } from "../../../utils/pagination";
 import { buildOrderPath } from "../../../utils/orderSlug.js";
-import { dedupeOrdersById } from "../../../utils/orders.js";
+import {
+  dedupeOrdersById,
+  formatExecutorResponses,
+  moveOrderToFront,
+} from "../../../utils/orders.js";
 import { formatMoney } from "../../../utils/currency.js";
 import { IconClipboard, IconPin } from "../Profile/ProfileIcons.jsx";
 import "../shared/public_content_layout.css";
 import "./orders_customers.css";
-function CatalogOrdersCustomers() {
+
+function isMineOrdersView(search) {
+  return new URLSearchParams(search).get("mine") === "1";
+}
+
+const SEARCHING_EXECUTOR_STATUS = "В поиске исполнителя";
+
+function CatalogOrdersCustomers({ openModal }) {
   const [totalPages, setTotalPages] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
+  const showMine = isMineOrdersView(location.search);
   const hasActiveFilters = (() => {
     const params = new URLSearchParams(location.search);
     params.delete("page");
+    params.delete("mine");
     return [...params.keys()].length > 0;
   })();
 
   const resetFilters = () => {
-    navigate(location.pathname, { replace: true });
+    navigate(showMine ? `${location.pathname}?mine=1` : location.pathname, {
+      replace: true,
+    });
+  };
+
+  const handleToggleMine = () => {
+    if (showMine) {
+      navigate("/orders");
+      return;
+    }
+    navigate("/orders?mine=1");
+    if (!localStorage.getItem("access_token")) {
+      try {
+        sessionStorage.setItem("auth_return_to", "/orders?mine=1");
+      } catch {
+        // ignore storage errors
+      }
+      openModal?.("loginModal");
+    }
   };
 
   return (
@@ -31,17 +62,50 @@ function CatalogOrdersCustomers() {
     >
       <div className="catalog-container">
         <header className="catalog-hero">
-          <span className="catalog-hero__badge">Для исполнителей</span>
-          <h1 className="catalog-title">Каталог заказов</h1>
+          <span className="catalog-hero__badge">
+            {showMine ? "Ваши заказы" : "Для исполнителей"}
+          </span>
+          <h1 className="catalog-title">
+            {showMine ? "Мои заказы" : "Каталог заказов"}
+          </h1>
           <p className="catalog-hero__text">
-            Найдите подходящие задачи от заказчиков и откликнитесь на
-            интересные предложения
+            {showMine
+              ? "Ваши заказы в поиске исполнителя"
+              : "Найдите подходящие задачи от заказчиков и откликнитесь на интересные предложения"}
           </p>
         </header>
         <div className="catalog-list-toolbar">
-          <p className="catalog-list-toolbar__meta">Список заказов</p>
+          <p className="catalog-list-toolbar__meta">
+            {showMine ? "Мои заказы" : "Список заказов"}
+          </p>
           <div className="catalog-list-toolbar__actions">
-            {hasActiveFilters && (
+            <button
+              type="button"
+              className={`catalog-mine-btn${showMine ? " is-active" : ""}`}
+              onClick={handleToggleMine}
+              aria-pressed={showMine}
+            >
+              <IconClipboard width={14} height={14} />
+              {showMine ? "Все заказы" : "Мои заказы"}
+            </button>
+            <Link to="/add_order" className="catalog-add-order-btn">
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 5v14M5 12h14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Разместить заказ
+            </Link>
+            {!showMine && hasActiveFilters && (
               <button
                 type="button"
                 className="catalog-reset-filters"
@@ -50,15 +114,17 @@ function CatalogOrdersCustomers() {
                 Сбросить фильтры
               </button>
             )}
-            <FiltersOrders />
+            {!showMine && <FiltersOrders />}
           </div>
         </div>
         <OrdersGrid
           onTotalPagesChange={setTotalPages}
           hasActiveFilters={hasActiveFilters}
           onResetFilters={resetFilters}
+          showMine={showMine}
+          openModal={openModal}
         />
-        <CatalogPagination totalPages={totalPages} />
+        {!showMine && <CatalogPagination totalPages={totalPages} />}
       </div>
     </div>
   );
@@ -418,9 +484,15 @@ function FilterSelect({ label, options, value, onChange }) {
   );
 }
 
-function OrderCatalogCard({ order, returnTo }) {
-  const linkTo = buildOrderPath(order);
-  const linkState = { orderId: order.id, returnTo };
+function OrderCatalogCard({
+  order,
+  returnTo,
+  to,
+  ctaLabel = "Подробнее",
+  highlighted = false,
+}) {
+  const linkTo = to || buildOrderPath(order);
+  const linkState = { orderId: order.id, order, returnTo };
 
   const locationLabel = [order.country, order.region, order.town]
     .filter(Boolean)
@@ -432,7 +504,11 @@ function OrderCatalogCard({ order, returnTo }) {
       : "Сумма неизвестна";
 
   return (
-    <Link to={linkTo} state={linkState} className="order-card catalog-card">
+    <Link
+      to={linkTo}
+      state={linkState}
+      className={`order-card catalog-card${highlighted ? " order-card--highlight" : ""}`}
+    >
       <div className="order-card__body">
         <div className="order-card__top">
           <span className="order-card__category">
@@ -440,32 +516,32 @@ function OrderCatalogCard({ order, returnTo }) {
           </span>
         </div>
 
-        <h3 className="order-card__title">{order.title}</h3>
+        <h3 className="order-card__title" title={order.title}>
+          {order.title}
+        </h3>
 
-        {order.description && (
-          <p className="order-card__description">{order.description}</p>
-        )}
+        <p className="order-card__description" title={order.description || undefined}>
+          {order.description || "Описание не указано"}
+        </p>
 
-        {locationLabel && (
-          <p className="order-card__location">
-            <IconPin width={14} height={14} />
-            <span>{locationLabel}</span>
-          </p>
-        )}
+        <p className="order-card__location" title={locationLabel || undefined}>
+          <IconPin width={14} height={14} />
+          <span>{locationLabel || "Локация не указана"}</span>
+        </p>
 
         <div className="order-card__chips">
-          <span className="order-card__chip">
-            <span className="order-card__chip-label">Срок</span>
-            <span className="order-card__chip-value">
-              {order.deadline || "Не указан"}
-            </span>
-          </span>
           {order.insurance_required && (
             <span className="order-card__chip order-card__chip--insurance">
               <span className="order-card__chip-label">Страховка</span>
               <span className="order-card__chip-value">Требуется</span>
             </span>
           )}
+          <span className="order-card__chip order-card__chip--responses">
+            <span className="order-card__chip-label">Отклики</span>
+            <span className="order-card__chip-value">
+              {formatExecutorResponses(order.responses_count)}
+            </span>
+          </span>
         </div>
 
         <div className="order-card__footer">
@@ -474,7 +550,7 @@ function OrderCatalogCard({ order, returnTo }) {
             <span className="order-card__budget-value">{budgetLabel}</span>
           </div>
           <span className="order-card__cta catalog-card__cta">
-            Подробнее
+            {ctaLabel}
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
               <path
                 d="M9 6l6 6-6 6"
@@ -496,15 +572,51 @@ function OrdersGrid({
   onTotalPagesChange,
   hasActiveFilters = false,
   onResetFilters,
+  showMine = false,
+  openModal,
 }) {
   const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [needsLogin, setNeedsLogin] = useState(false);
 
   const fetchOrdersCustomers = async () => {
     try {
       setLoading(true);
+      setNeedsLogin(false);
+
+      if (showMine) {
+        if (!localStorage.getItem("access_token")) {
+          setOrders([]);
+          setError(null);
+          setNeedsLogin(true);
+          onTotalPagesChange?.(0);
+          return;
+        }
+
+        const response = await apiFetch(buildApiUrl("/orders_customer"));
+        if (response.status === 401) {
+          setOrders([]);
+          setError(null);
+          setNeedsLogin(true);
+          onTotalPagesChange?.(0);
+          return;
+        }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        const data = await response.json();
+        const items = Array.isArray(data) ? data : data.items || [];
+        const searching = items.filter(
+          (order) => order.status_order_customer === SEARCHING_EXECUTOR_STATUS,
+        );
+        setOrders(dedupeOrdersById(searching));
+        onTotalPagesChange?.(0);
+        setError(null);
+        return;
+      }
+
       const frontendParams = new URLSearchParams(location.search);
       const backendParams = new URLSearchParams();
 
@@ -530,12 +642,18 @@ function OrdersGrid({
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       const data = await response.json();
       const items = Array.isArray(data.items) ? data.items : [];
-      setOrders(dedupeOrdersById(items));
+      setOrders(
+        moveOrderToFront(dedupeOrdersById(items), location.state?.highlightOrderId),
+      );
       onTotalPagesChange?.(data.total_pages || 0);
       setError(null);
     } catch (error) {
       console.error("Ошибка загрузки заказов:", error);
-      setError("Не удалось загрузить заказы");
+      setError(
+        showMine
+          ? "Не удалось загрузить ваши заказы"
+          : "Не удалось загрузить заказы",
+      );
       setOrders([]);
       onTotalPagesChange?.(0);
     } finally {
@@ -545,8 +663,9 @@ function OrdersGrid({
 
   useEffect(() => {
     fetchOrdersCustomers();
-  }, [location.search]);
+  }, [location.search, showMine]);
 
+  const highlightOrderId = location.state?.highlightOrderId;
   const returnTo = `${location.pathname}${location.search}`;
 
   if (loading) {
@@ -555,6 +674,29 @@ function OrdersGrid({
         <div className="loading-placeholder">
           <div className="catalog-order-detail__spinner" aria-hidden="true" />
           <p>Загрузка заказов…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (needsLogin) {
+    return (
+      <div className="orders-grid">
+        <div className="empty-state">
+          <div className="empty-state__icon" aria-hidden="true">
+            <IconClipboard width={28} height={28} />
+          </div>
+          <p className="empty-state__title">Войдите, чтобы увидеть свои заказы</p>
+          <p className="empty-state__text">
+            Карточки ваших заказов доступны после входа в аккаунт
+          </p>
+          <button
+            type="button"
+            className="empty-state__reset"
+            onClick={() => openModal?.("loginModal")}
+          >
+            Войти
+          </button>
         </div>
       </div>
     );
@@ -584,20 +726,33 @@ function OrdersGrid({
           <div className="empty-state__icon" aria-hidden="true">
             <IconClipboard width={28} height={28} />
           </div>
-          <p className="empty-state__title">Заказы не найдены</p>
-          <p className="empty-state__text">
-            {hasActiveFilters
-              ? "Измените параметры поиска или сбросьте фильтры"
-              : "Пока нет подходящих заказов"}
+          <p className="empty-state__title">
+            {showMine
+              ? "Нет заказов в поиске исполнителя"
+              : "Заказы не найдены"}
           </p>
-          {hasActiveFilters && onResetFilters && (
-            <button
-              type="button"
-              className="empty-state__reset"
-              onClick={onResetFilters}
-            >
-              Сбросить фильтры
-            </button>
+          <p className="empty-state__text">
+            {showMine
+              ? "Опубликуйте заказ — он появится здесь, пока исполнители могут откликаться"
+              : hasActiveFilters
+                ? "Измените параметры поиска или сбросьте фильтры"
+                : "Пока нет подходящих заказов"}
+          </p>
+          {showMine ? (
+            <Link to="/add_order" className="empty-state__reset">
+              Разместить заказ
+            </Link>
+          ) : (
+            hasActiveFilters &&
+            onResetFilters && (
+              <button
+                type="button"
+                className="empty-state__reset"
+                onClick={onResetFilters}
+              >
+                Сбросить фильтры
+              </button>
+            )
           )}
         </div>
       ) : (
@@ -606,6 +761,9 @@ function OrdersGrid({
             key={order.id}
             order={order}
             returnTo={returnTo}
+            to={showMine ? `/profile/orders/${order.id}` : undefined}
+            ctaLabel={showMine ? "Открыть" : "Подробнее"}
+            highlighted={Number(order.id) === Number(highlightOrderId)}
           />
         ))
       )}

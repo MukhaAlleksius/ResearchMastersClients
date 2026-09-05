@@ -36,6 +36,7 @@ PUBLIC_GET_PATTERNS = (  # Шаблоны путей GET без JWT на уро�
     re.compile(r"^/users/\d+/contacts$"),  # Контакты пользователя
     re.compile(r"^/users/\d+/reviews$"),  # Отзывы
     re.compile(r"^/users/\d+/geography_execute_orders$"),  # География исполнителя
+    re.compile(r"^/graphic_orders_master/\d+$"),  # График заказов исполнителя
     re.compile(r"^/countries/\d+/regions$"),  # Регионы страны
     re.compile(r"^/regions/\d+/towns$"),  # Города региона
     re.compile(r"^/order/\d+$"),  # Заказ (каталог или участник — в access)

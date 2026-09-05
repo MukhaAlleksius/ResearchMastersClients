@@ -28,6 +28,53 @@ from schemas.works_materials_schemas import (  # Pydantic-схемы запро�
 DEFAULT_CURRENCY = "BYN"  # Валюта по умолчанию
 
 
+def _normalize_work_name(name: Optional[str]) -> str:
+    return " ".join((name or "").strip().lower().split())
+
+
+async def _myself_work_names_for_category(
+    db: AsyncSession, master_id: int, category_work_id: int
+) -> set[str]:
+    result = await db.execute(
+        select(WorkMasterMyself.name_work).where(
+            and_(
+                WorkMasterMyself.master_id == master_id,
+                WorkMasterMyself.category_work_id == category_work_id,
+            )
+        )
+    )
+    return {
+        _normalize_work_name(name)
+        for name in result.scalars().all()
+        if _normalize_work_name(name)
+    }
+
+
+async def _detach_catalog_works_matching_name(
+    db: AsyncSession,
+    *,
+    master_id: int,
+    category_work_id: int,
+    name_work: str,
+) -> None:
+    target = _normalize_work_name(name_work)
+    if not target:
+        return
+    result = await db.execute(
+        select(WorkMasterFromAdmin, Work)
+        .join(Work, WorkMasterFromAdmin.work_id == Work.id)
+        .where(
+            and_(
+                WorkMasterFromAdmin.master_id == master_id,
+                Work.category_work_id == category_work_id,
+            )
+        )
+    )
+    for admin_row, work in result.all():
+        if _normalize_work_name(work.name_work) == target:
+            await db.delete(admin_row)
+
+
 def _resolve_cost_currency(
     master_cost, master_currency, fallback_cost, fallback_currency
 ):  # Стоимость и валюта с fallback
@@ -449,6 +496,15 @@ async def add_work_master_from_admin(  # Мастер выбирает рабо�
     )
     existing_work_master = result.scalar_one_or_none()
 
+    myself_names = await _myself_work_names_for_category(
+        db, work_master.master_id, work.category_work_id
+    )
+    if _normalize_work_name(work.name_work) in myself_names:
+        raise HTTPException(
+            status_code=409,
+            detail="Эта работа уже добавлена вами и имеет приоритет над каталогом",
+        )
+
     if existing_work_master:  # Обновляем цену
         existing_work_master.cost = cost
         existing_work_master.currency = currency
@@ -490,8 +546,13 @@ async def get_works_master_from_admin_for_category_work(  # Работы мас�
 
         if not result_works_master:  # Нет работ
             return []
+        myself_names = await _myself_work_names_for_category(
+            db, master_id, category_work_id
+        )
         list_works_master = []  # Список схем
         for work_master_from_admin, work in result_works_master:  # Пара ORM
+            if _normalize_work_name(work.name_work) in myself_names:
+                continue
             cost, currency = _resolve_cost_currency(  # Итоговая цена/валюта
                 work_master_from_admin.cost,
                 work_master_from_admin.currency,
@@ -543,14 +604,27 @@ async def ensure_work_master_myself(  # Upsert своей работы маст�
             and_(
                 WorkMasterMyself.master_id == master_id,
                 WorkMasterMyself.category_work_id == category_work_id,
-                WorkMasterMyself.name_work == normalized_name,
-                WorkMasterMyself.unit_measurement == normalized_unit,
             )
         )
     )
-    existing = result.scalar_one_or_none()
+    existing = next(
+        (
+            row
+            for row in result.scalars().all()
+            if _normalize_work_name(row.name_work) == _normalize_work_name(normalized_name)
+        ),
+        None,
+    )
     resolved_currency = currency or DEFAULT_CURRENCY
+    await _detach_catalog_works_matching_name(
+        db,
+        master_id=master_id,
+        category_work_id=category_work_id,
+        name_work=normalized_name,
+    )
     if existing:
+        existing.name_work = normalized_name
+        existing.unit_measurement = normalized_unit
         existing.cost = cost
         existing.currency = resolved_currency
         return existing

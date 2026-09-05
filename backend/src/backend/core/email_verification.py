@@ -8,6 +8,7 @@ from sqlalchemy import select  # SELECT для поиска пользовате
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
 from core.config import PUBLIC_API_URL, REQUIRE_EMAIL_VERIFICATION  # Базовый URL API и флаг обязательности
+from core.email import send_email  # SMTP или лог, если SMTP не настроен
 from core.tokens import create_email_verification_token  # JWT для ссылки подтверждения
 from models.users_models import User  # ORM-модель пользователя
 
@@ -18,10 +19,30 @@ def verification_link(token: str) -> str:  # Собирает URL подтвер
     return f"{PUBLIC_API_URL}/verify-email?token={token}"  # Ссылка с токеном в query
 
 
-async def send_verification_email(*, email: str, token: str) -> None:  # «Отправка» письма (пока в лог)
+async def send_verification_email(*, email: str, token: str) -> None:  # Письмо со ссылкой подтверждения
     link = verification_link(token)  # Готовим ссылку
-    # SMTP can be wired later; in dev the link is logged for manual testing.
-    logger.info("Email verification link for %s: %s", email, link)  # Пишем ссылку в лог для ручного теста
+    text_body = (
+        "Подтвердите email, чтобы войти в Fixer.\n\n"
+        f"{link}\n\n"
+        "Если вы не регистрировались, просто проигнорируйте письмо."
+    )
+    html_body = (
+        "<!DOCTYPE html><html><body "
+        'style="font-family:Arial,sans-serif;color:#111827;line-height:1.5">'
+        "<p>Подтвердите email, чтобы войти в Fixer.</p>"
+        f'<p><a href="{link}">Подтвердить email</a></p>'
+        "<p style=\"color:#6b7280;font-size:12px\">"
+        "Если вы не регистрировались, просто проигнорируйте письмо.</p>"
+        "</body></html>"
+    )
+    sent = await send_email(
+        to_email=email,
+        subject="Подтверждение email — Fixer",
+        text_body=text_body,
+        html_body=html_body,
+    )
+    if not sent:
+        logger.info("Email verification link for %s: %s", email, link)
 
 
 async def issue_email_verification(db: AsyncSession, user: User) -> None:  # Выпускает письмо/ссылку при регистрации

@@ -10,7 +10,10 @@ from cruds.estimate_graphic_works.delete_estimate_graphic_works import (  # Оч
     clear_estimate_and_graphic_for_order,
 )
 from cruds.orders.order_constants import HIDDEN_CUSTOMER_EXECUTOR_MARKER  # Маркер скрытого контакта
-from cruds.notifications_crud import clear_cancel_notifications_for_order  # Снятие уведомлений об отказе
+from cruds.notifications_crud import (  # Уведомления при удалении и отказе
+    clear_cancel_notifications_for_order,
+    notify_executors_order_deleted,
+)
 from models.users_models import User  # ORM пользователя
 from models.contracts_models import Contract  # ORM договора
 from models.conversations_models import (  # ORM чатов и жалоб
@@ -28,7 +31,6 @@ from models.orders_models import (  # ORM заказов, статусов, ув
     GraphicOrderMaster,
     InformationAboutCustomer,
     InformationAboutExecutor,
-    Notification,
     Order,
     OrderResponseExecutor,
     StatusOrderCustomer,
@@ -232,23 +234,13 @@ async def delete_order_by_customer(  # Удаление заказа заказ�
     executor_ids = await _get_executor_ids_to_notify_on_customer_delete(db, order_id)  # Кого уведомить
 
     order_title = order.title or f"№ {order_id}"  # Заголовок для уведомления
-    notification_message = (  # Текст уведомления исполнителям
-        f"Заказчик удалил заказ «{order_title}». "
-        "Смета, отклики, переписка и договор по заказу удалены."
+    await notify_executors_order_deleted(  # In-app + письмо исполнителям
+        db,
+        order_id=order_id,
+        order_title=order_title,
+        customer_id=customer_id,
+        executor_ids=executor_ids,
     )
-
-    for executor_id in executor_ids:  # Создаём уведомление каждому исполнителю
-        db.add(
-            Notification(
-                user_id=executor_id,
-                title="Заказ удалён заказчиком",
-                message=notification_message,
-                notification_type="order_deleted_by_customer",
-                order_id=order_id,
-                order_title=order_title,
-                is_read=False,
-            )
-        )
 
     await delete_all_order_related_data(db, order_id)  # Очищаем связанные данные
     await db.execute(delete(Order).where(Order.id == order_id))  # Удаляем сам заказ

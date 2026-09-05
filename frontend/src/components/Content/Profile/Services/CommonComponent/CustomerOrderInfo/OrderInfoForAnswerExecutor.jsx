@@ -9,6 +9,10 @@ import {
   BUDGET_TYPE_PLACEHOLDER,
   isFixedBudgetType,
 } from "../../../../../../utils/budgetTypes.js";
+import {
+  isNotBeforeToday,
+  todayIsoDate,
+} from "../../../../Common/DeadlineField.jsx";
 
 const formatDateDDMMYY = (dateString) => {
   if (!dateString || dateString === "") return null;
@@ -25,7 +29,6 @@ const formatDateDDMMYY = (dateString) => {
 
 function ResponseModal({ onClose, onSend, order }) {
   const [startDateIso, setStartDateIso] = useState("");
-  const [duration, setDuration] = useState("");
   const [cost, setCost] = useState("");
   const [message, setMessage] = useState("");
   const [budgetType, setBudgetType] = useState("");
@@ -51,6 +54,10 @@ function ResponseModal({ onClose, onSend, order }) {
       }
 
       const startDateFormatted = formatDateDDMMYY(startDateIso);
+      if (startDateIso && !isNotBeforeToday(startDateIso)) {
+        setError("Дата начала работы не может быть раньше сегодняшней");
+        return;
+      }
       if (!budgetType) {
         setError("Выберите тип бюджета");
         return;
@@ -71,7 +78,6 @@ function ResponseModal({ onClose, onSend, order }) {
         proposed_price: parsedCost,
         budget_type: budgetType || null,
         currency: isFixedBudgetType(budgetType) ? currency || "BYN" : "BYN",
-        estimated_time: duration || null,
         start_time_work: startDateFormatted,
         message: message || null,
       };
@@ -121,7 +127,6 @@ function ResponseModal({ onClose, onSend, order }) {
 
       onSend({
         startDate: startDateFormatted,
-        duration,
         cost,
         message,
       });
@@ -173,19 +178,13 @@ function ResponseModal({ onClose, onSend, order }) {
             <input
               type="date"
               className="oi-modal__input"
+              min={todayIsoDate()}
               value={startDateIso}
-              onChange={(e) => setStartDateIso(e.target.value)}
-            />
-          </label>
-
-          <label className="oi-modal__field">
-            <span className="oi-modal__field-label">Сроки выполнения</span>
-            <input
-              type="text"
-              className="oi-modal__input"
-              placeholder="Например: 2 недели"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next && next < todayIsoDate()) return;
+                setStartDateIso(next);
+              }}
             />
           </label>
 
@@ -282,7 +281,7 @@ export default function OrderInfoForAnswerExecutor({ order, embedded = false }) 
   const handleSendResponse = async (data) => {
     console.log("Ответ исполнителя:", data);
     await uiAlert(
-      `Ответ отправлен!\nДата начала: ${data.startDate}\nСроки: ${data.duration}\nСтоимость: ${data.cost}\nСообщение: ${data.message}`,
+      `Ответ отправлен!\nДата начала: ${data.startDate}\nСтоимость: ${data.cost}\nСообщение: ${data.message}`,
     );
   };
 

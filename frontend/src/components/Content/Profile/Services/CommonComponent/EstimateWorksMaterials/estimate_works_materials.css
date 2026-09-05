@@ -140,12 +140,6 @@
   border: 1px solid var(--ew-border);
   border-radius: var(--ew-radius-sm);
   box-shadow: var(--ew-shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.summary-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
 }
 
 .summary-label {
@@ -231,6 +225,11 @@
   padding: 16px 20px;
   border-bottom: 1px solid var(--ew-border);
   background: var(--ew-bg);
+}
+
+.estimate-card-head--add {
+  justify-content: flex-start;
+  gap: 10px;
 }
 
 .estimate-card-head--form {
@@ -687,6 +686,24 @@
   margin: 0;
   font-size: 0.875rem;
   color: var(--ew-text-muted);
+}
+
+.empty-state .btn-add {
+  margin-top: 16px;
+}
+
+.btn-add--header {
+  padding: 5px 10px;
+  min-height: 28px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.22);
+}
+
+.btn-add--header:hover:not(:disabled) {
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.3);
+  transform: translateY(-1px);
 }
 
 /* ─── Actions ─── */
@@ -2003,6 +2020,25 @@ label > div {
   max-width: 520px;
 }
 
+.materials-modal--add {
+  max-width: 640px;
+  max-height: min(90vh, 760px);
+}
+
+.materials-modal__source {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 4px;
+  background: #f1f5f9;
+  border-radius: 12px;
+}
+
+.materials-modal__source .switcher-btn {
+  flex: 1;
+  min-height: 36px;
+}
+
 .materials-modal__select {
   appearance: none;
   cursor: pointer;
@@ -2066,7 +2102,8 @@ label > div {
     border-radius: 16px 16px 0 0;
   }
 
-  .materials-modal--edit {
+  .materials-modal--edit,
+  .materials-modal--add {
     max-width: none;
   }
 

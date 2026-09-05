@@ -10,7 +10,10 @@ from cruds.notifications_crud import (  # Уведомления
     SCHEDULE_UPDATED_NOTIFICATION_TYPE,
     notify_order_event,
 )
-from models.works_materials_models import Work, WorkMasterMyself  # Справочники работ и цен
+from models.works_materials_models import (
+    Work,
+    WorkMasterMyself,
+)  # Справочники работ и цен
 from models.orders_models import Order  # Заказ (category_id)
 from models.estimate_graphic_works_models import (  # ORM сметы и графика
     GraphicWork,
@@ -28,9 +31,7 @@ from cruds.orders.sync_order_budget import sync_order_budget_from_deal
 logger = logging.getLogger(__name__)  # Логгер модуля
 
 
-async def _sync_budget_after_estimate(
-    db: AsyncSession, order_id: int
-) -> None:
+async def _sync_budget_after_estimate(db: AsyncSession, order_id: int) -> None:
     try:
         await sync_order_budget_from_deal(db, order_id)
     except Exception as error:
@@ -371,7 +372,9 @@ async def add_work_into_graphic_works(
         if existing_estimate_work:
             if total_work_qty > existing_estimate_work.quantity:
                 old_estimate_qty = existing_estimate_work.quantity
-                existing_estimate_work.quantity = total_work_qty  # Смета не меньше графика
+                existing_estimate_work.quantity = (
+                    total_work_qty  # Смета не меньше графика
+                )
                 logger.info(
                     f"💰 СМЕТА ↑: '{existing_estimate_work.name_work}' {old_estimate_qty} → {total_work_qty}"
                 )

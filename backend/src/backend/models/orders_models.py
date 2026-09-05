@@ -55,7 +55,6 @@ class OrderResponseExecutor(Base):
     proposed_price = Column(Numeric)
     budget_type = Column(String(50))
     currency = Column(String(100))
-    estimated_time = Column(String(100))
     start_time_work = Column(String(10))
     message = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -155,8 +154,6 @@ class Notification(Base):
     is_read = Column(Boolean, default=False)
     order_id = Column(Integer)
     order_title = Column(String(255))
-    executor_reaction = Column(String(100))
-    acknowledged_at = Column(DateTime(timezone=True))
     action_path = Column(String(255))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

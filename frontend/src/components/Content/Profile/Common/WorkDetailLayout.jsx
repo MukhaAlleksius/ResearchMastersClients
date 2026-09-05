@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useLayoutEffect } from "react";
 import "./work-detail-layout.css";
 import { WorkDetailTabIcon } from "../ProfileIcons.jsx";
+import { scrollPageToTop } from "../../../../utils/scrollPageToTop.js";
 
 /**
  * Общая оболочка страницы заказа/услуги:
@@ -35,6 +36,10 @@ export default function WorkDetailLayout({
   children,
 }) {
   const activeTabMeta = tabs.find((t) => t.id === activeTab);
+
+  useLayoutEffect(() => {
+    scrollPageToTop();
+  }, [activeTab]);
 
   if (loading) {
     return (

@@ -8,6 +8,10 @@ import {
 import { useNbrbRates } from "../../../../../hooks/useNbrbRates";
 import "../specializations.css";
 import { uiAlert } from "../../../../UiDialog/uiDialog.js";
+import {
+  isCatalogWorkInSpecialization,
+  preferOwnSpecializationWorks,
+} from "../../../../../utils/workNames.js";
 
 export default function WorksSpecialization({ category_work_id, currency = "BYN" }) {
 
@@ -121,7 +125,7 @@ export default function WorksSpecialization({ category_work_id, currency = "BYN"
 
     const myself = myselfRes.ok ? await myselfRes.json() : [];
 
-    setWorksMaster([...admin, ...myself]);
+    setWorksMaster(preferOwnSpecializationWorks(admin, myself));
 
   };
 
@@ -189,7 +193,14 @@ export default function WorksSpecialization({ category_work_id, currency = "BYN"
 
       );
 
-      if (!response.ok) throw new Error("Ошибка");
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(
+          detail.includes("уже добавлена")
+            ? "Эта работа уже есть среди ваших собственных"
+            : "Ошибка",
+        );
+      }
 
       await fetchWorksMaster();
 
@@ -275,7 +286,7 @@ export default function WorksSpecialization({ category_work_id, currency = "BYN"
 
               const { work_id, name_work, unit_measurement } = work;
 
-              const isAdded = worksMaster.some((m) => m.work_id === work_id);
+              const isAdded = isCatalogWorkInSpecialization(work, worksMaster);
 
               return (
 

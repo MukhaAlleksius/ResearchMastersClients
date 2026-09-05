@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { API, apiFetch, buildApiUrl, formatApiDetail } from "../../../../utils/api.js";
-import CreatableSelect from "react-select/creatable";
+import { useNavigate } from "react-router-dom";
+import { apiFetch, buildApiUrl, formatApiDetail } from "../../../../utils/api.js";
 import Select from "react-select";
-import EstimateWorks from "../../Profile/Services/CommonComponent/EstimateWorksMaterials/EstimateWorks";
 import DeadlineField, { isValidDeadline } from "../../Common/DeadlineField.jsx";
 import "./add_order_for_all_executors.css";
 import "./order.css";
@@ -19,6 +18,7 @@ export default function AddOrderForAllExecutors({
   showAuthBanner = false,
   openModal,
 }) {
+  const navigate = useNavigate();
   const [categoryWork, setCategoryWork] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -45,8 +45,6 @@ export default function AddOrderForAllExecutors({
   const countryOptions = countries;
   const areaOptions = regions;
   const townOptions = towns;
-
-  const [orderId, setOrderId] = useState(null);
 
   // Загрузка стран
   const fetchCountries = useCallback(async () => {
@@ -200,7 +198,7 @@ export default function AddOrderForAllExecutors({
       return;
     }
     if (!isValidDeadline(deadline)) {
-      await uiAlert("Выберите точную дату выполнения");
+      await uiAlert("Выберите дату выполнения не раньше сегодняшней");
       return;
     }
     if (!budgetType) {
@@ -288,13 +286,11 @@ export default function AddOrderForAllExecutors({
       //   await fetchOrdersCustomer(); // Перезагружаем список заказов
       // }
 
-      console.log("Order_id:", data.id);
-
-      // ✅ Авто-переход на детали заказа
-      setOrderId(data.id);
-
       resetForm();
-      await uiAlert("✅ Заказ размещён! Переходим к смете...");
+      navigate("/orders", {
+        replace: true,
+        state: { highlightOrderId: data.id },
+      });
     } catch (error) {
       console.error("Ошибка: ", error);
       await uiAlert("❌ Произошла ошибка при размещении заказа");
@@ -415,12 +411,13 @@ export default function AddOrderForAllExecutors({
             <label htmlFor="category" className="label">
               Категория услуги <span className="required">*</span>
             </label>
-            <CreatableSelect
+            <Select
               options={categoriesWorksOptions}
               value={categoryWorkMaster}
               onChange={handleSelectCategoryWorkMaster}
               isClearable
               placeholder="Выберите категорию работ"
+              noOptionsMessage={() => "Нет подходящих категорий"}
               styles={customStyles}
             />
           </div>
