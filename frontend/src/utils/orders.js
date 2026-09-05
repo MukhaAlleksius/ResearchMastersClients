@@ -1,3 +1,43 @@
+import { classifyBudgetType } from "./budgetTypes.js";
+import { formatMoney } from "./currency.js";
+
+/**
+ * Бюджет на карточке и в карточке заказа:
+ * фиксированная сумма — число, иначе тип бюджета.
+ */
+export function formatOrderBudget(order) {
+  const type = String(order?.budget_type || order?.budgetType || "").trim();
+  const deal = classifyBudgetType(type);
+  const raw = order?.budget;
+  const amount = Number(raw);
+  const hasAmount =
+    raw != null && raw !== "" && Number.isFinite(amount) && amount > 0;
+  const currency = order?.currency || "BYN";
+
+  if (deal === "fixed") {
+    return {
+      label: "Сумма",
+      value: hasAmount ? formatMoney(amount, currency) : "Не указана",
+    };
+  }
+  if (deal === "estimate") {
+    return { label: "Тип бюджета", value: type || "Сметная цена" };
+  }
+  if (deal === "negotiable") {
+    return { label: "Тип бюджета", value: type || "Договорная стоимость" };
+  }
+  if (deal === "hourly") {
+    return { label: "Тип бюджета", value: type || "Почасовая оплата" };
+  }
+  if (hasAmount) {
+    return { label: "Сумма", value: formatMoney(amount, currency) };
+  }
+  if (type) {
+    return { label: "Тип бюджета", value: type };
+  }
+  return { label: "Бюджет", value: "Не указан" };
+}
+
 /**
  * Убирает дубликаты заказов с одним id (часто из-за JOIN со статусами в API).
  * При нескольких строках сохраняет последнюю — обычно с актуальным статусом.

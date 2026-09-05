@@ -8,9 +8,9 @@ import { buildOrderPath } from "../../../utils/orderSlug.js";
 import {
   dedupeOrdersById,
   formatExecutorResponses,
+  formatOrderBudget,
   moveOrderToFront,
 } from "../../../utils/orders.js";
-import { formatMoney } from "../../../utils/currency.js";
 import { IconClipboard, IconPin } from "../Profile/ProfileIcons.jsx";
 import "../shared/public_content_layout.css";
 import "./orders_customers.css";
@@ -498,10 +498,7 @@ function OrderCatalogCard({
     .filter(Boolean)
     .join(", ");
 
-  const budgetLabel =
-    order.budget != null && Number(order.budget) > 0
-      ? formatMoney(order.budget, order.currency || "BYN")
-      : "Сумма неизвестна";
+  const budget = formatOrderBudget(order);
 
   return (
     <Link
@@ -546,8 +543,8 @@ function OrderCatalogCard({
 
         <div className="order-card__footer">
           <div className="order-card__budget">
-            <span className="order-card__budget-label">Прим. сумма</span>
-            <span className="order-card__budget-value">{budgetLabel}</span>
+            <span className="order-card__budget-label">{budget.label}</span>
+            <span className="order-card__budget-value">{budget.value}</span>
           </div>
           <span className="order-card__cta catalog-card__cta">
             {ctaLabel}

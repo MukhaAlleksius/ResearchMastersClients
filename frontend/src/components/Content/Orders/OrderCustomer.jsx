@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, buildApiUrl } from "../../../utils/api.js";
-import { formatMoney } from "../../../utils/currency.js";
+import { formatOrderBudget } from "../../../utils/orders.js";
 import { getCustomerProfileLink } from "../../../utils/executorProfile.js";
 import OrderInfoAnswerExecutor from "../Profile/Services/CommonComponent/CustomerOrderInfo/OrderInfoAnswerExecutor";
 import { IconUser, IconPin, IconTag } from "../Profile/ProfileIcons.jsx";
@@ -112,6 +112,8 @@ export default function OrderCustomer({
 
   if (!order) return null;
 
+  const budget = formatOrderBudget(order);
+
   return (
     <div
       className={`order-customer-wrapper${
@@ -209,11 +211,7 @@ export default function OrderCustomer({
           <h3>Условия</h3>
           <p>Срок выполнения: {order.deadline || "Не указан"}</p>
           <p>
-            {order.budget != null && Number(order.budget) > 0
-              ? `Сумма: ${formatMoney(order.budget, order.currency || "BYN")}${
-                  order.budget_type ? ` (${order.budget_type})` : ""
-                }`
-              : "Сумма неизвестна"}
+            {budget.label}: {budget.value}
           </p>
           {order.insurance_required && <p>Требуется страховка исполнителя</p>}
         </div>

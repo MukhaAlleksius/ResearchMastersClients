@@ -50,6 +50,8 @@
    - `PAYMENT_ALLOW_TEST=false`
    - `CORS_ORIGINS=http://localhost` (or your domain)
    - `PUBLIC_API_URL=http://localhost/api` (must match nginx `/api` prefix)
+   - `PUBLIC_APP_URL=http://localhost` (frontend URL in emails)
+   - `SMTP_HOST`, `SMTP_FROM_EMAIL` (and login) — otherwise letters are only logged
    - `GUNICORN_WORKERS=4` (optional)
 3. Run migrations against the DB (before or after first `db` start):
    ```bash
@@ -227,7 +229,8 @@ Unhandled 500 errors and logged exceptions are sent when `SENTRY_DSN` is set (`s
 |---------|--------|
 | Rate limit | `RATE_LIMIT_*` on POST `/token`, `/register`, `/refresh`, `/payment/callback` |
 | JWT types | access and refresh are **not** interchangeable (`type` claim required) |
-| Email verify | `REQUIRE_EMAIL_VERIFICATION=true` in prod; link logged in dev until SMTP is wired |
+| Email verify | `REQUIRE_EMAIL_VERIFICATION=true` in prod; letters go via SMTP (`SMTP_*`) or are logged if SMTP is unset |
+| Order emails | Refusal, order delete, and accepted proposal are emailed to the other party |
 | Uploads | avatars/portfolio: extension + size + PIL format/resolution checks |
 | Uptime | `GET /health` + optional `UPTIME_ALERT_WEBHOOK_URL`; external probe: `deploy/scripts/uptime_check.sh` |
 

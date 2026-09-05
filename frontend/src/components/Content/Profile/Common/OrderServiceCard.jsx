@@ -1,17 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { getStatusColor } from "../styles/theme";
-import { formatMoney } from "../../../../utils/currency.js";
-import { formatExecutorResponses } from "../../../../utils/orders.js";
+import { formatExecutorResponses, formatOrderBudget } from "../../../../utils/orders.js";
 import { IconUser, StatusIcon } from "../ProfileIcons.jsx";
 
 function formatCardBudget(item) {
-  const amount = item?.budget;
-  const hasAmount = amount != null && amount !== "" && Number(amount) > 0;
-  if (hasAmount) {
-    return formatMoney(amount, item.currency || "BYN");
-  }
-  return "Сумма неизвестна";
+  const budget = formatOrderBudget(item);
+  return `${budget.label}: ${budget.value}`;
 }
 
 export default function OrderServiceCard({

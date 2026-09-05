@@ -1,28 +1,16 @@
 import React from "react";
-import { classifyBudgetType } from "../../../../../../utils/budgetTypes.js";
+import { formatOrderBudget } from "../../../../../../utils/orders.js";
 import "./customer_order_info.css";
 
 export const formatDateTime = (value) =>
   value ? new Date(value).toLocaleString("ru-RU") : "Не указана";
 
-export const formatBudget = (budget, currency, budgetType) => {
-  if (budget == null || budget === "" || Number(budget) <= 0) {
-    const deal = classifyBudgetType(budgetType);
-    if (deal === "negotiable") return "По договорённости";
-    if (deal === "estimate") return "По смете";
-    return "Сумма неизвестна";
-  }
-  const amount = Number(budget).toLocaleString("ru-RU");
-  return [amount, currency || "BYN"].filter(Boolean).join(" ");
-};
+export const formatBudget = (budget, currency, budgetType) =>
+  formatOrderBudget({ budget, currency, budget_type: budgetType }).value;
 
 /** Подпись суммы в карточке/инфо заказа. */
 export function orderBudgetLabel(budgetType) {
-  const deal = classifyBudgetType(budgetType);
-  if (deal === "estimate") return "Сметная цена";
-  if (deal === "fixed") return "Фиксированная стоимость";
-  if (deal === "negotiable") return "Договорная стоимость";
-  return "Сумма";
+  return formatOrderBudget({ budget_type: budgetType }).label;
 }
 
 export const formatLocation = (country, region, town) => {
