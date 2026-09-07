@@ -592,7 +592,7 @@ export default function RegisterModal({ isOpen, onClose }) {
                 <input
                   id="reg-email"
                   name="fixer_reg_contact"
-                  type="text"
+                  type="email"
                   inputMode="email"
                   className={fieldClass("email")}
                   value={email}

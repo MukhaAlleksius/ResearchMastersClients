@@ -16,3 +16,4 @@ frontend/.git.bak/
 .idea/
 .vscode/
 *.log
+.aider*

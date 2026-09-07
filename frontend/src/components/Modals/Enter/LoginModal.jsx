@@ -372,7 +372,7 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
                       <input
                         id="login-email"
                         name="fixer_login_contact"
-                        type="text"
+                        type="email"
                         inputMode="email"
                         className="reg-modal__input"
                         value={email}
