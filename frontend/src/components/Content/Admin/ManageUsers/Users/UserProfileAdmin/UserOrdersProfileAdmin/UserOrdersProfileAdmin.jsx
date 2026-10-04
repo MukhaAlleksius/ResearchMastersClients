@@ -368,6 +368,8 @@ function OrderFilters() {
     "Ожидают выполнения",
     "В процессе выполнения",
     "Выполнен",
+    "Отказано заказчиком",
+    "Отказ от заказа",
     "Отменен",
   ]);
   const [selectedStatus, setSelectedStatus] = useState("Все статусы");

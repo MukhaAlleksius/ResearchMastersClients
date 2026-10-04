@@ -35,14 +35,86 @@ export function getApiBaseUrl() {
 }
 
 let unauthorizedHandler = null;
+const ACCOUNT_BLOCKED_MESSAGE_KEY = "account_blocked_message";
 
 export function setUnauthorizedHandler(handler) {
   unauthorizedHandler = handler;
 }
 
+export function formatAccountBlockedMessage(detail, fallback = "Аккаунт заблокирован.") {
+  const source = detail && typeof detail === "object" ? detail : {};
+  const reason = String(source.reason || "").trim();
+  const until = source.blocked_until;
+  const parts = [source.message || fallback];
+  if (reason) parts.push(`Причина: ${reason}.`);
+  if (until) {
+    try {
+      const date = new Date(until);
+      if (!Number.isNaN(date.getTime())) {
+        parts.push(
+          `До ${date.toLocaleString("ru-RU", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}.`,
+        );
+      }
+    } catch {
+      // ignore invalid dates
+    }
+  } else if (source.code === "account_blocked") {
+    parts.push("Без срока.");
+  }
+  return parts.filter(Boolean).join(" ");
+}
+
+export function consumeAccountBlockedMessage() {
+  try {
+    const message = sessionStorage.getItem(ACCOUNT_BLOCKED_MESSAGE_KEY);
+    if (message) sessionStorage.removeItem(ACCOUNT_BLOCKED_MESSAGE_KEY);
+    return message || "";
+  } catch {
+    return "";
+  }
+}
+
+function rememberAccountBlockedMessage(detail) {
+  try {
+    sessionStorage.setItem(
+      ACCOUNT_BLOCKED_MESSAGE_KEY,
+      formatAccountBlockedMessage(detail),
+    );
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function isAccountBlockedDetail(detail) {
+  return Boolean(
+    detail &&
+      typeof detail === "object" &&
+      !Array.isArray(detail) &&
+      detail.code === "account_blocked",
+  );
+}
+
 function handleUnauthorizedResponse(response) {
   if (response?.status === 401) {
     unauthorizedHandler?.();
+  }
+  if (response?.status === 403) {
+    response
+      .clone()
+      .json()
+      .then((body) => {
+        if (isAccountBlockedDetail(body?.detail)) {
+          rememberAccountBlockedMessage(body.detail);
+          unauthorizedHandler?.();
+        }
+      })
+      .catch(() => {});
   }
   return response;
 }
@@ -71,6 +143,9 @@ const PUBLIC_POST_EXACT = new Set([
   "/api/auth/google/register",
   "/payment/callback",
   "/add_town_by_user",
+  "/resend-verification",
+  "/forgot-password",
+  "/reset-password",
 ]);
 
 function normalizePath(url) {
@@ -196,6 +271,14 @@ export const fetchWithAuth = async (
     });
 
     if (!res.ok) {
+      try {
+        const body = await res.clone().json();
+        if (isAccountBlockedDetail(body?.detail)) {
+          rememberAccountBlockedMessage(body.detail);
+        }
+      } catch {
+        // ignore non-JSON refresh errors
+      }
       onUnauthorized?.();
       unauthorizedHandler?.();
       throw new Error("Не удалось обновить токен");
@@ -289,6 +372,7 @@ const FIELD_LABELS_RU = {
   region: "Регион",
   town: "Город",
   town_id: "Город",
+  block_reason: "Причина блокировки",
 };
 
 function humanizeValidationMsg(msg = "") {
@@ -312,7 +396,13 @@ function humanizeValidationMsg(msg = "") {
 export function formatApiDetail(detail, fallback = "Ошибка запроса") {
   if (detail == null || detail === "") return fallback;
   if (typeof detail === "string") return detail;
+  if (isAccountBlockedDetail(detail)) {
+    return formatAccountBlockedMessage(detail, fallback);
+  }
   if (!Array.isArray(detail)) {
+    if (typeof detail.message === "string" && detail.message.trim()) {
+      return detail.message;
+    }
     try {
       return JSON.stringify(detail);
     } catch {

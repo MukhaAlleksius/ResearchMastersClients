@@ -50,6 +50,8 @@ import SupportAdminPanel from "./components/Content/Admin/Supports/SupportAdminP
 import SupportContactPanel from "./components/Content/Profile/Administrator/SupportContactPanel.jsx";
 import TermsOfService from "./components/Content/Legal/TermsOfService.jsx";
 import UserOrderProfileAdmin from "./components/Content/Admin/ManageUsers/Users/UserProfileAdmin/UserOrdersProfileAdmin/UserOrderProfileAdmin/UserOrderProfileAdmin.jsx";
+import VerifyEmailPage from "./components/Auth/VerifyEmailPage.jsx";
+import ResetPasswordPage from "./components/Auth/ResetPasswordPage.jsx";
 import UserOrdersProfileAdmin from "./components/Content/Admin/ManageUsers/Users/UserProfileAdmin/UserOrdersProfileAdmin/UserOrdersProfileAdmin.jsx";
 import UserProfileAdmin from "./components/Content/Admin/ManageUsers/Users/UserProfileAdmin/UserProfileAdmin.jsx";
 import UserServiceProfileAdmin from "./components/Content/Admin/ManageUsers/Users/UserProfileAdmin/UserServicesProfileAdmin/UserServiceProfileAdmin/UserServiceProfileAdmin.jsx";
@@ -60,6 +62,7 @@ import UiDialogProvider from "./components/UiDialog/UiDialogProvider.jsx";
 import "./index.css";
 function App() {
   const [modal, setModal] = useState(null); // null | "registerModal" | "loginModal"
+  const [authNotice, setAuthNotice] = useState("");
 
   const [isLoggedIn, setIsLoggedIn] = useState(
     localStorage.getItem("access_token"),
@@ -101,8 +104,17 @@ function App() {
         path.startsWith("/home") ||
         path.startsWith("/order/") ||
         path === "/" ||
-        path.startsWith("/legal");
-      if (!isPublicBrowse) {
+        path.startsWith("/legal") ||
+        path.startsWith("/verify-email") ||
+        path.startsWith("/reset-password");
+      const blockedMsg = (() => {
+        try {
+          return sessionStorage.getItem("account_blocked_message");
+        } catch {
+          return "";
+        }
+      })();
+      if (blockedMsg || !isPublicBrowse) {
         setModal("loginModal");
       }
     });
@@ -138,6 +150,14 @@ function App() {
               <Route path="/legal/privacy" element={<PrivacyPolicy />} />
               <Route path="/legal/payment" element={<PaymentRules />} />
               <Route path="/legal/requisites" element={<Requisites />} />
+              <Route
+                path="/verify-email"
+                element={<VerifyEmailPage openModal={openModal} />}
+              />
+              <Route
+                path="/reset-password"
+                element={<ResetPasswordPage openModal={openModal} />}
+              />
 
               {/* ✅ ЛИЧНЫЙ КАБИНЕТ — маршруты заказов явно в App.js */}
               <Route element={<ProfilePage />}>
@@ -278,6 +298,10 @@ function App() {
                   element={<AdminCancelOrdersList />}
                 />
                 <Route
+                  path="cancel_order/:source/:cancel_order_customer_id"
+                  element={<CancelOrderVerdictAdmin />}
+                />
+                <Route
                   path="cancel_order/:cancel_order_customer_id"
                   element={<CancelOrderVerdictAdmin />}
                 />
@@ -314,6 +338,14 @@ function App() {
               <Route path="/legal/privacy" element={<PrivacyPolicy />} />
               <Route path="/legal/payment" element={<PaymentRules />} />
               <Route path="/legal/requisites" element={<Requisites />} />
+              <Route
+                path="/verify-email"
+                element={<VerifyEmailPage openModal={openModal} />}
+              />
+              <Route
+                path="/reset-password"
+                element={<ResetPasswordPage openModal={openModal} />}
+              />
               <Route path="/profile/:slug" element={<ExecutorProfile openModal={openModal} />} />
               <Route path="*" element={<HomePage openModal={openModal} />} />
             </Routes>
@@ -323,12 +355,27 @@ function App() {
             <LoginModal
               onLogin={handleLoggedIn}
               isOpen={true}
-              onClose={closeModal}
+              onClose={() => {
+                setAuthNotice("");
+                closeModal();
+              }}
+              notice={authNotice}
             />
           )}
 
           {modal === "registerModal" && (
-            <RegisterModal isOpen={true} onClose={closeModal} />
+            <RegisterModal
+              isOpen={true}
+              onClose={closeModal}
+              onRegistered={({ emailVerificationRequired }) => {
+                setAuthNotice(
+                  emailVerificationRequired
+                    ? "Аккаунт создан. Проверьте почту и перейдите по ссылке, затем войдите."
+                    : "Регистрация успешна. Теперь войдите в аккаунт.",
+                );
+                setModal("loginModal");
+              }}
+            />
           )}
         </>
       )}

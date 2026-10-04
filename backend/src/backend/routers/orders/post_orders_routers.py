@@ -20,6 +20,7 @@ from cruds.orders.create_orders import (  # CRUD: создание заказо�
     add_status_order_customer,
     add_status_order_executor,
     add_verdict_admin_cancel_customer,
+    add_verdict_admin_cancel_executor,
 )
 
 
@@ -242,6 +243,24 @@ async def add_verdict_admin_cancel_customer_api(
             f"API error for add_verdict_admin_cancel_customer : {e}", exc_info=True
         )
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")  # 500 клиенту
+
+
+@router.post("/admin/add_verdict_cancel_executor")
+async def add_verdict_admin_cancel_executor_api(
+    schema: CustomerOrderCancellationCreateSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    try:
+        saved = await add_verdict_admin_cancel_executor(db=db, schema=schema)
+        return saved
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"API error for add_verdict_admin_cancel_executor : {e}", exc_info=True
+        )
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
 
 
 @router.post("/add_date_start_execute_order/{user_id}")  # POST: дата начала выполнения заказа

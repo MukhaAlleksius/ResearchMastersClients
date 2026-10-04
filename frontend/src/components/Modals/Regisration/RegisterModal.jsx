@@ -107,7 +107,7 @@ function buildGeoSelectStyles(invalid = false) {
   };
 }
 
-export default function RegisterModal({ isOpen, onClose }) {
+export default function RegisterModal({ isOpen, onClose, onRegistered }) {
   const [firstName, setFirstName] = useState(""); // имя
   const [lastName, setLastName] = useState(""); // фамилия
   const [email, setEmail] = useState(""); // логин
@@ -386,9 +386,22 @@ export default function RegisterModal({ isOpen, onClose }) {
         );
       }
 
+      const registeredEmail = email.trim();
       resetForm(); // очистить форму
       onClose(); // закрыть модалку
-      await uiAlert("Регистрация успешна! Теперь войдите в аккаунт."); // без авто-логина
+      const verificationRequired = Boolean(data.email_verification_required);
+      if (typeof onRegistered === "function") {
+        onRegistered({
+          email: registeredEmail,
+          emailVerificationRequired: verificationRequired,
+        });
+      } else {
+        await uiAlert(
+          verificationRequired
+            ? "Аккаунт создан. Проверьте почту — отправили ссылку для подтверждения."
+            : "Регистрация успешна! Теперь войдите в аккаунт.",
+        );
+      }
     } catch (err) {
       await uiAlert(err.message || "Ошибка регистрации");
     } finally {

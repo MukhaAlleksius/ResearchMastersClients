@@ -3,6 +3,7 @@ import { API, apiFetch } from "../../../../../../../utils/api.js";
 import { IconCheck, IconAlert, IconClock } from "../../../../ProfileIcons.jsx";
 import "../../../../Orders/CommonComponents/CustomerCancelOrder/cancel_order.css";
 import { uiConfirm } from "../../../../../../UiDialog/uiDialog.js";
+import AdminCancelVerdictNotice from "../../../../Orders/CommonComponents/CustomerCancelOrder/AdminCancelVerdictNotice.jsx";
 
 const EXECUTOR_CANCEL_REASON_OPTIONS = [
   { value: "нет_времени", label: "Нет времени / занят" },
@@ -36,6 +37,7 @@ export default function ExecutorCancelServiceForCustomer({
   const isCustomerPending = executorCancel?.status === "pending_customer";
   const isCustomerAgreed = executorCancel?.status === "agree";
   const isCustomerDisagreed = executorCancel?.status === "disagree";
+  const isAdminResolved = executorCancel?.status === "resolved";
 
   useEffect(() => {
     if (isCustomerAgreed) {
@@ -81,14 +83,14 @@ export default function ExecutorCancelServiceForCustomer({
     }
   };
 
-  const statusIcon = isCustomerAgreed ? (
+  const statusIcon = isCustomerAgreed || isAdminResolved ? (
     <IconCheck width={16} height={16} />
   ) : isCustomerDisagreed ? (
     <IconAlert width={16} height={16} />
   ) : (
     <IconClock width={16} height={16} />
   );
-  const statusIconClass = isCustomerAgreed
+  const statusIconClass = isCustomerAgreed || isAdminResolved
     ? "cancel-tab__status-icon--success"
     : isCustomerDisagreed
       ? "cancel-tab__status-icon--danger"
@@ -100,7 +102,9 @@ export default function ExecutorCancelServiceForCustomer({
         <header className="cancel-tab__head">
           <span className="cancel-tab__badge">Отказ</span>
           <h2 className="cancel-tab__title">
-            {isCustomerAgreed
+            {isAdminResolved
+              ? "Администратор вынес решение"
+              : isCustomerAgreed
               ? "Заказ отменён"
               : isCustomerDisagreed
                 ? "Заказчик не согласен"
@@ -118,7 +122,9 @@ export default function ExecutorCancelServiceForCustomer({
             </span>
             <div>
               <p className="cancel-tab__status-title">
-                {isCustomerAgreed
+                {isAdminResolved
+                  ? "Спор рассмотрен администратором"
+                  : isCustomerAgreed
                   ? "Заказчик согласился с отменой"
                   : isCustomerDisagreed
                     ? "Спор передан администратору"
@@ -151,7 +157,7 @@ export default function ExecutorCancelServiceForCustomer({
 
           {isCustomerAgreed && (
             <div className="cancel-tab__notice cancel-tab__notice--success">
-              Заказчик согласился с отменой. Заказ возвращён в поиск исполнителя.
+              Заказчик согласился с отменой. Заказ переведён во вкладку «Отказ».
             </div>
           )}
 
@@ -160,6 +166,8 @@ export default function ExecutorCancelServiceForCustomer({
               Заказчик не согласился с отменой. Ситуация передана администратору.
             </div>
           )}
+
+          <AdminCancelVerdictNotice cancellation={executorCancel} />
 
           {onRefresh && (
             <div className="cancel-tab__footer-actions">

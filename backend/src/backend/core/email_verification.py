@@ -7,8 +7,8 @@ import logging  # Логирование (пока вместо SMTP)
 from sqlalchemy import select  # SELECT для поиска пользователя
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
-from core.config import PUBLIC_API_URL, REQUIRE_EMAIL_VERIFICATION  # Базовый URL API и флаг обязательности
-from core.email import send_email  # SMTP или лог, если SMTP не настроен
+from core.config import REQUIRE_EMAIL_VERIFICATION  # Флаг обязательности подтверждения
+from core.email import build_app_link, send_email  # SMTP или лог, если SMTP не настроен
 from core.tokens import create_email_verification_token  # JWT для ссылки подтверждения
 from models.users_models import User  # ORM-модель пользователя
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)  # Логгер этого модуля
 
 
 def verification_link(token: str) -> str:  # Собирает URL подтверждения email
-    return f"{PUBLIC_API_URL}/verify-email?token={token}"  # Ссылка с токеном в query
+    return build_app_link(f"/verify-email?token={token}")  # Ссылка на страницу фронта
 
 
 async def send_verification_email(*, email: str, token: str) -> None:  # Письмо со ссылкой подтверждения

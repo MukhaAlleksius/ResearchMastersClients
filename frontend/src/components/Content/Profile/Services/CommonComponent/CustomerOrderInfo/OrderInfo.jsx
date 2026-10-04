@@ -20,9 +20,6 @@ function normalizeOrder(order) {
     updated_at: order.updated_at || order.updatedAt || "",
     status_order_customer:
       order.status_order_customer || order.status || "",
-    insurance_required: Boolean(
-      order.insurance_required ?? order.insuranceRequired,
-    ),
   };
 }
 

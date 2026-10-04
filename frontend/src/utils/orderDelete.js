@@ -4,6 +4,8 @@ export const CUSTOMER_DELETABLE_ORDER_STATUSES = [
   "Самостоятельное выполнение",
   "В поиске исполнителя",
   "Ожидают выполнения",
+  "Отказано заказчиком",
+  "Отказ от заказа",
 ];
 
 export function canCustomerDeleteOrder(statusOrderCustomer) {

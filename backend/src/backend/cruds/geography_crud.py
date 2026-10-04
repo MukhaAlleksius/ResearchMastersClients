@@ -11,6 +11,7 @@ from schemas.geography_schemas import (  # Pydantic-схемы географи�
     RegionSchema,  # регион для записи
     TownReadSchema,  # город для чтения
     TownSchema,  # город для записи
+    UnverifiedTownSchema,
     UserTownCreateSchema,
     validate_town_name_value,
 )
@@ -285,7 +286,7 @@ async def add_town_for_region(
         )
         existing_town = result.scalar_one_or_none()  # ORM или None
         if existing_town:  # уже есть
-            return existing_town  # идемпотентно
+            return existing_town, False  # идемпотентно
         town = Town(  # новая запись
             region_id=town_schema.region_id,  # fk региона
             name_town=name_town,  # имя
@@ -296,7 +297,7 @@ async def add_town_for_region(
         db.add(town)  # в сессию
         await db.commit()  # фиксация
         await db.refresh(town)  # id
-        return town  # созданный город
+        return town, True  # созданный город
     except HTTPException:
         raise
     except Exception as e:  # ошибка
@@ -328,13 +329,41 @@ async def add_town_by_user(
         region_id=payload.region_id,
         name_town=payload.name_town,
     )
-    return await add_town_for_region(
+    town, created = await add_town_for_region(
         db,
         town_schema,
         source="user",
         is_verified=False,
         created_by_user_id=created_by_user_id,
     )
+    if created:
+        await _notify_admins_new_town(db, town)
+    return town
+
+
+async def _notify_admins_new_town(db: AsyncSession, town: Town) -> None:
+    """Оповестить админов о новом городе; сбой уведомления не откатывает город."""
+    from cruds.notifications_crud import notify_admins_new_town
+
+    region = await db.get(Region, town.region_id)
+    country = await db.get(Country, region.country_id) if region else None
+    try:
+        await notify_admins_new_town(
+            db,
+            town_id=town.id,
+            town_name=town.name_town,
+            region_id=town.region_id,
+            region_name=region.name_region if region else "",
+            country_id=country.id if country else 0,
+            country_name=country.name_country if country else "",
+            created_by_user_id=town.created_by_user_id,
+        )
+    except Exception as error:
+        logger.warning(
+            "notify new town failed town_id=%s: %s",
+            town.id,
+            error,
+        )
 
 
 def town_to_schema(town: Town) -> TownSchema:
@@ -454,3 +483,34 @@ async def get_towns_for_region(
         raise HTTPException(  # 400
             status_code=400, detail=f"Ошибка получения данных: {str(e)}"
         )
+
+
+async def list_unverified_towns(db: AsyncSession) -> list[UnverifiedTownSchema]:
+    result = await db.execute(
+        select(Town, Region, Country)
+        .join(Region, Town.region_id == Region.id)
+        .join(Country, Region.country_id == Country.id)
+        .where(Town.is_verified.is_(False))
+        .order_by(Town.created_at.desc(), Town.id.desc())
+    )
+    return [
+        UnverifiedTownSchema(
+            town_id=town.id,
+            name_town=town.name_town,
+            region_id=region.id,
+            name_region=region.name_region,
+            country_id=country.id,
+            name_country=country.name_country,
+        )
+        for town, region, country in result.all()
+    ]
+
+
+async def verify_town(db: AsyncSession, town_id: int) -> Town:
+    town = await db.get(Town, town_id)
+    if not town:
+        raise HTTPException(status_code=404, detail="Город не найден")
+    town.is_verified = True
+    await db.commit()
+    await db.refresh(town)
+    return town

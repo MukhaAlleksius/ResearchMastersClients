@@ -143,6 +143,7 @@ export default function MyselfExecutor({ order, onBack, onOrderUpdated, onOrderD
     <WorkDetailLayout
       title={currentOrder?.title || "Самостоятельное выполнение"}
       backLabel="Назад к заказам"
+      showOptionalNotice={false}
       onBack={onBack || (() => navigate(-1))}
       tabs={tabs}
       activeTab={activeTab}

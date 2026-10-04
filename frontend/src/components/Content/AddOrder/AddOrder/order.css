@@ -141,33 +141,6 @@ div[class*="__control"] input[type="text"]:focus {
   user-select: none;
 }
 
-.checkbox {
-  border-radius: 0.25rem;
-  border: 1px solid #d1d5db;
-  accent-color: #3b82f6;
-  width: 1rem;
-  height: 1rem;
-}
-
-.checkbox:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
-}
-
-.checkbox-label {
-  margin-left: 0.75rem;
-  color: #374151;
-  user-select: none;
-  display: inline-block;
-}
-
-.options-group > label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
 .submit-button {
   width: 100%;
   background-color: #2563eb; /* blue-600 */

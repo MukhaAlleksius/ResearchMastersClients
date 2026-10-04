@@ -172,6 +172,7 @@ export const TAB_PRESETS = {
     "customerInfo",
   ],
   executor_refused: ["orderInfo", "estimateWorks", "schedule"],
+  customer_refused: ["orderInfo"],
 };
 
 export const GROUP_LABELS = {
@@ -200,15 +201,19 @@ export const NOTIFICATION_TYPE_TO_TAB = {
   work_started: "schedule",
   order_completed: "orderInfo",
   start_date_updated: "orderInfo",
+  work_starts_tomorrow: "orderInfo",
+  listing_expired: "orderInfo",
   executor_assigned: "orderInfo",
   customer_order_offer: "orderInfo",
   customer_accepted_proposal: "orderInfo",
+  cancel_admin_deleted: "orderInfo",
 };
 
 const CANCEL_NOTIFICATION_TYPES = new Set([
   "cancel_requested",
   "cancel_decision",
   "order_refused",
+  "cancel_admin_verdict",
 ]);
 
 /**
@@ -235,6 +240,8 @@ export function getCustomerOrderPresetKey(statusOrderCustomer) {
   if (status.includes("Ожидают выполнения")) return "customer_wait_execute";
   if (status.includes("В процессе выполнения")) return "customer_in_progress";
   if (status.includes("Выполнен")) return "customer_completed";
+  if (status.includes("Отказано заказчиком")) return "customer_refused";
+  if (status.includes("Отказ от заказа")) return "customer_refused";
   return null;
 }
 

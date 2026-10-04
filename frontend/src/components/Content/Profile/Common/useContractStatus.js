@@ -142,8 +142,7 @@ export function formatContractFromServer(serverContract, orderId) {
       subject: serverContract.name_work || "",
       addressWork: serverContract.address_work || "",
       workPeriodFrom: formatDateToRu(serverContract.date_start_work) || "",
-      workPeriodTo:
-        formatDateToRu(serverContract.date_end_work) || "дата окончания",
+      workPeriodTo: formatDateToRu(serverContract.date_end_work) || "",
       price: budgetDisplay,
       currentCurrency: serverContract.currency || "BYN",
       budgetType: serverContract.budget_type || "",

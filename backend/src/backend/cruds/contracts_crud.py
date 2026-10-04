@@ -1,11 +1,14 @@
 import logging  # Логирование операций с договорами
+from datetime import datetime, time, timezone  # Дата начала работ для календаря исполнителя
 from typing import Optional  # Необязательный результат
 from fastapi import HTTPException  # HTTP-ошибки
 from sqlalchemy import and_, select  # Условия и SELECT
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 from sqlalchemy.orm import aliased  # Алиасы для JOIN одной таблицы дважды
 
+from core.future_dates import parse_user_date  # Разбор даты из договора
 from models.contracts_models import Contract  # ORM-модель договора
+from models.orders_models import GraphicOrderMaster, StatusOrderExecutor  # Календарь и статус исполнителя
 from cruds.notifications_crud import (  # Уведомления о договоре
     CONTRACT_SIGNED_NOTIFICATION_TYPE,
     CONTRACT_UPDATED_NOTIFICATION_TYPE,
@@ -40,6 +43,95 @@ def _resolve_contract_budget(budget_type: str | None, budget):
     return budget
 
 
+async def _sync_calendar_from_contract(  # Поставить заказ в календарь на дату начала из договора
+    db: AsyncSession,
+    *,
+    executor_id: int,
+    order_id: int,
+    date_start_work: Optional[str],
+) -> None:
+    parsed = parse_user_date(date_start_work)
+    if not parsed or not executor_id or not order_id:
+        return
+
+    date_start = datetime.combine(parsed, time(hour=12), tzinfo=timezone.utc)
+    result = await db.execute(
+        select(GraphicOrderMaster).where(
+            and_(
+                GraphicOrderMaster.user_id == executor_id,
+                GraphicOrderMaster.order_id == order_id,
+            )
+        )
+    )
+    existing = result.scalar_one_or_none()
+    status_result = await db.execute(
+        select(StatusOrderExecutor.status)
+        .where(
+            StatusOrderExecutor.order_id == order_id,
+            StatusOrderExecutor.executor_id == executor_id,
+        )
+        .order_by(StatusOrderExecutor.id.desc())
+        .limit(1)
+    )
+    executor_status = status_result.scalar_one_or_none() or ""
+    if "Ожидают выполнения" not in executor_status:
+        if existing:
+            await db.delete(existing)
+        return
+
+    if existing:
+        existing.date_start = date_start
+        return
+
+    db.add(
+        GraphicOrderMaster(
+            user_id=executor_id,
+            order_id=order_id,
+            date_start=date_start,
+        )
+    )
+
+
+async def backfill_calendars_from_contracts(
+    db: AsyncSession, *, executor_id: Optional[int] = None
+) -> int:
+    """Записать в календарь заказы, у которых дата есть в договоре, но нет в графике."""
+    existing_query = select(GraphicOrderMaster.user_id, GraphicOrderMaster.order_id)
+    if executor_id:
+        existing_query = existing_query.where(GraphicOrderMaster.user_id == executor_id)
+    existing_result = await db.execute(existing_query)
+    have = set(existing_result.all())
+
+    contract_query = select(Contract)
+    if executor_id:
+        contract_query = contract_query.where(Contract.executor_id == executor_id)
+    contracts = (await db.execute(contract_query)).scalars().all()
+
+    added = 0
+    for contract in contracts:
+        if not contract.executor_id or not contract.order_id:
+            continue
+        if (contract.executor_id, contract.order_id) in have:
+            continue
+        parsed = parse_user_date(contract.date_start_work)
+        if not parsed:
+            continue
+        db.add(
+            GraphicOrderMaster(
+                user_id=contract.executor_id,
+                order_id=contract.order_id,
+                date_start=datetime.combine(parsed, time(hour=12), tzinfo=timezone.utc),
+            )
+        )
+        have.add((contract.executor_id, contract.order_id))
+        added += 1
+
+    if added:
+        await db.flush()
+        logger.info("calendar backfill from contracts added=%s", added)
+    return added
+
+
 async def add_contract(db: AsyncSession, contract_schema: ContractCreate):  # Создание или обновление договора
     try:
         resolved_budget = _resolve_contract_budget(
@@ -67,6 +159,12 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):  # С
             existing_contract.subscribe_customer = contract_schema.subscribe_customer
             existing_contract.subscribe_executor = contract_schema.subscribe_executor
             await db.flush()  # Сохраняем изменения в транзакции
+            await _sync_calendar_from_contract(
+                db,
+                executor_id=contract_schema.executor_id,
+                order_id=contract_schema.order_id,
+                date_start_work=contract_schema.date_start_work,
+            )
             await notify_order_event_safe(
                 db,
                 order_id=contract_schema.order_id,
@@ -97,6 +195,12 @@ async def add_contract(db: AsyncSession, contract_schema: ContractCreate):  # С
 
         db.add(contract)
         await db.flush()
+        await _sync_calendar_from_contract(
+            db,
+            executor_id=contract_schema.executor_id,
+            order_id=contract_schema.order_id,
+            date_start_work=contract_schema.date_start_work,
+        )
         await notify_order_event_safe(
             db,
             order_id=contract_schema.order_id,
@@ -127,6 +231,12 @@ async def update_contract_subscribe_customer(
 
             existing_contract.subscribe_customer = subscribe_customer
             await db.flush()
+            await _sync_calendar_from_contract(
+                db,
+                executor_id=existing_contract.executor_id,
+                order_id=existing_contract.order_id,
+                date_start_work=existing_contract.date_start_work,
+            )
             if subscribe_customer:  # Уведомление при подписании
                 await notify_order_event_safe(
                     db,
@@ -159,6 +269,12 @@ async def update_contract_subscribe_executor(
 
             existing_contract.subscribe_executor = subscribe_executor
             await db.flush()
+            await _sync_calendar_from_contract(
+                db,
+                executor_id=existing_contract.executor_id,
+                order_id=existing_contract.order_id,
+                date_start_work=existing_contract.date_start_work,
+            )
             if subscribe_executor:  # Уведомление при подписании
                 await notify_order_event_safe(
                     db,

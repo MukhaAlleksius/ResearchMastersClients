@@ -17,11 +17,13 @@ export default function GeoTownSelect({
   onChange,
   onCreateOption,
   isDisabled = false,
+  placeholder,
   ...rest
 }) {
   const locked = isCityAsRegion(regionLabel);
   const singleLocked = locked && options.length === 1;
   const disabled = Boolean(isDisabled || singleLocked);
+  const emptyPlaceholder = placeholder || "Сначала выберите область";
 
   if (locked) {
     return (
@@ -34,7 +36,7 @@ export default function GeoTownSelect({
         isClearable={false}
         isSearchable={false}
         placeholder={
-          regionLabel ? "Город задан справочником" : "Сначала выберите область"
+          regionLabel ? "Город задан справочником" : emptyPlaceholder
         }
         noOptionsMessage={() => "Нет городов в справочнике"}
       />
@@ -58,8 +60,8 @@ export default function GeoTownSelect({
       isDisabled={isDisabled}
       placeholder={
         regionLabel
-          ? "Выберите или введите город"
-          : "Сначала выберите область"
+          ? placeholder || "Выберите или введите город"
+          : emptyPlaceholder
       }
       noOptionsMessage={({ inputValue } = {}) =>
         !regionLabel

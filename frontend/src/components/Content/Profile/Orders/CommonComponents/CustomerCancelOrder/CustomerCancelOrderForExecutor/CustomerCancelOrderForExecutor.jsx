@@ -3,6 +3,7 @@ import { API, apiFetch } from "../../../../../../../utils/api.js";
 import { IconCheck, IconAlert, IconClock } from "../../../../ProfileIcons.jsx";
 import "../cancel_order.css";
 import { uiConfirm } from "../../../../../../UiDialog/uiDialog.js";
+import AdminCancelVerdictNotice from "../AdminCancelVerdictNotice.jsx";
 
 const CUSTOMER_CANCEL_REASON_OPTIONS = [
   { value: "слишком_дорого", label: "Слишком дорого" },
@@ -31,6 +32,7 @@ export default function CustomerCancelOrderForExecutor({
   const isExecutorPending = customerCancel?.status === "pending_executor";
   const isExecutorAgreed = customerCancel?.status === "agree";
   const isExecutorDisagreed = customerCancel?.status === "disagree";
+  const isAdminResolved = customerCancel?.status === "resolved";
 
   useEffect(() => {
     if (isExecutorAgreed) {
@@ -83,14 +85,14 @@ export default function CustomerCancelOrderForExecutor({
     }
   };
 
-  const statusIcon = isExecutorAgreed ? (
+  const statusIcon = isExecutorAgreed || isAdminResolved ? (
     <IconCheck width={16} height={16} />
   ) : isExecutorDisagreed ? (
     <IconAlert width={16} height={16} />
   ) : (
     <IconClock width={16} height={16} />
   );
-  const statusIconClass = isExecutorAgreed
+  const statusIconClass = isExecutorAgreed || isAdminResolved
     ? "cancel-tab__status-icon--success"
     : isExecutorDisagreed
       ? "cancel-tab__status-icon--danger"
@@ -102,7 +104,9 @@ export default function CustomerCancelOrderForExecutor({
         <header className="cancel-tab__head">
           <span className="cancel-tab__badge">Отказ</span>
           <h2 className="cancel-tab__title">
-            {isExecutorAgreed
+            {isAdminResolved
+              ? "Администратор вынес решение"
+              : isExecutorAgreed
               ? "Заказ отменён"
               : isExecutorDisagreed
                 ? "Исполнитель не согласен"
@@ -120,7 +124,9 @@ export default function CustomerCancelOrderForExecutor({
             </span>
             <div>
               <p className="cancel-tab__status-title">
-                {isExecutorAgreed
+                {isAdminResolved
+                  ? "Спор рассмотрен администратором"
+                  : isExecutorAgreed
                   ? "Исполнитель согласился с отменой"
                   : isExecutorDisagreed
                     ? "Спор передан администратору"
@@ -153,7 +159,7 @@ export default function CustomerCancelOrderForExecutor({
 
           {isExecutorAgreed && (
             <div className="cancel-tab__notice cancel-tab__notice--success">
-              Исполнитель согласился с отменой. Заказ возвращён в поиск исполнителя.
+              Исполнитель согласился с отменой. Заказ переведён во вкладку «Отказ».
             </div>
           )}
 
@@ -165,6 +171,8 @@ export default function CustomerCancelOrderForExecutor({
               )}
             </div>
           )}
+
+          <AdminCancelVerdictNotice cancellation={customerCancel} />
 
           {onRefresh && (
             <div className="cancel-tab__footer-actions">

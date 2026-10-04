@@ -76,7 +76,6 @@ export function OrderDetailsGrid({ order, embedded = false }) {
     town,
     location,
     deadline,
-    insurance_required,
     created_at,
     updated_at,
   } = order;
@@ -112,9 +111,6 @@ export function OrderDetailsGrid({ order, embedded = false }) {
           </DetailRow>
         )}
         <DetailRow label="Срок выполнения">{deadline}</DetailRow>
-        <DetailRow label="Страхование">
-          {insurance_required ? "Требуется" : "Не требуется"}
-        </DetailRow>
       </DetailSection>
 
       {hasPlace && (

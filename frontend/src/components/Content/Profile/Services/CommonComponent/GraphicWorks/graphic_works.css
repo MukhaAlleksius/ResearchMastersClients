@@ -1,5 +1,9 @@
 /* ─── GraphicWorks (минимальный UI) ─── */
 .gw-page {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   --gw-bg: #f8fafc;
   --gw-surface: #ffffff;
   --gw-border: #e2e8f0;
@@ -22,6 +26,33 @@
   padding: 0 4px 24px;
   font-family: var(--gw-font);
   color: var(--gw-text);
+}
+
+.gw-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 16px;
+  padding: 20px 22px;
+  border-radius: var(--gw-radius);
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #3b82f6 100%);
+  color: #fff;
+  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.25);
+}
+
+.gw-hero__title {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.gw-hero__subtitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  opacity: 0.88;
 }
 
 .gw-tabs {
@@ -49,7 +80,21 @@
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: none;
+}
+
+.gw-tabs__btn,
+.gw-tabs__btn:hover,
+.gw-tabs__btn:focus,
+.gw-tabs__btn:focus-visible,
+.gw-tabs__btn:active {
+  background: transparent !important;
+  color: var(--gw-muted) !important;
+  box-shadow: none !important;
+  filter: none !important;
+  opacity: 1;
 }
 
 .gw-tabs__btn i {
@@ -57,14 +102,13 @@
   opacity: 0.85;
 }
 
-.gw-tabs__btn:hover {
-  color: var(--gw-text);
-  background: var(--gw-bg);
-}
-
-.gw-tabs__btn--active {
-  background: var(--gw-primary);
-  color: #fff;
+.gw-tabs__btn--active,
+.gw-tabs__btn--active:hover,
+.gw-tabs__btn--active:focus,
+.gw-tabs__btn--active:focus-visible,
+.gw-tabs__btn--active:active {
+  background: var(--gw-primary) !important;
+  color: #fff !important;
 }
 
 .gw-tabs__btn--active i {
@@ -77,18 +121,23 @@
 
 /* Calendar */
 .gw-cal {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
   background: var(--gw-surface);
   border: 1px solid var(--gw-border);
   border-radius: var(--gw-radius);
-  padding: 16px;
+  padding: 10px;
 }
 
 .gw-cal__nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 6px;
+  margin-bottom: 8px;
 }
 
 .gw-cal__title-wrap {
@@ -100,7 +149,7 @@
 }
 
 .gw-cal__title {
-  font-size: 0.9375rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--gw-text);
@@ -127,8 +176,8 @@
 }
 
 .gw-cal__arrow {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -149,7 +198,8 @@
 
 .gw-cal__weekdays {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-width: 0;
   margin-bottom: 6px;
 }
 
@@ -169,14 +219,19 @@
 
 .gw-cal__grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-width: 0;
+  gap: 3px;
 }
 
 .gw-cal__cell {
   position: relative;
-  aspect-ratio: 1;
-  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-height: 36px;
+  height: 36px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -186,7 +241,7 @@
   border-radius: 10px;
   background: transparent;
   color: var(--gw-text);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -277,9 +332,9 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 12px 18px;
-  margin-top: 14px;
-  padding-top: 12px;
+  gap: 8px 12px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid #f1f5f9;
 }
 

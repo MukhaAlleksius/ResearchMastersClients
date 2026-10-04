@@ -7,10 +7,11 @@ from fastapi import (
     File,
     HTTPException,
     Query,
+    Request,
     UploadFile,
     status,
 )  # FastAPI: роутер, DI, файлы, ошибки
-from fastapi.responses import JSONResponse  # JSON-ответ с кодом статуса
+from fastapi.responses import JSONResponse, RedirectResponse  # JSON и редирект из письма
 from fastapi.security import HTTPAuthorizationCredentials  # Bearer для refresh
 from sqlalchemy import select  # SELECT для профиля пользователя
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
@@ -33,13 +34,19 @@ from core.config import (  # Конфиг и зависимости
     REQUIRE_EMAIL_VERIFICATION,  # Обязательна ли верификация email
     GOOGLE_CLIENT_ID,  # Client ID Google OAuth
     TOKEN_TYPE_EMAIL_VERIFY,  # Тип JWT для подтверждения email
+    TOKEN_TYPE_PASSWORD_RESET,  # Тип JWT сброса пароля
     TOKEN_TYPE_REFRESH,  # Тип JWT refresh
     get_db,  # Dependency сессии БД
 )
+from core.email import build_app_link  # Ссылка на фронт из письма
 from core.email_verification import (
     issue_email_verification,
     verify_user_email,
 )  # Выдача и проверка email-токена
+from core.password_reset import (
+    issue_password_reset_token,
+    send_password_reset_email,
+)
 from core.tokens import (
     create_access_token,
     create_refresh_token,
@@ -54,6 +61,7 @@ from core.upload_validation import (  # Валидация загрузок из
 )
 from core.access import (
     assert_user_not_blocked,
+    is_user_blocked,
 )  # Блокировка и просмотр профиля исполнителя
 from models.users_models import PortfolioItem, User, UserProfile  # ORM пользователя и портфолио
 from cruds.users_crud import (  # CRUD пользователей
@@ -77,11 +85,13 @@ from cruds.users_crud import (  # CRUD пользователей
     get_projects_portfolio_master,  # проекты портфолио
     get_user,  # пользователь по email
     get_user_authentication,  # проверка пароля
+    set_user_password,  # новый пароль по письму
     get_user_business,  # ОПФ read
     get_user_contacts,  # контакты
     get_user_geography_execute_orders,  # география
     get_user_profile_for_admin,  # профиль для админа
     get_users_for_admin,  # список для админки
+    update_user_moderation_for_admin,
 )
 from cruds.orders.read_orders import get_reviews_for_executor  # Отзывы об исполнителе
 from schemas.pagination_schemas import PaginatedResponse  # Обёртка постраничного ответа
@@ -96,12 +106,16 @@ from schemas.users_schemas import (  # Pydantic-схемы пользовате�
     PortfolioItemSchema,  # проект write
     CurrentUserAccessSchema,  # роль и id
     Token,  # JWT пара
+    EmailActionSchema,  # email для повторного письма / сброса
     GoogleLoginSchema,  # Google вход (существующий user)
     GoogleRegisterSchema,  # Google регистрация
+    RegisterResultSchema,  # ответ регистрации
+    ResetPasswordSchema,  # новый пароль по токену
     UserBusinessReadSchema,  # ОПФ read
     UserBusinessSchema,  # ОПФ write
     UserCardForAdminSchema,
     UserCategoryWork,  # карточка для админа
+    UserAdminModerationUpdateSchema,
     UserCommonReadSchema,  # общие данные read
     UserCommonSchema,  # текущий пользователь
     UserContactReadSchema,  # контакт read
@@ -216,7 +230,7 @@ async def _portfolio_projects(
     ]
 
 
-@router.post("/register")  # Регистрация по email/паролю
+@router.post("/register", response_model=RegisterResultSchema)  # Регистрация по email/паролю
 async def register_user(
     user: UserSchema, db: AsyncSession = Depends(get_db)
 ):  # dependency: сессия БД
@@ -226,12 +240,13 @@ async def register_user(
             db, db_user
         )  # Отправка/логирование ссылки подтверждения
         if REQUIRE_EMAIL_VERIFICATION:  # Нужно подтвердить email
-            return {  # ответ без JWT
-                "message": "Аккаунт создан. Подтвердите email — ссылка отправлена (см. логи сервера в dev)."
-            }
-        return {
-            "message": "Пользователь успешно зарегистрирован"
-        }  # Без обязательной верификации
+            return RegisterResultSchema(
+                message="Аккаунт создан. Проверьте почту — отправили ссылку для подтверждения.",
+                email_verification_required=True,
+            )
+        return RegisterResultSchema(
+            message="Пользователь успешно зарегистрирован"
+        )
     except HTTPException:  # Ожидаемая HTTP-ошибка (дубликат email и т.д.)
         raise
     except Exception as e:  # Неожиданная ошибка
@@ -310,7 +325,17 @@ async def google_register_user(
 
 
 @router.get("/verify-email")  # Подтверждение email по ссылке из письма
-async def verify_email_api(token: str, db: AsyncSession = Depends(get_db)):
+async def verify_email_api(
+    token: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    accept = (request.headers.get("accept") or "").lower()
+    if "text/html" in accept and "application/json" not in accept:
+        return RedirectResponse(
+            build_app_link(f"/verify-email?token={token}"),
+            status_code=302,
+        )
     payload = decode_token(
         token, expected_type=TOKEN_TYPE_EMAIL_VERIFY
     )  # Разбор verify JWT
@@ -319,6 +344,48 @@ async def verify_email_api(token: str, db: AsyncSession = Depends(get_db)):
     except ValueError as exc:  # Пользователь не найден
         raise HTTPException(status_code=404, detail="Пользователь не найден") from exc
     return {"message": "Email подтверждён. Теперь можно войти."}
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    payload: EmailActionSchema, db: AsyncSession = Depends(get_db)
+):
+    user = await get_user(db=db, email=payload.email)
+    if user and not is_user_blocked(user):
+        await issue_email_verification(db, user)
+    return {
+        "message": "Если аккаунт ещё не подтверждён, мы отправили письмо."
+    }
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    payload: EmailActionSchema, db: AsyncSession = Depends(get_db)
+):
+    user = await get_user(db=db, email=payload.email)
+    if user and not is_user_blocked(user):
+        token = issue_password_reset_token(email=user.email)
+        await send_password_reset_email(email=user.email, token=token)
+    return {
+        "message": "Если аккаунт с таким email есть, мы отправили письмо."
+    }
+
+
+@router.post("/reset-password")
+async def reset_password(
+    payload: ResetPasswordSchema, db: AsyncSession = Depends(get_db)
+):
+    token_payload = decode_token(
+        payload.token, expected_type=TOKEN_TYPE_PASSWORD_RESET
+    )
+    user = await get_user(db=db, email=token_payload["sub"])
+    if not user:
+        raise HTTPException(
+            status_code=400, detail="Ссылка недействительна или устарела"
+        )
+    assert_user_not_blocked(user)
+    await set_user_password(db, user, payload.password, mark_verified=True)
+    return {"message": "Пароль обновлён. Теперь можно войти."}
 
 
 @router.post("/token", response_model=Token)  # Логин email + password → JWT
@@ -1167,6 +1234,29 @@ async def get_user_profile_for_admin_api(
             raise HTTPException(status_code=404, detail="Пользователь не найден")
         return user_profile
     except HTTPException:  # 404 и прочие HTTP
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка: {e}")
+
+
+@router.patch(
+    "/user_profile_for_admin/{user_id}",
+    response_model=UserProfileForAdminSchema,
+)
+async def update_user_moderation_for_admin_api(
+    user_id: int,
+    payload: UserAdminModerationUpdateSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    try:
+        return await update_user_moderation_for_admin(
+            db=db,
+            user_id=user_id,
+            payload=payload,
+            actor_user_id=current_user.user_id,
+        )
+    except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка: {e}")

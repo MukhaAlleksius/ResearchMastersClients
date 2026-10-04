@@ -19,12 +19,15 @@ from cruds.geography_crud import (  # CRUD стран/регионов/горо�
     get_countries,  # Список стран
     get_regions_for_country,  # Регионы страны
     get_towns_for_region,  # Города региона
+    list_unverified_towns,
     town_to_schema,
+    verify_town,
 )
 from schemas.geography_schemas import (  # Pydantic-схемы географии
     CountrySchema,  # Страна
     RegionSchema,  # Регион
     TownSchema,  # Город
+    UnverifiedTownSchema,
     UserTownCreateSchema,
 )
 from schemas.users_schemas import UserCommonSchema  # Схема текущего пользователя
@@ -138,7 +141,7 @@ async def add_town_api(
     current_user: UserCommonSchema = Depends(get_current_admin_user),  # Только админ
 ):
     try:
-        town = await add_town_for_region(
+        town, _created = await add_town_for_region(
             db=db,
             town_schema=town_schema,
             source="admin",
@@ -191,6 +194,24 @@ async def delete_town_api(
 ):
     await delete_town(db=db, town_id=town_id)  # Удаление в CRUD
     return {"message": "Город удалён"}  # Подтверждение
+
+
+@router.get("/towns/unverified", response_model=list[UnverifiedTownSchema])
+async def list_unverified_towns_api(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    return await list_unverified_towns(db=db)
+
+
+@router.post("/verify_town/{town_id}", response_model=TownSchema)
+async def verify_town_api(
+    town_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    town = await verify_town(db=db, town_id=town_id)
+    return town_to_schema(town)
 
 
 @router.get("/regions/{region_id}/towns")  # GET города региона

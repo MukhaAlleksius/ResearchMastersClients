@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   NOTIFICATION_POLL_MS,
-  acknowledgeNotification,
+  NOTIFICATIONS_CHANGED_EVENT,
+  deleteNotification,
   fetchNotifications,
   formatNotificationDate,
+  markNotificationRead,
 } from "../../utils/notifications.js";
 import { buildNotificationNavigateTarget } from "../../utils/notificationNavigation.js";
 import "./notifications.css";
@@ -13,12 +15,18 @@ function NotificationItem({ item, userId, onUpdated, onClose }) {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const isDeletedOrder = item.notification_type === "order_deleted_by_customer";
+  const isListingExpired = item.notification_type === "listing_expired";
+  const isNewTown = item.notification_type === "new_town";
+  const isUserWarning = item.notification_type === "user_warning";
+  const isWorkStartsTomorrow =
+    item.notification_type === "work_starts_tomorrow";
+  const isWarningNotice = isUserWarning || isWorkStartsTomorrow;
 
-  const runAcknowledge = async (reaction, target) => {
+  const runAction = async (action, target) => {
     if (!userId || submitting) return;
     setSubmitting(true);
     try {
-      await acknowledgeNotification(userId, item.id, reaction);
+      await action();
       onUpdated();
       if (target) {
         if (typeof target === "string") {
@@ -31,7 +39,7 @@ function NotificationItem({ item, userId, onUpdated, onClose }) {
         }
       }
     } catch (error) {
-      console.error("Ошибка реакции на уведомление:", error);
+      console.error("Ошибка действия с уведомлением:", error);
     } finally {
       setSubmitting(false);
     }
@@ -40,17 +48,32 @@ function NotificationItem({ item, userId, onUpdated, onClose }) {
   const handleOpenOrder = () => {
     if (!item.action_path) return;
     onClose?.();
-    runAcknowledge("open_order", buildNotificationNavigateTarget(
-      item.action_path,
-      item.notification_type,
-    ));
+    runAction(
+      () => markNotificationRead(userId, item.id),
+      buildNotificationNavigateTarget(item.action_path, item.notification_type),
+    );
+  };
+
+  const handleUnderstood = () => {
+    runAction(() => markNotificationRead(userId, item.id));
+  };
+
+  const handleFindOrders = () => {
+    onClose?.();
+    runAction(() => markNotificationRead(userId, item.id), "/orders");
+  };
+
+  const handleDelete = () => {
+    runAction(() => deleteNotification(userId, item.id));
   };
 
   return (
     <article
       className={`notif-item ${item.is_read ? "" : "notif-item--unread"} ${
-        isDeletedOrder || item.action_path ? "notif-item--action" : ""
-      }`}
+        isDeletedOrder || isWarningNotice || item.action_path
+          ? "notif-item--action"
+          : ""
+      } ${isWarningNotice ? "notif-item--warning" : ""}`}
     >
       <div className="notif-item__head">
         <h4 className="notif-item__title">{item.title}</h4>
@@ -74,37 +97,74 @@ function NotificationItem({ item, userId, onUpdated, onClose }) {
         </p>
       )}
 
-      {isDeletedOrder ? (
-        <div className="notif-item__actions">
-          <button
-            type="button"
-            className="notif-item__btn notif-item__btn--primary"
-            disabled={submitting}
-            onClick={() => runAcknowledge("understood")}
-          >
-            Понял
-          </button>
-          <button
-            type="button"
-            className="notif-item__btn notif-item__btn--secondary"
-            disabled={submitting}
-            onClick={() => runAcknowledge("find_other_orders", "/orders")}
-          >
-            Искать другие заказы
-          </button>
-        </div>
-      ) : item.action_path ? (
-        <div className="notif-item__actions">
+      <div className="notif-item__actions">
+        {isDeletedOrder ? (
+          <>
+            <button
+              type="button"
+              className="notif-item__btn notif-item__btn--primary"
+              disabled={submitting}
+              onClick={handleUnderstood}
+            >
+              Понял
+            </button>
+            <button
+              type="button"
+              className="notif-item__btn notif-item__btn--secondary"
+              disabled={submitting}
+              onClick={handleFindOrders}
+            >
+              Искать другие заказы
+            </button>
+          </>
+        ) : isWarningNotice ? (
+          <>
+            {isWorkStartsTomorrow && item.action_path ? (
+              <button
+                type="button"
+                className="notif-item__btn notif-item__btn--primary"
+                disabled={submitting}
+                onClick={handleOpenOrder}
+              >
+                Открыть заказ
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={`notif-item__btn ${
+                isWorkStartsTomorrow && item.action_path
+                  ? "notif-item__btn--secondary"
+                  : "notif-item__btn--primary"
+              }`}
+              disabled={submitting}
+              onClick={handleUnderstood}
+            >
+              Понял
+            </button>
+          </>
+        ) : item.action_path ? (
           <button
             type="button"
             className="notif-item__btn notif-item__btn--primary"
             disabled={submitting}
             onClick={handleOpenOrder}
           >
-            Перейти
+            {isListingExpired
+              ? "Продлить публикацию"
+              : isNewTown
+                ? "Проверить город"
+                : "Перейти"}
           </button>
-        </div>
-      ) : null}
+        ) : null}
+        <button
+          type="button"
+          className="notif-item__btn notif-item__btn--danger"
+          disabled={submitting}
+          onClick={handleDelete}
+        >
+          Удалить
+        </button>
+      </div>
     </article>
   );
 }
@@ -135,7 +195,11 @@ export default function NotificationsBell() {
   useEffect(() => {
     loadNotifications();
     const timerId = setInterval(loadNotifications, NOTIFICATION_POLL_MS);
-    return () => clearInterval(timerId);
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, loadNotifications);
+    return () => {
+      clearInterval(timerId);
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, loadNotifications);
+    };
   }, [loadNotifications]);
 
   useEffect(() => {

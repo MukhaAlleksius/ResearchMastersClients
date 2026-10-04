@@ -1,4 +1,4 @@
-from datetime import datetime  # Метка времени регистрации
+from datetime import datetime, timezone  # Метка времени регистрации
 import secrets  # Случайные пароли для OAuth-пользователей
 import os  # Работа с путями (legacy)
 from typing import Optional  # Опциональные фильтры списков
@@ -37,7 +37,7 @@ from models.works_materials_models import (  # Категории работ м�
 )
 from models.geography_models import Country, Region, Town  # Справочник географии
 from cruds.geography_crud import _is_city_as_region  # регион-город: только справочник
-from core.access import is_user_blocked  # Проверка блокировки аккаунта
+from core.access import is_user_blocked, clear_expired_block  # Проверка блокировки аккаунта
 from models.users_models import (  # ORM-модели пользователя и профиля
     BusinessForm,
     GeographyExecuteOrder,
@@ -56,6 +56,7 @@ from schemas.users_schemas import (  # Pydantic-схемы API пользова�
     UserBusinessSchema,
     UserCardForAdminSchema,
     UserCategoryWork,
+    UserAdminModerationUpdateSchema,
     UserCommonReadSchema,
     UserCommonSchema,
     UserContactReadSchema,
@@ -147,6 +148,21 @@ async def add_user(
     return db_user  # Созданный User
 
 
+async def set_user_password(
+    db: AsyncSession,
+    user: User,
+    password: str,
+    *,
+    mark_verified: bool = False,
+) -> User:
+    user.password_hash = hash_password(password)
+    if mark_verified:
+        user.is_verified = True
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
 async def upsert_user_from_google(  # Создание/обновление пользователя через Google OAuth
     db: AsyncSession,
     *,
@@ -224,9 +240,10 @@ async def get_user_authentication(  # Аутентификация по email и
                 detail="Аккаунт заблокирован",
             )
 
-        if upgraded_hash:  # Нужно обновить hash (bcrypt rounds и т.п.)
-            user.password_hash = upgraded_hash  # новый hash
-            await db.commit()  # сохраняем
+        if clear_expired_block(user) or upgraded_hash:
+            if upgraded_hash:
+                user.password_hash = upgraded_hash
+            await db.commit()
 
         logging.info(
             "User authenticated: id=%s, login=%s", user.id, user.email
@@ -1069,7 +1086,10 @@ async def get_users_for_admin(  # Список пользователей для
         rows = result.all()  # (User, avatar_url)
 
         items = []
+        expired = False
         for user, avatar_url in rows:
+            if clear_expired_block(user):
+                expired = True
             country_name, region_name, town_name = await _geo_names_for_town_id(
                 db, user.town_id
             )
@@ -1084,10 +1104,12 @@ async def get_users_for_admin(  # Список пользователей для
                     town=town_name or None,
                     role=user.role,  # роль
                     avatar_url=avatar_url,  # аватар
-                    blocked=user.blocked,  # блокировка
+                    blocked=is_user_blocked(user),  # блокировка
                     is_active=user.is_active,  # активность
                 )
             )
+        if expired:
+            await db.commit()
 
         return items, total  # список и total
 
@@ -1115,6 +1137,8 @@ async def get_user_profile_for_admin(
             return None  # null для API
 
         user, user_profile, user_business, business_form = user_row  # распаковка
+        if clear_expired_block(user):
+            await db.commit()
 
         country_name, region_name, town_name = await _geo_names_for_town_id(
             db, user.town_id
@@ -1127,7 +1151,7 @@ async def get_user_profile_for_admin(
             country=country_name or None,
             region=region_name or None,
             town=town_name or None,
-            blocked=user.blocked,  # блокировка
+            blocked=is_user_blocked(user),  # блокировка
             email=user.email,  # email
             role=user.role,  # роль
             is_verified=user.is_verified,  # verified
@@ -1138,6 +1162,11 @@ async def get_user_profile_for_admin(
             last_login=(
                 user.last_login.isoformat() if user.last_login else None
             ),  # последний вход
+            blocked_until=(
+                user.blocked_until.isoformat() if user.blocked_until else None
+            ),
+            warnings_count=int(user.warnings_count or 0),
+            admin_note=getattr(user, "admin_note", None),
             name_business_form=(
                 business_form.name if business_form else None
             ),  # форма бизнеса
@@ -1163,6 +1192,77 @@ async def get_user_profile_for_admin(
     except Exception as e:  # ошибка
         print(f"❌ Ошибка: {e}")  # отладка
         raise HTTPException(status_code=500, detail="Ошибка сервера")  # 500
+
+
+_ADMIN_ROLES = {"user", "moderator", "admin"}
+
+
+async def update_user_moderation_for_admin(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    payload: UserAdminModerationUpdateSchema,
+    actor_user_id: int,
+) -> UserProfileForAdminSchema:
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    if actor_user_id == user_id and payload.blocked:
+        raise HTTPException(
+            status_code=400,
+            detail="Нельзя заблокировать собственный аккаунт",
+        )
+    if actor_user_id == user_id and payload.role != (user.role or "user"):
+        raise HTTPException(
+            status_code=400,
+            detail="Нельзя изменить собственную роль",
+        )
+
+    old_warnings = int(user.warnings_count or 0)
+    warning_reason = payload.warning_reason
+
+    user.admin_note = payload.admin_note
+    user.warnings_count = payload.warnings_count
+    user.is_active = payload.is_active
+    user.is_verified = payload.is_verified
+    user.role = payload.role if payload.role in _ADMIN_ROLES else (user.role or "user")
+
+    if payload.blocked:
+        user.blocked = True
+        until = payload.blocked_until
+        if until is not None and until.tzinfo is None:
+            until = until.replace(tzinfo=timezone.utc)
+        user.blocked_until = until
+    else:
+        user.blocked = False
+        user.blocked_until = None
+
+    issued_warning = bool(
+        warning_reason and payload.warnings_count > old_warnings
+    )
+    if issued_warning:
+        from cruds.notifications_crud import notify_user_warning
+
+        try:
+            await notify_user_warning(
+                db,
+                user_id=user.id,
+                reason=warning_reason,
+                warnings_count=payload.warnings_count,
+            )
+        except Exception as error:
+            logger.warning(
+                "notify user warning failed user_id=%s: %s",
+                user.id,
+                error,
+            )
+
+    await db.commit()
+    profile = await get_user_profile_for_admin(db=db, user_id=user_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    return profile
 
 
 async def is_specialization_user(

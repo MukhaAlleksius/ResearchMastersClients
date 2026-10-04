@@ -28,6 +28,8 @@ from models.conversations_models import (  # ORM чатов, жалоб, под�
     SupportMessage,
 )
 from models.users_models import User  # ORM пользователя
+from core.access import apply_user_block  # Блокировка с причиной
+from core.account_block import notify_account_blocked  # Письмо о бане
 from schemas.conversations_schemas import (  # Pydantic-схемы чатов
     ComplaintChatRead,
     ComplaintConversationCreate,
@@ -667,11 +669,13 @@ async def add_verdict_admin(  # Модерационное действие по
         now = datetime.now(timezone.utc)  # Текущее UTC-время
 
         if moderation_action_schema.action_type == ActionType.BAN:  # Блокировка
-            user.blocked = True
+            reason = (moderation_action_schema.comment or "").strip() or "Решение по жалобе"
+            until = None
             if moderation_action_schema.duration_days is not None:  # Временный бан
-                user.blocked_until = now + timedelta(
+                until = now + timedelta(
                     days=moderation_action_schema.duration_days
                 )
+            apply_user_block(user, reason=reason, until=until)
             await db.flush()  # чтобы сразу зафиксировать изменение user
 
         elif moderation_action_schema.action_type == ActionType.WARNING:  # Предупреждение
@@ -692,6 +696,9 @@ async def add_verdict_admin(  # Модерационное действие по
         db.add(moderation_action)
         await db.commit()
         await db.refresh(moderation_action)
+
+        if moderation_action_schema.action_type == ActionType.BAN:
+            await notify_account_blocked(user)
 
         return moderation_action
 

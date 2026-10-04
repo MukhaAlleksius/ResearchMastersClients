@@ -3,6 +3,16 @@ import bcrypt  # Библиотека хеширования паролей
 _BCRYPT_PREFIXES = ("$2a$", "$2b$", "$2y$")  # Типичные префиксы bcrypt-хешей
 
 
+def assert_password_strength(value: str) -> str:
+    if not value or len(value) < 8 or len(value) > 128:
+        raise ValueError("Пароль должен содержать от 8 до 128 символов")
+    has_letter = any(c.isalpha() for c in value)
+    has_digit = any(c.isdigit() for c in value)
+    if not has_letter or not has_digit:
+        raise ValueError("Пароль должен содержать и буквы, и цифры")
+    return value
+
+
 def hash_password(plain_password: str) -> str:  # Хеширует пароль для хранения в БД
     return bcrypt.hashpw(  # Считает bcrypt-хеш
         plain_password.encode("utf-8"), bcrypt.gensalt()  # Пароль в байты + случайная соль

@@ -189,6 +189,11 @@
   border: 1px solid #a7f3d0;
 }
 
+.cancel-tab__notice strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
 .cancel-tab__notice--error {
   color: #991b1b;
   background: #fef2f2;

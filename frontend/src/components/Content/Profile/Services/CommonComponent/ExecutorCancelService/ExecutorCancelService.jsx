@@ -154,11 +154,11 @@ export default function ExecutorCancelService({
 
   const hasCustomerCancellation =
     customerCancel &&
-    ["pending_executor", "agree", "disagree"].includes(customerCancel.status);
+    ["pending_executor", "agree", "disagree", "resolved"].includes(customerCancel.status);
 
   const hasExecutorCancellation =
     executorCancel &&
-    ["pending_customer", "agree", "disagree"].includes(executorCancel.status);
+    ["pending_customer", "agree", "disagree", "resolved"].includes(executorCancel.status);
 
   if (!order?.id) {
     return (

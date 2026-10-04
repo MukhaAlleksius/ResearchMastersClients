@@ -1,4 +1,4 @@
-from sqlalchemy import select  # SQL-выражение SELECT
+from sqlalchemy import select, text  # SQL-выражение SELECT
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # Асинхронный движок и фабрика сессий
 from sqlalchemy.orm import declarative_base  # Базовый класс для ORM-моделей
 
@@ -14,6 +14,13 @@ Base = declarative_base()  # База, от которой наследуютс�
 async def init_db():  # Создаёт таблицы по моделям (для dev / AUTO_CREATE_DB)
     async with engine.begin() as conn:  # Открываем транзакцию на соединении
         await conn.run_sync(Base.metadata.create_all)  # Синхронно создаём все таблицы из metadata
+
+
+async def ensure_users_admin_note_column() -> None:
+    async with engine.begin() as conn:
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_note TEXT")
+        )
 
 
 async def check_connection() -> bool:  # Проверка, что БД отвечает

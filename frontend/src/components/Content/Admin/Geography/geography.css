@@ -489,6 +489,153 @@
   cursor: not-allowed;
 }
 
+.geo-item__verify {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #0f766e;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.geo-item__verify:hover:not(:disabled) {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.geo-item__verify:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.geo-item__verify svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.geo-item__badge {
+  display: inline-block;
+  margin-top: 0.2rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.geo-item--pending {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.geo-item--focus {
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.35);
+}
+
+.geo-stat--warn {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(253, 230, 138, 0.45);
+}
+
+.geo-pending {
+  padding: 1rem 1.15rem 1.1rem;
+  border: 1px solid #fde68a;
+  border-radius: 14px;
+  background: #fffbeb;
+}
+
+.geo-pending__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.geo-pending__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.geo-pending__count {
+  min-width: 1.35rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #111827;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.35rem;
+}
+
+.geo-pending__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  color: #a16207;
+}
+
+.geo-pending__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.geo-pending__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.geo-pending__item--active {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.geo-pending__open {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.geo-pending__name {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.geo-pending__place {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.geo-pending__actions {
+  display: flex;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
 .geo-item__edit svg,
 .geo-item__delete svg {
   width: 0.75rem;

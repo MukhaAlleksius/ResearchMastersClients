@@ -33,6 +33,9 @@ PUBLIC_POST_PATHS = {  # POST без JWT
     "/auth/google/register",  # Google регистрация
     "/payment/callback",  # Callback платёжки
     "/add_town_by_user",  # Добавление города при регистрации
+    "/resend-verification",  # Повтор письма подтверждения
+    "/forgot-password",  # Письмо со ссылкой сброса пароля
+    "/reset-password",  # Новый пароль по токену из письма
 }
 
 

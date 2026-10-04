@@ -184,47 +184,6 @@
   pointer-events: none;
 }
 
-.coi-checkbox {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
-  padding: 1rem 1.125rem;
-  background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
-  border: 1px solid #bfdbfe;
-  border-radius: 14px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.coi-checkbox:hover {
-  border-color: #93c5fd;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
-}
-
-.coi-checkbox input {
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  accent-color: #2563eb;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.coi-checkbox__text {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: #1e3a8a;
-  line-height: 1.4;
-}
-
-.coi-checkbox__hint {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #64748b;
-}
-
 .coi-actions {
   display: flex;
   flex-direction: column;

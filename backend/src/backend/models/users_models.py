@@ -44,6 +44,7 @@ class User(Base):
     blocked_until = Column(DateTime(timezone=True), nullable=True)  # До какой даты
 
     warnings_count = Column(Integer, default=0)  # Счетчик предупреждений
+    admin_note = Column(Text, nullable=True)  # Замечание администратора
 
     town = relationship("Town", foreign_keys=[town_id])
     works = relationship("Work", back_populates="user")

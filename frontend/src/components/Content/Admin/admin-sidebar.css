@@ -163,6 +163,20 @@
   min-width: 0;
 }
 
+.admin-nav-item__count {
+  min-width: 1.2rem;
+  height: 1.2rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #111827;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.2rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 .admin-nav-item__indicator {
   position: absolute;
   left: 0;

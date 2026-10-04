@@ -13,6 +13,19 @@ export function getExecutorDisplayName(executorName) {
   );
 }
 
+function formatResponseDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function ExecutorResponseDisplay({
   response,
   title,
@@ -33,8 +46,14 @@ export default function ExecutorResponseDisplay({
       : response.proposed_price != null
         ? `${response.proposed_price} ${response.currency || "BYN"}`
         : "—";
+  const messageText = String(response.message || "").trim();
 
   const rows = [
+    {
+      key: "responded",
+      label: "Дата ответа",
+      value: formatResponseDate(response.created_at),
+    },
     {
       key: "budget",
       label: "Тип бюджета",
@@ -78,18 +97,16 @@ export default function ExecutorResponseDisplay({
         ))}
       </dl>
 
-      {response.message && (
-        <div className="exec-response__message">
-          <dl className="order-info__list">
-            <div className="order-info__row order-info__row--message">
-              <dt className="order-info__term">Сообщение</dt>
-              <dd className="order-info__def exec-response__message-text">
-                {response.message}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      )}
+      <div className="exec-response__message">
+        <dl className="order-info__list">
+          <div className="order-info__row order-info__row--message">
+            <dt className="order-info__term">Сообщение</dt>
+            <dd className="order-info__def exec-response__message-text">
+              {messageText || "—"}
+            </dd>
+          </div>
+        </dl>
+      </div>
 
       {children && (
         <footer className="exec-response__footer">{children}</footer>

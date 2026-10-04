@@ -26,3 +26,13 @@ def test_legacy_plain_password_upgrade():
     ok_after, upgraded_after = verify_password("legacy-plain", upgraded)
     assert ok_after is True
     assert upgraded_after is None
+
+
+def test_assert_password_strength():
+    from core.security import assert_password_strength
+
+    assert assert_password_strength("secret12") == "secret12"
+    with pytest.raises(ValueError):
+        assert_password_strength("short1")
+    with pytest.raises(ValueError):
+        assert_password_strength("onlyletters")

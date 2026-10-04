@@ -6,7 +6,7 @@ import {
   ensureStoredUserId,
   getStoredUserId,
 } from "../../../../utils/api.js";
-import { dedupeOrdersById } from "../../../../utils/orders.js";
+import { dedupeOrdersById, getCustomerOrderStatusLabel } from "../../../../utils/orders.js";
 import AddOrderForDraft from "./CommonComponents/AddOrder/AddOrderForDarft";
 import OrderServiceCard from "../Common/OrderServiceCard";
 import StatusFilterTabs from "../Common/StatusFilterTabs";
@@ -56,10 +56,26 @@ const statusTabs = [
     statusKey: "Самостоятельное выполнение",
     hint: "Заказы, которые вы выполняете сами, без привлечения исполнителя. Здесь можно вести смету и фиксировать выполненные работы.",
   },
+  {
+    id: "refusedByCustomer",
+    label: "Отказано",
+    shortLabel: "Отказано",
+    statusKey: "Отказ от заказа",
+    hint: "Исполнитель отказался от заказа. Заказ не виден в поиске. Переведите его в черновик, при необходимости поправьте данные и снова опубликуйте.",
+  },
+  {
+    id: "refusedFromOrder",
+    label: "Отказ",
+    shortLabel: "Отказ",
+    statusKey: "Отказано заказчиком",
+    hint: "Вы отказались от исполнителя. Заказ не виден в поиске. Переведите его в черновик, при необходимости поправьте данные и снова опубликуйте.",
+  },
 ];
 
-const allTabHint =
-  "Все ваши заказы в одном списке. Выберите статус слева, чтобы отфильтровать заказы по этапу.";
+const allTabHint = [
+  "Здесь собраны заказы, для которых вы хотите найти исполнителя, а также те, которые исполнитель уже выполняет.",
+  "Все ваши заказы в одном списке. Выберите статус слева, чтобы отфильтровать заказы по этапу.",
+];
 
 export default function Orders() {
   const navigate = useNavigate();
@@ -262,7 +278,14 @@ export default function Orders() {
         <div className="list-page__content">
           {activeTabMeta?.hint && (
             <div className="list-hint" role="note">
-              <p className="list-hint__text">{activeTabMeta.hint}</p>
+              {(Array.isArray(activeTabMeta.hint)
+                ? activeTabMeta.hint
+                : [activeTabMeta.hint]
+              ).map((paragraph) => (
+                <p key={paragraph} className="list-hint__text">
+                  {paragraph}
+                </p>
+              ))}
             </div>
           )}
           <div className="services-grid" id="orders-container">
@@ -303,7 +326,9 @@ export default function Orders() {
                 <OrderServiceCard
                   key={order.id}
                   item={order}
-                  statusLabel={order.status_order_customer}
+                  statusLabel={getCustomerOrderStatusLabel(
+                    order.status_order_customer,
+                  )}
                   partyLabel="Клиент"
                   partyName={order.customer_name || order.executor_name}
                   to={`/profile/orders/${order.id}`}

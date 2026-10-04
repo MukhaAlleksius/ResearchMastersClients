@@ -2,10 +2,13 @@ import React, { useMemo, useRef } from "react";
 import "./deadline_field.css";
 
 export const DEADLINE_PRESETS = [
-  "Как можно скорее",
   "В течение недели",
   "В течение месяца",
 ];
+
+export const DEFAULT_DEADLINE = DEADLINE_PRESETS[0];
+
+const LEGACY_DEADLINE_PRESETS = ["Как можно скорее", ...DEADLINE_PRESETS];
 
 export const EXACT_DATE_OPTION = "Точная дата";
 
@@ -57,8 +60,16 @@ export function isNotBeforeToday(value) {
   return iso >= todayIsoDate();
 }
 
+export function normalizeDeadline(value) {
+  const raw = String(value || "").trim();
+  if (!raw || raw === "Как можно скорее") return DEFAULT_DEADLINE;
+  return raw;
+}
+
 export function isValidDeadline(value, { allowPast = false } = {}) {
-  if (DEADLINE_PRESETS.includes(value)) return true;
+  if (LEGACY_DEADLINE_PRESETS.includes(value) || DEADLINE_PRESETS.includes(value)) {
+    return true;
+  }
   const iso = toIsoDate(value);
   if (!iso) return false;
   return allowPast || iso >= todayIsoDate();
@@ -87,7 +98,7 @@ export default function DeadlineField({
     ? EXACT_DATE_OPTION
     : DEADLINE_PRESETS.includes(value)
       ? value
-      : DEADLINE_PRESETS[0];
+      : DEFAULT_DEADLINE;
   const isoValue = useMemo(() => toIsoDate(value), [value]);
   const displayValue = useMemo(() => toDisplayDate(value), [value]);
 

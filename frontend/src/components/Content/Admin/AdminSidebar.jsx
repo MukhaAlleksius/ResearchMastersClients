@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaUsers,
@@ -12,6 +12,7 @@ import {
   FaHeadset,
   FaShieldAlt,
 } from "react-icons/fa";
+import { API, apiFetch } from "../../../utils/api.js";
 import "./admin-sidebar.css";
 
 const NAV_GROUPS = [
@@ -98,8 +99,26 @@ const NAV_GROUPS = [
 const AdminSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [pendingTownsCount, setPendingTownsCount] = useState(0);
 
   const isActive = (match) => location.pathname.startsWith(match);
+
+  const loadPendingTowns = useCallback(async () => {
+    try {
+      const res = await apiFetch(`${API.baseURL}/towns/unverified`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setPendingTownsCount(Array.isArray(data) ? data.length : 0);
+    } catch {
+      setPendingTownsCount(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPendingTowns();
+    const timerId = setInterval(loadPendingTowns, 15000);
+    return () => clearInterval(timerId);
+  }, [loadPendingTowns, location.pathname]);
 
   return (
     <aside className="admin-sidebar">
@@ -133,6 +152,11 @@ const AdminSidebar = () => {
                       <Icon />
                     </span>
                     <span className="admin-nav-item__label">{item.label}</span>
+                    {item.key === "geography" && pendingTownsCount > 0 && (
+                      <span className="admin-nav-item__count">
+                        {pendingTownsCount > 99 ? "99+" : pendingTownsCount}
+                      </span>
+                    )}
                     {active && (
                       <span className="admin-nav-item__indicator" aria-hidden="true" />
                     )}

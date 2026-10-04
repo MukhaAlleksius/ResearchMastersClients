@@ -258,6 +258,7 @@ export default function InProgressExecuteOrder({ order, onBack, userId, onOrderS
       <WorkDetailLayout
         title={currentOrder.title || "Заказ"}
         backLabel="Назад к заказам"
+        showOptionalNotice={false}
         onBack={onBack || (() => navigate(-1))}
         headerExtra={
           <div className="work-detail__header-action">

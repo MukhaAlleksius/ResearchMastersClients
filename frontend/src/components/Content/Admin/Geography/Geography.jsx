@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   FaGlobeAmericas,
   FaMapMarkedAlt,
@@ -7,6 +8,7 @@ import {
   FaPen,
   FaTrash,
   FaMap,
+  FaCheck,
 } from "react-icons/fa";
 import { API, apiFetch, readApiError } from "../../../../utils/api.js";
 import "./geography.css";
@@ -30,10 +32,13 @@ function useFlashMessage(timeout = 3500) {
 }
 
 export default function AdminCountriesRegionsTowns() {
+  const [searchParams] = useSearchParams();
   const [countries, setCountries] = useState([]);
   const [selectedCountryId, setSelectedCountryId] = useState(null);
   const [selectedRegionId, setSelectedRegionId] = useState(null);
   const [towns, setTowns] = useState([]);
+  const [pendingTowns, setPendingTowns] = useState([]);
+  const [highlightTownId, setHighlightTownId] = useState(null);
 
   const [loadingCountries, setLoadingCountries] = useState(true);
   const [loadingRegions, setLoadingRegions] = useState(false);
@@ -124,9 +129,44 @@ export default function AdminCountriesRegionsTowns() {
     [showFlash],
   );
 
+  const fetchPendingTowns = useCallback(async () => {
+    try {
+      const res = await apiFetch(`${API.baseURL}/towns/unverified`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setPendingTowns(Array.isArray(data) ? data : []);
+    } catch {
+      setPendingTowns([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCountries();
-  }, [fetchCountries]);
+    fetchPendingTowns();
+  }, [fetchCountries, fetchPendingTowns]);
+
+  const deepLinkKey = useRef("");
+  useEffect(() => {
+    const countryId = Number(searchParams.get("country_id"));
+    const regionId = Number(searchParams.get("region_id"));
+    const townId = Number(searchParams.get("town_id"));
+    if (!countryId || !regionId) return;
+    if (!countries.some((c) => Number(c.country_id) === countryId)) return;
+    const key = `${countryId}-${regionId}-${townId || 0}`;
+    if (deepLinkKey.current === key) return;
+    deepLinkKey.current = key;
+    setSelectedCountryId(countryId);
+    setSelectedRegionId(regionId);
+    setHighlightTownId(townId || null);
+    fetchRegions(countryId);
+    fetchTowns(regionId);
+  }, [countries, searchParams, fetchRegions, fetchTowns]);
+
+  useEffect(() => {
+    if (!highlightTownId) return;
+    const node = document.querySelector(".geo-item--focus");
+    node?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [highlightTownId, towns]);
 
   const selectCountry = (countryId) => {
     setSelectedCountryId(countryId);
@@ -274,6 +314,7 @@ export default function AdminCountriesRegionsTowns() {
       );
       if (!res.ok) throw new Error("Не удалось сохранить город");
       await fetchTowns(selectedRegionId);
+      await fetchPendingTowns();
       resetTownForm();
       showFlash("success", isEdit ? "Город обновлён" : "Город добавлен");
     } catch (err) {
@@ -375,8 +416,41 @@ export default function AdminCountriesRegionsTowns() {
         );
       }
       if (editTownId === town.town_id) resetTownForm();
+      if (highlightTownId === town.town_id) setHighlightTownId(null);
       if (selectedRegionId) await fetchTowns(selectedRegionId);
+      await fetchPendingTowns();
       showFlash("success", "Город удалён");
+    } catch (err) {
+      showFlash("error", err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openPendingTown = (town) => {
+    setSelectedCountryId(town.country_id);
+    setSelectedRegionId(town.region_id);
+    setHighlightTownId(town.town_id);
+    fetchRegions(town.country_id);
+    fetchTowns(town.region_id);
+  };
+
+  const verifyTownItem = async (town) => {
+    try {
+      setSaving(true);
+      const res = await apiFetch(
+        `${API.baseURL}/verify_town/${town.town_id}`,
+        { method: "POST" },
+      );
+      if (!res.ok) {
+        throw new Error(
+          (await readApiError(res)) || "Не удалось подтвердить город",
+        );
+      }
+      if (selectedRegionId) await fetchTowns(selectedRegionId);
+      await fetchPendingTowns();
+      if (highlightTownId === town.town_id) setHighlightTownId(null);
+      showFlash("success", `Город «${town.name_town}» проверен`);
     } catch (err) {
       showFlash("error", err.message);
     } finally {
@@ -400,8 +474,15 @@ export default function AdminCountriesRegionsTowns() {
 
   const filteredTowns = useMemo(() => {
     const q = searchTown.trim().toLowerCase();
-    if (!q) return towns;
-    return towns.filter((t) => t.name_town.toLowerCase().includes(q));
+    const list = q
+      ? towns.filter((t) => t.name_town.toLowerCase().includes(q))
+      : towns;
+    return [...list].sort((a, b) => {
+      const aPending = a.is_verified === false ? 0 : 1;
+      const bPending = b.is_verified === false ? 0 : 1;
+      if (aPending !== bPending) return aPending - bPending;
+      return String(a.name_town).localeCompare(String(b.name_town), "ru");
+    });
   }, [towns, searchTown]);
 
   return (
@@ -427,6 +508,12 @@ export default function AdminCountriesRegionsTowns() {
             <span className="geo-stat__value">{towns.length}</span>
             <span className="geo-stat__label">городов</span>
           </div>
+          {pendingTowns.length > 0 && (
+            <div className="geo-stat geo-stat--warn">
+              <span className="geo-stat__value">{pendingTowns.length}</span>
+              <span className="geo-stat__label">на проверке</span>
+            </div>
+          )}
         </div>
       </header>
 
@@ -478,6 +565,73 @@ export default function AdminCountriesRegionsTowns() {
         >
           {flash.text}
         </div>
+      )}
+
+      {pendingTowns.length > 0 && (
+        <section className="geo-pending" aria-label="Города на проверке">
+          <div className="geo-pending__head">
+            <h2 className="geo-pending__title">На проверке</h2>
+            <span className="geo-pending__count">{pendingTowns.length}</span>
+          </div>
+          <p className="geo-pending__hint">
+            Пользователь добавил город. Проверьте название: подтвердите или
+            исправьте.
+          </p>
+          <div className="geo-pending__list">
+            {pendingTowns.map((town) => (
+              <div
+                key={town.town_id}
+                className={`geo-pending__item ${
+                  highlightTownId === town.town_id
+                    ? "geo-pending__item--active"
+                    : ""
+                }`}
+              >
+                <button
+                  type="button"
+                  className="geo-pending__open"
+                  onClick={() => openPendingTown(town)}
+                >
+                  <span className="geo-pending__name">{town.name_town}</span>
+                  <span className="geo-pending__place">
+                    {town.name_country}, {town.name_region}
+                  </span>
+                </button>
+                <div className="geo-pending__actions">
+                  <button
+                    type="button"
+                    className="geo-item__verify"
+                    title="Подтвердить название"
+                    disabled={saving}
+                    onClick={() => verifyTownItem(town)}
+                  >
+                    <FaCheck />
+                  </button>
+                  <button
+                    type="button"
+                    className="geo-item__edit"
+                    title="Исправить"
+                    onClick={() => {
+                      openPendingTown(town);
+                      startEditTown(town);
+                    }}
+                  >
+                    <FaPen />
+                  </button>
+                  <button
+                    type="button"
+                    className="geo-item__delete"
+                    title="Удалить"
+                    disabled={saving}
+                    onClick={() => deleteTownItem(town)}
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       <div className="geo-grid">
@@ -807,12 +961,26 @@ export default function AdminCountriesRegionsTowns() {
                   filteredTowns.map((t) => (
                     <div
                       key={t.town_id}
-                      className={`geo-item geo-item--static ${editTownId === t.town_id ? "geo-item--active" : ""}`}
+                      className={`geo-item geo-item--static ${editTownId === t.town_id ? "geo-item--active" : ""} ${highlightTownId === t.town_id ? "geo-item--focus" : ""} ${t.is_verified === false ? "geo-item--pending" : ""}`}
                     >
                       <div className="geo-item__body">
                         <span className="geo-item__name">{t.name_town}</span>
+                        {t.is_verified === false && (
+                          <span className="geo-item__badge">На проверке</span>
+                        )}
                       </div>
                       <div className="geo-item__actions">
+                        {t.is_verified === false && (
+                          <button
+                            type="button"
+                            className="geo-item__verify"
+                            title="Подтвердить название"
+                            disabled={saving}
+                            onClick={() => verifyTownItem(t)}
+                          >
+                            <FaCheck />
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="geo-item__edit"

@@ -2,8 +2,8 @@ import { classifyBudgetType } from "./budgetTypes.js";
 import { formatMoney } from "./currency.js";
 
 /**
- * Бюджет на карточке и в карточке заказа:
- * фиксированная сумма — число, иначе тип бюджета.
+ * Актуальная цена на карточке: сумма договора, сметы или фиксированного бюджета.
+ * Если сумма ещё не выявлена — показываем тип бюджета.
  */
 export function formatOrderBudget(order) {
   const type = String(order?.budget_type || order?.budgetType || "").trim();
@@ -14,11 +14,14 @@ export function formatOrderBudget(order) {
     raw != null && raw !== "" && Number.isFinite(amount) && amount > 0;
   const currency = order?.currency || "BYN";
 
-  if (deal === "fixed") {
+  if (hasAmount) {
     return {
-      label: "Сумма",
-      value: hasAmount ? formatMoney(amount, currency) : "Не указана",
+      label: deal === "estimate" ? "Смета" : "Сумма",
+      value: formatMoney(amount, currency),
     };
+  }
+  if (deal === "fixed") {
+    return { label: "Сумма", value: "Не указана" };
   }
   if (deal === "estimate") {
     return { label: "Тип бюджета", value: type || "Сметная цена" };
@@ -28,9 +31,6 @@ export function formatOrderBudget(order) {
   }
   if (deal === "hourly") {
     return { label: "Тип бюджета", value: type || "Почасовая оплата" };
-  }
-  if (hasAmount) {
-    return { label: "Сумма", value: formatMoney(amount, currency) };
   }
   if (type) {
     return { label: "Тип бюджета", value: type };
@@ -86,6 +86,18 @@ function pluralizeRu(count, one, few, many) {
   if (last === 1) return one;
   if (last >= 2 && last <= 4) return few;
   return many;
+}
+
+/**
+ * Подпись статуса в «Мои заказы»:
+ * отказ — заказчик отказался от исполнителя;
+ * отказано — исполнитель отказался от заказа.
+ */
+export function getCustomerOrderStatusLabel(status) {
+  const text = status || "";
+  if (text.includes("Отказано заказчиком")) return "Отказ";
+  if (text.includes("Отказ от заказа")) return "Отказано";
+  return status || "Без статуса";
 }
 
 /** Подпись для числа откликнувшихся исполнителей: «3 исполнителя». */

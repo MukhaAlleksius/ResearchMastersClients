@@ -29,7 +29,6 @@ const exampleOrder = {
   town: "Москва",
   region: "Московская область",
   deadline: "В течение месяца",
-  insurance_required: true,
   createdAt: "2025-09-15T10:00:00Z",
   updatedAt: "2025-09-16T15:30:00Z",
 };

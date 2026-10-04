@@ -5,6 +5,7 @@ import DraftOrder from "../Draft/DraftOrder";
 import ExecutedOrder from "../Executed/ExecutedOrder";
 import InProgressExecuteOrder from "../InProgressExecute/InProgressExecuteOrder";
 import MyselfExecutor from "../MyselfExecutor/MyselfExecutor";
+import RefusedOrder from "../Refused/RefusedOrder";
 import ResearchExecutor from "../ResearchExecutors/ResearchExecutorsOrder";
 import WaitExecuteOrder from "../WaitExecute/WaitExecuteOrder";
 function matchesStatus(order, fragment) {
@@ -161,12 +162,25 @@ export default function CustomerOrderView() {
       {matchesStatus(order, "Выполнен") && (
         <ExecutedOrder order={order} {...backProps} />
       )}
+      {(matchesStatus(order, "Отказано заказчиком") ||
+        matchesStatus(order, "Отказ от заказа")) && (
+        <RefusedOrder
+          order={order}
+          {...backProps}
+          onOrderUpdated={handleOrderUpdated}
+          statusLabel={
+            matchesStatus(order, "Отказ от заказа") ? "Отказано" : "Отказ"
+          }
+        />
+      )}
       {!matchesStatus(order, "Не предложенные исполнителям") &&
         !matchesStatus(order, "В поиске исполнителя") &&
         !matchesStatus(order, "Ожидают выполнения") &&
         !matchesStatus(order, "В процессе выполнения") &&
         !matchesStatus(order, "Самостоятельное выполнение") &&
-        !matchesStatus(order, "Выполнен") && (
+        !matchesStatus(order, "Выполнен") &&
+        !matchesStatus(order, "Отказано заказчиком") &&
+        !matchesStatus(order, "Отказ от заказа") && (
           <div className="list-alert">
             <p className="list-alert__text">
               Неизвестный статус заказа: {order.status_order_customer || "—"}

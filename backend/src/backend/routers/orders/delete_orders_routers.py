@@ -3,12 +3,14 @@ import logging  # Стандартное логирование
 from fastapi import APIRouter, Depends, HTTPException, Query  # FastAPI: роутер, DI, ошибки, query-параметры
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия SQLAlchemy
 
-from core.auth import get_current_user  # Текущий авторизованный пользователь
+from core.auth import ensure_same_user, get_current_admin_user, get_current_user  # Текущий пользователь и проверка id
 from core.config import get_db  # Зависимость сессии БД
 from cruds.orders.delete_orders import (  # CRUD: удаление и отмена операций по заказам
     can_clear_order_after_executor_refusal,
     can_executor_delete_service,
     clear_order_data_after_executor_refusal,
+    delete_cancel_dispute_for_admin,
+    delete_date_start_execute_order,
     delete_executor_service,
     delete_order_by_customer,
     remove_customer_executor_from_list,
@@ -22,6 +24,7 @@ from schemas.orders_schemas import (  # Pydantic-схемы ответов delet
     ExecutorServiceDeleteEligibilitySchema,
     ExecutorServiceDeleteResponseSchema,
     OrderCancellationWithdrawResponseSchema,
+    CancelDisputeDeleteResponseSchema,
     OrderClearAfterExecutorRefusalEligibilitySchema,
     OrderClearAfterExecutorRefusalResponseSchema,
     OrderDeleteResponseSchema,
@@ -322,3 +325,65 @@ async def withdraw_executor_order_cancel_api(
         raise HTTPException(
             status_code=500, detail="Ошибка отмены заявки на отказ"
         ) from exc  # 500 клиенту
+
+
+@router.delete(
+    "/admin/cancel_dispute/{source}/{cancel_id}",
+    response_model=CancelDisputeDeleteResponseSchema,
+)
+async def delete_cancel_dispute_for_admin_api(
+    source: str,
+    cancel_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    try:
+        result = await delete_cancel_dispute_for_admin(
+            db=db, source=source, cancel_id=cancel_id
+        )
+        await db.commit()
+        return result
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as exc:
+        await db.rollback()
+        logger.error(
+            "delete_cancel_dispute_for_admin error source=%s id=%s: %s",
+            source,
+            cancel_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Ошибка удаления отказа"
+        ) from exc
+
+
+@router.delete("/delete_date_start_execute_order/{user_id}/{graphic_order_id}")
+async def delete_date_start_execute_order_api(
+    user_id: int,
+    graphic_order_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_user),
+):
+    ensure_same_user(current_user, user_id)
+    try:
+        return await delete_date_start_execute_order(
+            db,
+            user_id=user_id,
+            graphic_order_id=graphic_order_id,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "delete_date_start_execute_order error user_id=%s id=%s: %s",
+            user_id,
+            graphic_order_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Не удалось удалить дату из календаря"
+        ) from exc

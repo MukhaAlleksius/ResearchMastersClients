@@ -10,6 +10,11 @@ from cruds.notifications_crud import (
     ORDER_DELETED_NOTIFICATION_TYPE,
     ORDER_REFUSED_NOTIFICATION_TYPE,
     PROPOSAL_ACCEPTED_NOTIFICATION_TYPE,
+    WORK_STARTS_TOMORROW_NOTIFICATION_TYPE,
+    LISTING_EXPIRED_NOTIFICATION_TYPE,
+    USER_WARNING_NOTIFICATION_TYPE,
+    CANCEL_ADMIN_VERDICT_NOTIFICATION_TYPE,
+    CANCEL_ADMIN_DELETED_NOTIFICATION_TYPE,
     should_email_notification,
 )
 
@@ -22,6 +27,11 @@ from cruds.notifications_crud import (
         ORDER_REFUSED_NOTIFICATION_TYPE,
         ORDER_DELETED_NOTIFICATION_TYPE,
         PROPOSAL_ACCEPTED_NOTIFICATION_TYPE,
+        WORK_STARTS_TOMORROW_NOTIFICATION_TYPE,
+        LISTING_EXPIRED_NOTIFICATION_TYPE,
+        USER_WARNING_NOTIFICATION_TYPE,
+        CANCEL_ADMIN_VERDICT_NOTIFICATION_TYPE,
+        CANCEL_ADMIN_DELETED_NOTIFICATION_TYPE,
     ],
 )
 def test_important_notifications_are_emailed(notification_type):
@@ -30,6 +40,12 @@ def test_important_notifications_are_emailed(notification_type):
 
 def test_chat_notifications_are_not_emailed():
     assert should_email_notification(NEW_MESSAGE_NOTIFICATION_TYPE) is False
+
+
+def test_new_town_notifications_are_not_emailed():
+    from cruds.notifications_crud import NEW_TOWN_NOTIFICATION_TYPE
+
+    assert should_email_notification(NEW_TOWN_NOTIFICATION_TYPE) is False
 
 
 def test_build_app_link_joins_path():
@@ -48,3 +64,15 @@ def test_send_email_without_smtp_does_not_raise():
         )
     )
     assert sent is False
+
+
+def test_verification_and_reset_links_point_to_frontend():
+    from core.email_verification import verification_link
+    from core.password_reset import password_reset_link
+
+    verify = verification_link("abc.def.ghi")
+    reset = password_reset_link("abc.def.ghi")
+    assert "/verify-email?token=abc.def.ghi" in verify
+    assert "/reset-password?token=abc.def.ghi" in reset
+    assert "/api/" not in verify
+    assert "/api/" not in reset

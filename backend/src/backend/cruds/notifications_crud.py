@@ -1,15 +1,19 @@
 import html  # Экранирование текста писем
 import logging  # Логирование ошибок уведомлений
+from datetime import date, datetime, timedelta, timezone  # Даты напоминаний и метки уведомлений
 from typing import Optional  # Опциональные параметры
 
 from fastapi import HTTPException  # HTTP-ошибки API
-from sqlalchemy import delete, func, select, update  # SQL DML/SELECT
+from sqlalchemy import Date, cast, delete, func, or_, select, text, update  # SQL DML/SELECT
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
 from core.email import build_app_link, send_email  # Письма контрагенту
+from core.future_dates import parse_user_date  # Дата начала из договора
+from models.contracts_models import Contract  # Дата начала работ в договоре
 
 from models.orders_models import (  # Заказы, статусы, Notification
     ExecutorOrder,  # назначение исполнителя на заказ
+    GraphicOrderMaster,  # дата начала работ в календаре исполнителя
     Notification,  # ORM уведомления
     Order,  # ORM заказа
     StatusOrderCustomer,  # статус заказчика
@@ -59,17 +63,30 @@ EXECUTOR_STATUS_CHANGED_NOTIFICATION_TYPE = (
 WORK_STARTED_NOTIFICATION_TYPE = "work_started"  # Тип: работа начата
 ORDER_COMPLETED_NOTIFICATION_TYPE = "order_completed"  # Тип: заказ выполнен
 START_DATE_UPDATED_NOTIFICATION_TYPE = "start_date_updated"  # Тип: дата начала
+WORK_STARTS_TOMORROW_NOTIFICATION_TYPE = (
+    "work_starts_tomorrow"  # Тип: завтра начало работ
+)
+LISTING_EXPIRED_NOTIFICATION_TYPE = "listing_expired"  # Тип: срок размещения истёк
 COMPLAINT_MESSAGE_NOTIFICATION_TYPE = "complaint_message"  # Тип: сообщение в споре
 PAYMENT_UPDATED_NOTIFICATION_TYPE = "payment_updated"  # Тип: изменена оплата
+NEW_TOWN_NOTIFICATION_TYPE = "new_town"  # Тип: пользователь добавил город
+USER_WARNING_NOTIFICATION_TYPE = "user_warning"  # Тип: предупреждение пользователю
+CANCEL_ADMIN_VERDICT_NOTIFICATION_TYPE = "cancel_admin_verdict"  # Вердикт админа по отказу
+CANCEL_ADMIN_DELETED_NOTIFICATION_TYPE = "cancel_admin_deleted"  # Админ удалил отказ
 
 # Важные события — дублируем in-app уведомление письмом второй стороне.
 EMAIL_NOTIFICATION_TYPES = frozenset(
     {
         CANCEL_REQUESTED_NOTIFICATION_TYPE,
         CANCEL_DECISION_NOTIFICATION_TYPE,
+        CANCEL_ADMIN_VERDICT_NOTIFICATION_TYPE,
+        CANCEL_ADMIN_DELETED_NOTIFICATION_TYPE,
         ORDER_REFUSED_NOTIFICATION_TYPE,
         ORDER_DELETED_NOTIFICATION_TYPE,
         PROPOSAL_ACCEPTED_NOTIFICATION_TYPE,
+        WORK_STARTS_TOMORROW_NOTIFICATION_TYPE,
+        LISTING_EXPIRED_NOTIFICATION_TYPE,
+        USER_WARNING_NOTIFICATION_TYPE,
     }
 )
 
@@ -145,6 +162,14 @@ _NOTIFICATION_COPY = {  # Шаблоны заголовков и текстов 
         "Исполнитель {actor} {detail} на отказ от заказа «{order}».",
         "Заказчик {actor} {detail} на отказ от заказа «{order}».",
     ),
+    CANCEL_ADMIN_VERDICT_NOTIFICATION_TYPE: _copy(
+        "Решение администратора по отказу",
+        "Администратор вынес решение по отказу от заказа «{order}».{detail}",
+    ),
+    CANCEL_ADMIN_DELETED_NOTIFICATION_TYPE: _copy(
+        "Отказ удалён администратором",
+        "Администратор удалил заявку на отказ от заказа «{order}».",
+    ),
     ORDER_REFUSED_NOTIFICATION_TYPE: _copy(
         "Отказ от заказа",
         "Исполнитель {actor} отказался от заказа «{order}».",
@@ -177,6 +202,18 @@ _NOTIFICATION_COPY = {  # Шаблоны заголовков и текстов 
         "Дата начала работ",
         "Исполнитель {actor} указал дату начала работ по заказу «{order}»: {detail}.",
         "Заказчик {actor} указал дату начала работ по заказу «{order}»: {detail}.",
+    ),
+    WORK_STARTS_TOMORROW_NOTIFICATION_TYPE: _copy(
+        "Предупреждение: начало работ завтра",
+        "Вам на завтра запланировано начало работ по заказу «{order}».",
+        "Завтра запланировано начало работ по заказу «{order}».",
+    ),
+    LISTING_EXPIRED_NOTIFICATION_TYPE: _copy(
+        "Срок размещения заказа истёк",
+        "Срок размещения заказа «{order}» на сайте истёк. За это время исполнитель "
+        "не найден. Если работа всё ещё нужна, продлите публикацию: откройте заказ "
+        "и снова разместите его в каталоге. При необходимости укажите новый срок "
+        "выполнения.",
     ),
     COMPLAINT_MESSAGE_NOTIFICATION_TYPE: _copy(
         "Сообщение в споре",
@@ -313,7 +350,7 @@ async def mark_notification_read(  # Пометить одно уведомле�
     return notification
 
 
-async def acknowledge_notification(  # Реакция на уведомление → удаление записи
+async def acknowledge_notification(  # Реакция на уведомление → пометка прочитанным
     db: AsyncSession,
     notification_id: int,
     user_id: int,
@@ -328,6 +365,18 @@ async def acknowledge_notification(  # Реакция на уведомлени�
             ),
         )
 
+    notification = await _get_notification_for_user(db, notification_id, user_id)
+    if not notification.is_read:
+        notification.is_read = True
+        await db.flush()
+    return notification.id
+
+
+async def delete_notification(  # Удалить уведомление по кнопке пользователя
+    db: AsyncSession,
+    notification_id: int,
+    user_id: int,
+) -> int:
     await _get_notification_for_user(db, notification_id, user_id)
     result = await db.execute(
         delete(Notification).where(
@@ -498,20 +547,47 @@ async def _delete_user_order_notifications(  # Удалить уведомлен
     await db.execute(delete(Notification).where(*filters))
 
 
-async def _replace_unread_notification(  # Удалить непрочитанное того же типа по заказу
+async def _upsert_existing_notification(  # Обновить существующее уведомление того же типа
     db: AsyncSession,
     *,
     user_id: int,
     order_id: int,
     notification_type: str,
-) -> None:
-    await _delete_user_order_notifications(
-        db,
-        user_id=user_id,
-        order_id=order_id,
-        notification_types=(notification_type,),
-        unread_only=True,
+    title: str,
+    message: str,
+    action_path: Optional[str],
+    order_title: str,
+) -> Optional[Notification]:
+    result = await db.execute(
+        select(Notification)
+        .where(
+            Notification.user_id == user_id,
+            Notification.order_id == order_id,
+            Notification.notification_type == notification_type,
+        )
+        .order_by(Notification.created_at.desc(), Notification.id.desc())
+        .limit(1)
     )
+    existing = result.scalar_one_or_none()
+    if not existing:
+        return None
+
+    existing.title = title
+    existing.message = message
+    existing.action_path = action_path
+    existing.order_title = order_title
+    existing.is_read = False
+    existing.created_at = datetime.now(timezone.utc)
+    await db.execute(
+        delete(Notification).where(
+            Notification.user_id == user_id,
+            Notification.order_id == order_id,
+            Notification.notification_type == notification_type,
+            Notification.id != existing.id,
+        )
+    )
+    await db.flush()
+    return existing
 
 
 async def clear_cancel_notifications_for_order(  # Очистить уведомления об отмене по заказу
@@ -527,6 +603,7 @@ async def clear_cancel_notifications_for_order(  # Очистить уведом
             (
                 CANCEL_REQUESTED_NOTIFICATION_TYPE,
                 CANCEL_DECISION_NOTIFICATION_TYPE,
+                CANCEL_ADMIN_VERDICT_NOTIFICATION_TYPE,
                 ORDER_REFUSED_NOTIFICATION_TYPE,
             )
         ),
@@ -546,7 +623,7 @@ def _notification_email_html(
     title: str, message: str, link: Optional[str]
 ) -> str:
     safe_title = html.escape(title)
-    safe_message = html.escape(message)
+    safe_message = html.escape(message).replace("\n", "<br>")
     button = ""
     if link:
         safe_link = html.escape(link, quote=True)
@@ -600,25 +677,31 @@ async def _send_notification_email(
         )
 
 
-async def _create_notification(  # INSERT уведомления (с опциональной заменой unread)
+async def _create_notification(  # INSERT или обновление существующего уведомления
     db: AsyncSession,
     *,
     user_id: int,
-    order_id: int,
-    order_title: str,
+    order_id: Optional[int],
+    order_title: Optional[str],
     notification_type: str,
     title: str,
     message: str,
     action_path: Optional[str],
     replace_unread: bool = True,
 ) -> None:
-    if replace_unread:  # убрать старое непрочитанное того же типа
-        await _replace_unread_notification(
+    if replace_unread:  # смету / график / чат и др. повторяющиеся события склеиваем
+        updated = await _upsert_existing_notification(
             db,
             user_id=user_id,
             order_id=order_id,
             notification_type=notification_type,
+            title=title,
+            message=message,
+            action_path=action_path,
+            order_title=order_title,
         )
+        if updated:
+            return
 
     db.add(
         Notification(
@@ -642,6 +725,91 @@ async def _create_notification(  # INSERT уведомления (с опцио�
             message=message,
             action_path=action_path,
         )
+
+
+STAFF_ROLES = ("admin", "moderator")
+
+
+async def notify_admins_new_town(
+    db: AsyncSession,
+    *,
+    town_id: int,
+    town_name: str,
+    region_id: int,
+    region_name: str,
+    country_id: int,
+    country_name: str,
+    created_by_user_id: Optional[int] = None,
+) -> None:
+    """Колокольчик админам: пользователь добавил город, нужно проверить название."""
+    result = await db.execute(
+        select(User.id).where(
+            User.role.in_(STAFF_ROLES),
+            User.is_active.is_(True),
+            or_(User.blocked.is_(False), User.blocked.is_(None)),
+        )
+    )
+    staff_ids = [
+        user_id
+        for user_id in result.scalars().all()
+        if user_id != created_by_user_id
+    ]
+    if not staff_ids:
+        return
+
+    location = ", ".join(
+        part for part in (country_name, region_name) if part
+    )
+    where = f" ({location})" if location else ""
+    action_path = (
+        f"/admin/geography?country_id={country_id}"
+        f"&region_id={region_id}&town_id={town_id}"
+    )
+    title = "Новый город на проверке"
+    message = (
+        f"Пользователь добавил город «{town_name}»{where}. "
+        "Проверьте название."
+    )
+    for user_id in staff_ids:
+        await _create_notification(
+            db,
+            user_id=user_id,
+            order_id=None,
+            order_title=None,
+            notification_type=NEW_TOWN_NOTIFICATION_TYPE,
+            title=title,
+            message=message,
+            action_path=action_path,
+            replace_unread=False,
+        )
+    await db.commit()
+
+
+async def notify_user_warning(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    reason: str,
+    warnings_count: int,
+) -> None:
+    """Колокольчик и письмо пользователю: админ вынес предупреждение."""
+    text = " ".join(str(reason or "").split())
+    if not text:
+        return
+    count = max(1, int(warnings_count or 1))
+    title = "Вам вынесено предупреждение"
+    message = f"{text}\n\nВсего предупреждений: {count}."
+    await _create_notification(
+        db,
+        user_id=user_id,
+        order_id=None,
+        order_title=None,
+        notification_type=USER_WARNING_NOTIFICATION_TYPE,
+        title=title,
+        message=message,
+        action_path="/profile",
+        replace_unread=False,
+    )
 
 
 async def notify_executors_order_deleted(
@@ -780,6 +948,68 @@ async def notify_order_event_safe(  # notify_order_event без падения �
             notification_type,
             order_id,
             actor_user_id,
+            error,
+        )
+
+
+async def notify_cancel_admin_verdict(
+    db: AsyncSession,
+    *,
+    order_id: int,
+    customer_id: Optional[int],
+    executor_id: Optional[int],
+    comment: Optional[str] = None,
+    notification_type: Optional[str] = None,
+) -> None:
+    """Колокольчик + письмо заказчику и исполнителю о действии администратора по отказу."""
+    try:
+        ntype = notification_type or CANCEL_ADMIN_VERDICT_NOTIFICATION_TYPE
+        copy = _NOTIFICATION_COPY.get(ntype)
+        if not copy:
+            return
+
+        order = (
+            await db.execute(select(Order).where(Order.id == order_id))
+        ).scalar_one_or_none()
+        if not order:
+            return
+
+        order_title = order.title or f"№ {order_id}"
+        comment_text = (comment or "").strip()
+        detail = f" Комментарий: {comment_text}" if comment_text else ""
+
+        for recipient_id in (customer_id, executor_id):
+            if not recipient_id:
+                continue
+            tab = _resolve_notification_tab(
+                ntype,
+                recipient_is_customer=recipient_id == order.customer_id,
+            )
+            action_path = await _build_action_path(
+                db,
+                recipient_id=recipient_id,
+                order_id=order_id,
+                customer_id=order.customer_id,
+                tab=tab,
+            )
+            await _create_notification(
+                db,
+                user_id=recipient_id,
+                order_id=order_id,
+                order_title=order_title,
+                notification_type=ntype,
+                title=copy["title"],
+                message=copy["actor_customer"].format(
+                    order=order_title, detail=detail
+                ),
+                action_path=action_path,
+                replace_unread=False,
+            )
+    except Exception as error:
+        logger.warning(
+            "notify %s failed order_id=%s: %s",
+            notification_type or CANCEL_ADMIN_VERDICT_NOTIFICATION_TYPE,
+            order_id,
             error,
         )
 
@@ -1103,3 +1333,245 @@ async def notify_payment_event(  # Уведомление об изменени�
         extra_format={"detail": detail},
         recipient_id=recipient_id,
     )
+
+
+async def _already_sent_work_start_reminder(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    order_id: int,
+) -> bool:
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=20)
+    result = await db.execute(
+        select(Notification.id).where(
+            Notification.user_id == user_id,
+            Notification.order_id == order_id,
+            Notification.notification_type == WORK_STARTS_TOMORROW_NOTIFICATION_TYPE,
+            Notification.created_at >= cutoff,
+        ).limit(1)
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def _notify_work_starts_tomorrow(
+    db: AsyncSession,
+    *,
+    order: Order,
+    recipient_id: int,
+) -> bool:
+    if not recipient_id or await _already_sent_work_start_reminder(
+        db, user_id=recipient_id, order_id=order.id
+    ):
+        return False
+
+    copy = _NOTIFICATION_COPY[WORK_STARTS_TOMORROW_NOTIFICATION_TYPE]
+    order_title = order.title or f"№ {order.id}"
+    is_customer = recipient_id == order.customer_id
+    tab = _resolve_notification_tab(
+        WORK_STARTS_TOMORROW_NOTIFICATION_TYPE,
+        recipient_is_customer=is_customer,
+    )
+    action_path = await _build_action_path(
+        db,
+        recipient_id=recipient_id,
+        order_id=order.id,
+        customer_id=order.customer_id,
+        tab=tab,
+    )
+    message_key = "actor_customer" if is_customer else "actor_executor"
+    await _create_notification(
+        db,
+        user_id=recipient_id,
+        order_id=order.id,
+        order_title=order_title,
+        notification_type=WORK_STARTS_TOMORROW_NOTIFICATION_TYPE,
+        title=copy["title"],
+        message=copy[message_key].format(order=order_title),
+        action_path=action_path,
+        replace_unread=False,
+    )
+    return True
+
+
+async def _is_waiting_execution(
+    db: AsyncSession, order_id: int, executor_id: Optional[int]
+) -> bool:
+    if not executor_id:
+        return False
+    status = await _latest_executor_status(db, order_id, executor_id)
+    return _status_has(status, WAIT_EXECUTE_STATUS)
+
+
+async def send_upcoming_work_start_reminders(db: AsyncSession) -> int:
+    """Предупреждение за день до начала работ: календарь или дата в договоре."""
+    lock = await db.execute(text("SELECT pg_try_advisory_lock(942017)"))
+    if not lock.scalar():
+        return 0
+
+    try:
+        tomorrow = date.today() + timedelta(days=1)
+        pending: list[tuple[Order, Optional[int]]] = []
+        seen_orders: set[int] = set()
+
+        calendar_rows = (
+            await db.execute(
+                select(GraphicOrderMaster, Order)
+                .join(Order, Order.id == GraphicOrderMaster.order_id)
+                .where(
+                    GraphicOrderMaster.date_start.is_not(None),
+                    cast(GraphicOrderMaster.date_start, Date) == tomorrow,
+                )
+            )
+        ).all()
+        for graphic, order in calendar_rows:
+            if order.id in seen_orders:
+                continue
+            if not await _is_waiting_execution(db, order.id, graphic.user_id):
+                continue
+            seen_orders.add(order.id)
+            pending.append((order, graphic.user_id))
+
+        contract_rows = (
+            await db.execute(
+                select(Contract, Order).join(Order, Order.id == Contract.order_id)
+            )
+        ).all()
+        for contract, order in contract_rows:
+            if order.id in seen_orders:
+                continue
+            if parse_user_date(contract.date_start_work) != tomorrow:
+                continue
+            if not await _is_waiting_execution(db, order.id, contract.executor_id):
+                continue
+            seen_orders.add(order.id)
+            pending.append((order, contract.executor_id))
+
+        sent = 0
+        seen_pairs: set[tuple[int, int]] = set()
+        for order, executor_id in pending:
+            recipients = []
+            if executor_id:
+                recipients.append(executor_id)
+            if order.customer_id and order.customer_id != executor_id:
+                recipients.append(order.customer_id)
+            for recipient_id in recipients:
+                pair = (recipient_id, order.id)
+                if pair in seen_pairs:
+                    continue
+                seen_pairs.add(pair)
+                if await _notify_work_starts_tomorrow(
+                    db, order=order, recipient_id=recipient_id
+                ):
+                    sent += 1
+
+        return sent
+    finally:
+        await db.execute(text("SELECT pg_advisory_unlock(942017)"))
+
+
+SEARCH_EXECUTOR_STATUS = "В поиске исполнителя"
+DRAFT_STATUS = "Не предложенные исполнителям"
+
+
+async def _already_sent_listing_expired(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    order_id: int,
+) -> bool:
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=20)
+    result = await db.execute(
+        select(Notification.id)
+        .where(
+            Notification.user_id == user_id,
+            Notification.order_id == order_id,
+            Notification.notification_type == LISTING_EXPIRED_NOTIFICATION_TYPE,
+            Notification.created_at >= cutoff,
+        )
+        .limit(1)
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def _notify_listing_expired(db: AsyncSession, *, order: Order) -> bool:
+    recipient_id = order.customer_id
+    if not recipient_id or await _already_sent_listing_expired(
+        db, user_id=recipient_id, order_id=order.id
+    ):
+        return False
+
+    copy = _NOTIFICATION_COPY[LISTING_EXPIRED_NOTIFICATION_TYPE]
+    order_title = order.title or f"№ {order.id}"
+    tab = _resolve_notification_tab(
+        LISTING_EXPIRED_NOTIFICATION_TYPE,
+        recipient_is_customer=True,
+    )
+    action_path = await _build_action_path(
+        db,
+        recipient_id=recipient_id,
+        order_id=order.id,
+        customer_id=order.customer_id,
+        tab=tab,
+    )
+    await _create_notification(
+        db,
+        user_id=recipient_id,
+        order_id=order.id,
+        order_title=order_title,
+        notification_type=LISTING_EXPIRED_NOTIFICATION_TYPE,
+        title=copy["title"],
+        message=copy["actor_customer"].format(order=order_title),
+        action_path=action_path,
+        replace_unread=False,
+    )
+    return True
+
+
+async def send_expired_listing_notices(db: AsyncSession) -> int:
+    """Снять с каталога заказы с истёкшим сроком размещения и спросить о продлении."""
+    from core.future_dates import is_listing_expired
+
+    lock = await db.execute(text("SELECT pg_try_advisory_lock(942018)"))
+    if not lock.scalar():
+        return 0
+
+    try:
+        assigned_exists = (
+            select(ExecutorOrder.id)
+            .where(ExecutorOrder.order_id == Order.id)
+            .exists()
+        )
+        result = await db.execute(
+            select(Order, StatusOrderCustomer)
+            .join(
+                StatusOrderCustomer,
+                StatusOrderCustomer.order_id == Order.id,
+            )
+            .where(
+                StatusOrderCustomer.status == SEARCH_EXECUTOR_STATUS,
+                ~assigned_exists,
+            )
+        )
+        sent = 0
+        seen_orders: set[int] = set()
+        today = date.today()
+
+        for order, status_row in result.all():
+            if order.id in seen_orders:
+                continue
+            seen_orders.add(order.id)
+            start_at = order.updated_at or order.created_at
+            if not is_listing_expired(
+                order.deadline, start_at=start_at, today=today
+            ):
+                continue
+
+            status_row.status = DRAFT_STATUS
+            order.updated_at = datetime.now(timezone.utc)
+            await db.flush()
+            if await _notify_listing_expired(db, order=order):
+                sent += 1
+
+        return sent
+    finally:
+        await db.execute(text("SELECT pg_advisory_unlock(942018)"))

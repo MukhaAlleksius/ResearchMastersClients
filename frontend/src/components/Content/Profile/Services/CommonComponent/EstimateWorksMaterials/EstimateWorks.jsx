@@ -605,26 +605,36 @@ export default function EstimateWorks({ order_id, category_work_id }) {
               : "Сохраните заказ, чтобы добавить работы в смету"}
           </p>
         </div>
-        <div className="estimate-header-currency">
-          <label className="field-label" htmlFor="estimate-global-currency">
-            Валюта сметы
-          </label>
-          <select
-            id="estimate-global-currency"
-            value={currency}
-            onChange={(e) => handleGlobalCurrencyChange(e.target.value)}
-            className={`currency-select header${
-              isConvertingCurrency ? " currency-select--busy" : ""
-            }`}
-            disabled={isConvertingCurrency}
-            aria-busy={isConvertingCurrency}
+        <div className="estimate-header-actions">
+          <button
+            type="button"
+            className="btn-add btn-add--header-cta"
+            onClick={openAddWorkModal}
+            disabled={!orderExists}
           >
-            {currencies.map((cur) => (
-              <option key={cur} value={cur}>
-                {cur}
-              </option>
-            ))}
-          </select>
+            Добавить работу
+          </button>
+          <div className="estimate-header-currency">
+            <label className="field-label" htmlFor="estimate-global-currency">
+              Валюта сметы
+            </label>
+            <select
+              id="estimate-global-currency"
+              value={currency}
+              onChange={(e) => handleGlobalCurrencyChange(e.target.value)}
+              className={`currency-select header${
+                isConvertingCurrency ? " currency-select--busy" : ""
+              }`}
+              disabled={isConvertingCurrency}
+              aria-busy={isConvertingCurrency}
+            >
+              {currencies.map((cur) => (
+                <option key={cur} value={cur}>
+                  {cur}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </header>
 

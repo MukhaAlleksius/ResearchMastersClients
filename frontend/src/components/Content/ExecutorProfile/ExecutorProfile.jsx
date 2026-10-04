@@ -476,6 +476,61 @@ function isCategoryActive(selected, category) {
   );
 }
 
+function ScheduleModal({ open, onClose, executorId }) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open, onClose]);
+
+  if (!open || !executorId) return null;
+
+  return (
+    <div
+      className="ep-modal-overlay"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="ep-schedule-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-labelledby="ep-schedule-modal-title"
+        aria-modal="true"
+      >
+        <header className="ep-price-modal__header">
+          <h2 id="ep-schedule-modal-title" className="ep-price-modal__title">
+            Календарь работ
+          </h2>
+          <button
+            type="button"
+            className="ep-price-modal__close"
+            onClick={onClose}
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
+        </header>
+        <div className="ep-schedule-modal__body">
+          <ExecutorOrdersSchedule
+            executorId={executorId}
+            readOnly
+            embedded
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ExecutorProfile({ openModal }) {
   const location = useLocation();
 
@@ -525,6 +580,7 @@ export default function ExecutorProfile({ openModal }) {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
   const [loadingPrice, setLoadingPrice] = useState(false);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const openPhotoViewer = useCallback((images, index) => {
     setPhotoViewer({ images, index });
   }, []);
@@ -971,13 +1027,17 @@ export default function ExecutorProfile({ openModal }) {
               </div>
               <div className="ep-card__body">
                 <p className="ep-specs__hint" style={{ marginTop: 0 }}>
-                  Занятые дни исполнителя. Выберите дату, чтобы увидеть заказы.
+                  Занятые дни исполнителя. Откройте календарь, чтобы увидеть
+                  запланированные работы.
                 </p>
-                <ExecutorOrdersSchedule
-                  executorId={executorId}
-                  readOnly
-                  embedded
-                />
+                <button
+                  type="button"
+                  className="ep-btn ep-btn--schedule"
+                  onClick={() => setIsScheduleOpen(true)}
+                >
+                  <IconCalendar />
+                  Показать календарь работ
+                </button>
               </div>
             </section>
           )}
@@ -988,7 +1048,7 @@ export default function ExecutorProfile({ openModal }) {
                 <IconImage />
               </span>
               <h2 id="ep-portfolio-title" className="ep-card__title">
-                Портфолио работ
+                Портфолио
               </h2>
             </div>
             <div className="ep-card__body">
@@ -1116,6 +1176,12 @@ export default function ExecutorProfile({ openModal }) {
         commonWorks={commonWorks}
         masterWorks={masterWorks}
         loading={loadingPrice}
+      />
+
+      <ScheduleModal
+        open={isScheduleOpen}
+        onClose={() => setIsScheduleOpen(false)}
+        executorId={executorId}
       />
 
       {isOrderModalOpen && (

@@ -26,6 +26,10 @@ def _is_fixed_budget_type(budget_type: str | None) -> bool:
     return "фиксир" in value
 
 
+def _is_negotiable_budget_type(budget_type: str | None) -> bool:
+    return "договорн" in str(budget_type or "").lower()
+
+
 def _normalize_currency(code: str | None) -> str:
     raw = str(code or "BYN").strip().lower()
     if raw in {"byn"}:
@@ -125,62 +129,59 @@ async def resolve_order_display_budget(
     preferred_executor_id: int | None = None,
 ) -> tuple[Decimal | None, str, str | None]:
     """
-    Сумма для карточки (по приоритету):
-    1) сумма договора (договорная цена);
-    2) сумма сметы, если смета уже ведётся;
-    3) сумма из отклика исполнителя;
-    4) бюджет заказчика;
-    5) иначе None («Сумма неизвестна»).
+    Актуальная сумма для карточки в кабинете:
+    1) сумма из договора, если она уже указана;
+    2) сумма сметы, если тип бюджета сметный и смета заполнена;
+    3) фиксированная цена из отклика или заказа;
+    4) иначе тип без суммы (договорная / смета ещё не заполнена).
     """
     ctx = await _load_deal_context(
         db, order.id, preferred_executor_id=preferred_executor_id
     )
+    budget_type = ctx.budget_type or order.budget_type
     fallback_currency = _normalize_currency(order.currency)
 
-    # 1. Договорная цена — если в договоре есть сумма
     if ctx.contract is not None:
         contract_amount = _positive_amount(ctx.contract.budget)
         if contract_amount is not None:
             return (
                 contract_amount,
                 _normalize_currency(ctx.contract.currency or fallback_currency),
-                "Договорная цена",
+                budget_type or order.budget_type,
             )
 
-    # 2. Сметная цена — если смету уже вели (даже без договора)
-    estimate_total, est_currency = await _estimate_works_total(
-        db, order.id, ctx.executor_id
-    )
-    if estimate_total is not None:
-        return (
-            estimate_total,
-            _normalize_currency(est_currency or fallback_currency),
-            "Сметная цена",
+    if _is_estimate_budget_type(budget_type) or _is_estimate_budget_type(
+        order.budget_type
+    ):
+        estimate_total, est_currency = await _estimate_works_total(
+            db, order.id, ctx.executor_id
         )
+        if estimate_total is not None:
+            return (
+                estimate_total,
+                _normalize_currency(est_currency or fallback_currency),
+                budget_type or "Сметная цена",
+            )
+        return None, fallback_currency, budget_type or "Сметная цена"
 
-    # 3. Бюджет от исполнителя
     if ctx.offer is not None:
         offer_amount = _positive_amount(ctx.offer.proposed_price)
         if offer_amount is not None:
             return (
                 offer_amount,
                 _normalize_currency(ctx.offer.currency or fallback_currency),
-                ctx.offer.budget_type or "Бюджет от исполнителя",
+                budget_type or ctx.offer.budget_type,
             )
 
-    # 4. Бюджет заказчика
-    # Если order.budget уже синхронизирован со сделкой, сюда попадём только
-    # когда договора/сметы/отклика с суммой нет — тогда это и есть ориентир.
     customer_amount = _positive_amount(order.budget)
-    if customer_amount is not None:
+    if customer_amount is not None and not _is_negotiable_budget_type(budget_type):
         return (
             customer_amount,
             fallback_currency,
-            order.budget_type or "Бюджет от заказчика",
+            budget_type or order.budget_type,
         )
 
-    # 5. Никто не указал сумму
-    return None, fallback_currency, None
+    return None, fallback_currency, budget_type
 
 
 async def sync_order_budget_from_deal(

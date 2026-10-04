@@ -47,6 +47,7 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))  #
 TOKEN_TYPE_ACCESS = "access"  # Строка-тип access в JWT
 TOKEN_TYPE_REFRESH = "refresh"  # Строка-тип refresh в JWT
 TOKEN_TYPE_EMAIL_VERIFY = "email_verify"  # Строка-тип подтверждения email
+TOKEN_TYPE_PASSWORD_RESET = "password_reset"  # Строка-тип сброса пароля
 
 _default_cors = (  # CORS по умолчанию только для локальной разработки
     "http://localhost:3000,http://127.0.0.1:3000"  # Фронт на 3000 порту
@@ -97,6 +98,9 @@ RATE_LIMIT_PATHS = {  # Пути под rate limit
     "/auth/google/register",  # Google-регистрация
     "/payment/callback",  # Callback оплаты
     "/refresh",  # Обновление токена
+    "/resend-verification",  # Повтор письма подтверждения
+    "/forgot-password",  # Сброс пароля: запрос письма
+    "/reset-password",  # Сброс пароля: новый пароль
 }
 RATE_LIMIT_METHODS = {"POST"}  # Лимит только на POST
 

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сес
 
 
 from cruds.orders.read_orders import (  # Чтение заказов, услуг, отмен, отзывов
+    get_cancel_dispute_for_admin,
     get_cancel_order_customer_for_admin,  # отмена для админа
     get_cancel_orders_customers_for_admin,  # список отмен
     get_customer_order_cancel,  # отмена заказчиком
@@ -46,6 +47,7 @@ from models.payments_models import ExecutorBankAccount, Payment  # ORM плат�
 from models.users_models import User  # ORM пользователя
 from schemas.pagination_schemas import PaginatedResponse  # Постраничный ответ
 from schemas.orders_schemas import (  # Pydantic-схемы заказов
+    CancelDisputeRead,
     CancelOrderCustomerForAdminRead,  # отмена для админа
     CustomerOrderCancellationReadSchema,  # отмена заказчиком
     ExecutorOrderCancellationReadSchema,  # отмена исполнителем
@@ -519,43 +521,68 @@ async def get_executor_order_cancel_api(
 @router.get(
     "/admin/cancel_orders_customers",
     response_model=list[CancelOrderCustomerForAdminRead],
-)  # Список неподтверждённых отмен для модерации
+)
 async def get_cancel_orders_customers_for_admin_api(
-    db: AsyncSession = Depends(get_db),  # сессия БД  # Сессия БД
-    current_user: UserCommonSchema = Depends(get_current_admin_user),  # staff  # Только staff
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
 ):
-    try:  # список pending отмен
-        cancel_orders_customers = await get_cancel_orders_customers_for_admin(db=db)  # Все pending отмены
-        return cancel_orders_customers or []  # Пустой список вместо None
-    except HTTPException:  # HTTP из CRUD
-        raise  # Пробрасываем
-    except Exception as e:  # Неожиданная ошибка
-        logger.error(f"API error for cancel_orders_customers : {e}", exc_info=True)  # лог
-        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")  # 500 клиенту
+    try:
+        return await get_cancel_orders_customers_for_admin(db=db)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"API error for cancel_orders_customers : {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+
+
+@router.get(
+    "/admin/cancel_dispute/{source}/{cancel_id}",
+    response_model=CancelDisputeRead,
+)
+async def get_cancel_dispute_for_admin_api(
+    source: str,
+    cancel_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    if source not in {"customer", "executor"}:
+        raise HTTPException(status_code=400, detail="Неизвестный тип отказа")
+    try:
+        dispute = await get_cancel_dispute_for_admin(
+            db=db, source=source, cancel_id=cancel_id
+        )
+        if not dispute:
+            raise HTTPException(status_code=404, detail="Отказ не найден")
+        return dispute
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"API error for cancel_dispute : {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
 
 
 # получить отказ для администратора от заказчика
 @router.get(
     "/admin/cancel_order_customer/{cancel_order_customer_id}",
     response_model=Optional[CustomerOrderCancellationReadSchema],
-)  # Одна заявка на отмену по id для админа
-async def get_cancel_orders_customers_for_admin_api(
-    cancel_order_customer_id: int,  # id заявки на отмену
-    db: AsyncSession = Depends(get_db),  # сессия БД  # Сессия БД
-    current_user: UserCommonSchema = Depends(get_current_admin_user),  # staff  # Только staff
+)
+async def get_cancel_order_customer_for_admin_api(
+    cancel_order_customer_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
 ):
-    try:  # одна отмена для админа
-        cancel_order_customer = await get_cancel_order_customer_for_admin(  # Детали одной отмены
-            db=db, cancel_order_customer_id=cancel_order_customer_id  # аргументы
+    try:
+        cancel_order_customer = await get_cancel_order_customer_for_admin(
+            db=db, cancel_order_customer_id=cancel_order_customer_id
         )
-        if not cancel_order_customer:  # Не найдена
-            raise HTTPException(status_code=404, detail="Отказ не найден")  # 404
-        return cancel_order_customer  # Данные отмены
-    except HTTPException:  # 404 и прочие
-        raise  # Пробрасываем
-    except Exception as e:  # Неожиданная ошибка
-        logger.error(f"API error for cancel_orders_customers : {e}", exc_info=True)  # лог
-        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")  # 500 клиенту
+        if not cancel_order_customer:
+            raise HTTPException(status_code=404, detail="Отказ не найден")
+        return cancel_order_customer
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"API error for cancel_orders_customers : {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
 
 
 @router.get(

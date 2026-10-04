@@ -12,6 +12,7 @@ from cruds.estimate_graphic_works.delete_estimate_graphic_works import (  # Оч
 from cruds.orders.order_constants import HIDDEN_CUSTOMER_EXECUTOR_MARKER  # Маркер скрытого контакта
 from cruds.notifications_crud import (  # Уведомления при удалении и отказе
     clear_cancel_notifications_for_order,
+    notify_cancel_admin_verdict,
     notify_executors_order_deleted,
 )
 from models.users_models import User  # ORM пользователя
@@ -48,6 +49,8 @@ CUSTOMER_DELETABLE_STATUSES = {  # Статусы, при которых зак�
     "Самостоятельное выполнение",
     "В поиске исполнителя",
     "Ожидают выполнения",
+    "Отказано заказчиком",
+    "Отказ от заказа",
 }
 
 
@@ -614,3 +617,86 @@ async def withdraw_executor_order_cancel(  # Отзыв заявки на отк
         executor_id,
     )
     return {"order_id": order_id, "withdrawn": True}  # Ответ API
+
+
+async def delete_cancel_dispute_for_admin(
+    db: AsyncSession,
+    *,
+    source: str,
+    cancel_id: int,
+) -> dict:
+    source_key = (source or "customer").strip().lower()
+    if source_key not in {"customer", "executor"}:
+        raise HTTPException(status_code=400, detail="Неизвестный тип отказа")
+
+    model = (
+        ExecutorOrderCancellation
+        if source_key == "executor"
+        else CustomerOrderCancellation
+    )
+    result = await db.execute(select(model).where(model.id == cancel_id))
+    cancellation = result.scalar_one_or_none()
+    if cancellation is None:
+        raise HTTPException(status_code=404, detail="Отказ не найден")
+
+    order_id = cancellation.order_id
+    customer_id = cancellation.customer_id
+    executor_id = cancellation.executor_id
+
+    await db.delete(cancellation)
+    await clear_cancel_notifications_for_order(
+        db,
+        order_id=order_id,
+        customer_id=customer_id,
+        executor_id=executor_id,
+    )
+    await notify_cancel_admin_verdict(
+        db,
+        order_id=order_id,
+        customer_id=customer_id,
+        executor_id=executor_id,
+        comment="",
+        notification_type="cancel_admin_deleted",
+    )
+    await db.flush()
+
+    logger.info(
+        "Admin deleted cancel dispute: source=%s id=%s order_id=%s",
+        source_key,
+        cancel_id,
+        order_id,
+    )
+    return {
+        "deleted": True,
+        "id": cancel_id,
+        "order_id": order_id,
+        "source": source_key,
+    }
+
+
+async def delete_date_start_execute_order(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    graphic_order_id: int,
+) -> dict:
+    """Убрать заказ из календаря исполнителя. Сам заказ и договор не трогаем."""
+    result = await db.execute(
+        select(GraphicOrderMaster).where(
+            GraphicOrderMaster.id == graphic_order_id,
+            GraphicOrderMaster.user_id == user_id,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Запись в календаре не найдена")
+
+    await db.delete(row)
+    await db.commit()
+    logger.info(
+        "calendar date deleted user_id=%s graphic_order_id=%s order_id=%s",
+        user_id,
+        graphic_order_id,
+        row.order_id,
+    )
+    return {"id": graphic_order_id, "deleted": True}

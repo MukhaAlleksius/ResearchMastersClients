@@ -972,3 +972,133 @@
   color: #0f172a;
   font-weight: 700;
 }
+
+.admin-user-moderation {
+  padding: 1.15rem 1.25rem 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.admin-user-moderation__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-user-moderation__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.admin-user-moderation__subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.admin-user-moderation__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+  margin-top: 0.9rem;
+}
+
+.admin-user-moderation__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+
+.admin-user-moderation__input,
+.admin-user-moderation__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.admin-user-moderation__textarea {
+  min-height: 6rem;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.admin-user-moderation__input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-user-moderation__hint {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.admin-user-moderation__label--span {
+  grid-column: 1 / -1;
+}
+
+.admin-user-moderation__count {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.admin-user-moderation__warn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-user-moderation__check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.admin-user-moderation__alert {
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+}
+
+.admin-user-moderation__alert--error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.admin-user-moderation__alert--ok {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+@media (max-width: 720px) {
+  .admin-user-moderation__head {
+    flex-direction: column;
+  }
+
+  .admin-user-moderation__grid {
+    grid-template-columns: 1fr;
+  }
+}

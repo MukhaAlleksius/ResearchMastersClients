@@ -7,6 +7,7 @@ from core.auth import get_current_user  # Текущий пользовател�
 from core.config import get_db  # Зависимость сессии БД
 from cruds.notifications_crud import (  # CRUD уведомлений
     acknowledge_notification,  # Подтверждение/реакция на уведомление
+    delete_notification,  # Удалить уведомление
     get_user_notifications,  # Список уведомлений пользователя
     mark_all_notifications_read,  # Прочитать все
     mark_notification_read,  # Прочитать одно
@@ -93,16 +94,16 @@ async def acknowledge_notification_api(
     current_user: UserCommonSchema = Depends(get_current_user),  # Текущий пользователь
 ):
     try:
-        deleted_id = await acknowledge_notification(  # Сохраняем реакцию / удаляем
+        acknowledged_id = await acknowledge_notification(  # Помечаем прочитанным
             db=db,
             notification_id=notification_id,
             user_id=current_user.user_id,
             reaction=payload.reaction,
         )
         await db.commit()  # Фиксируем изменения
-        return NotificationAcknowledgeResponseSchema(  # Подтверждение удаления
-            deleted=True,
-            notification_id=deleted_id,
+        return NotificationAcknowledgeResponseSchema(  # Уведомление прочитано, не удалено
+            deleted=False,
+            notification_id=acknowledged_id,
         )
     except HTTPException:
         raise
@@ -116,6 +117,40 @@ async def acknowledge_notification_api(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Ошибка сохранения реакции") from exc
+
+
+@router.delete(  # DELETE удалить одно уведомление
+    "/notifications/{notification_id}",
+    response_model=NotificationAcknowledgeResponseSchema,
+)
+async def delete_notification_api(
+    notification_id: int,  # id уведомления
+    db: AsyncSession = Depends(get_db),  # Сессия БД
+    current_user: UserCommonSchema = Depends(get_current_user),  # Текущий пользователь
+):
+    try:
+        deleted_id = await delete_notification(
+            db=db,
+            notification_id=notification_id,
+            user_id=current_user.user_id,
+        )
+        await db.commit()
+        return NotificationAcknowledgeResponseSchema(
+            deleted=True,
+            notification_id=deleted_id,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        await db.rollback()
+        logger.error(
+            "delete_notification error id=%s user_id=%s: %s",
+            notification_id,
+            current_user.user_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Ошибка удаления уведомления") from exc
 
 
 @router.post("/notifications/read_all")  # POST прочитать все уведомления

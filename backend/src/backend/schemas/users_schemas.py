@@ -34,15 +34,9 @@ class UserSchema(UserBaseSchema):
     @field_validator("password")
     @classmethod
     def password_strength(cls, value: str) -> str:
-        if not value or len(value) < 8:
-            raise ValueError("Пароль должен содержать от 8 до 128 символов")
-        if len(value) > 128:
-            raise ValueError("Пароль должен содержать от 8 до 128 символов")
-        has_letter = any(c.isalpha() for c in value)
-        has_digit = any(c.isdigit() for c in value)
-        if not has_letter or not has_digit:
-            raise ValueError("Пароль должен содержать и буквы, и цифры")
-        return value  # trim не делать — пробелы внутри пароля ok
+        from core.security import assert_password_strength
+
+        return assert_password_strength(value)
 
 
 class UserReadSchema(UserBaseSchema):
@@ -197,6 +191,35 @@ class UserLogin(BaseModel):
     )
 
 
+class EmailActionSchema(BaseModel):
+    email: str = Field(..., max_length=255)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        email = (value or "").strip()
+        if "@" not in email or len(email) < 5:
+            raise ValueError("Укажите корректный email")
+        return email
+
+
+class ResetPasswordSchema(BaseModel):
+    token: str = Field(..., min_length=10)
+    password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, value: str) -> str:
+        from core.security import assert_password_strength
+
+        return assert_password_strength(value)
+
+
+class RegisterResultSchema(BaseModel):
+    message: str
+    email_verification_required: bool = False
+
+
 class GoogleLoginSchema(BaseModel):
     """Вход существующего пользователя: только Google ID token (JWT-строка)."""
 
@@ -281,6 +304,9 @@ class UserProfileForAdminSchema(UserCardForAdminSchema):
     is_active: Optional[bool] = None
     created_at: Optional[str] = None
     last_login: Optional[str] = None
+    blocked_until: Optional[str] = None
+    warnings_count: Optional[int] = 0
+    admin_note: Optional[str] = None
     name_business_form: Optional[str] = None
     registration_number: Optional[str] = None
     name_business: Optional[str] = None
@@ -289,7 +315,41 @@ class UserProfileForAdminSchema(UserCardForAdminSchema):
     bio: Optional[str] = None
     short_review_master: Optional[str] = None
     operating_mode: Optional[str] = None
-    # mark_rating: Optional[str] = None
+
+
+class UserAdminModerationUpdateSchema(BaseModel):
+    admin_note: Optional[str] = Field(None, max_length=4000)
+    blocked: bool = False
+    blocked_until: Optional[datetime] = None
+    warnings_count: int = Field(0, ge=0, le=999)
+    is_active: bool = True
+    is_verified: bool = False
+    role: str = Field("user", max_length=50)
+    warning_reason: Optional[str] = Field(None, max_length=500)
+
+    @field_validator("role")
+    @classmethod
+    def role_allowed(cls, value: str) -> str:
+        role = (value or "user").strip().lower()
+        if role not in {"user", "moderator", "admin"}:
+            raise ValueError("Роль: user, moderator или admin")
+        return role
+
+    @field_validator("admin_note")
+    @classmethod
+    def trim_note(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        note = str(value).strip()
+        return note or None
+
+    @field_validator("warning_reason")
+    @classmethod
+    def trim_warning_reason(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        reason = str(value).strip()
+        return reason or None
 
 
 class UserCategoryWork(BaseModel):

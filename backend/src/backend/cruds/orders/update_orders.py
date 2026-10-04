@@ -90,7 +90,6 @@ async def update_order_customer(
                 town=order_customer.town,
                 location=order_customer.location,
                 deadline=order_customer.deadline,
-                insurance_required=bool(order_customer.insurance_required),
                 updated_at=datetime.utcnow(),
             )
         )

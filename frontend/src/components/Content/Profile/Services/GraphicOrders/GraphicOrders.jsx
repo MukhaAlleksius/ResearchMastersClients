@@ -30,6 +30,23 @@ function toLocalDateKey(value) {
   return formatLocalDate(d);
 }
 
+function formatContractDate(value) {
+  if (!value) return "";
+  const raw = String(value).trim();
+  const isoDay = raw.split(/[T\s]/)[0];
+  const parts = isoDay.split("-");
+  const date =
+    parts.length === 3
+      ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+      : new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 function getDaysInMonth(year, month) {
   const date = new Date(year, month, 1);
   const days = [];
@@ -208,35 +225,72 @@ export default function ExecutorOrdersSchedule({
     }
   };
 
-  const confirmDeleteOrder = (id) => {
-    setOrderToDelete(id);
+  const confirmDeleteOrder = (item) => {
+    setOrderToDelete(item);
     setShowDeleteConfirm(true);
   };
 
   const deleteOrderDate = async () => {
-    if (!orderToDelete) return;
+    if (!orderToDelete?.id) return;
+    const deletedOnDate =
+      formatContractDate(orderToDelete.date_start) ||
+      formatContractDate(orderToDelete.dateKey);
     setLoading(true);
     try {
       const res = await apiFetch(
-        `${API.baseURL}/delete_date_start_execute_order/${userId}/${orderToDelete}`,
+        `${API.baseURL}/delete_date_start_execute_order/${userId}/${orderToDelete.id}`,
         { method: "DELETE" },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setShowDeleteConfirm(false);
       setOrderToDelete(null);
       await refreshData();
-      showFlash("success", "Дата удалена");
+      showFlash(
+        "success",
+        deletedOnDate
+          ? `Заказ на дату ${deletedOnDate} удален`
+          : "Заказ на дату удален",
+      );
     } catch (err) {
       console.error("Ошибка удаления:", err);
-      showFlash("error", "Не удалось удалить дату");
+      showFlash("error", "Не удалось удалить заказ на дату");
     } finally {
       setLoading(false);
     }
   };
 
+  const hero = !embedded && (
+    <header className="gos-hero">
+      <div className="gos-hero__text">
+        <span className="gos-hero__badge">Личный кабинет</span>
+        <h1 className="gos-hero__title">График выполнения заказов</h1>
+        <p className="gos-hero__subtitle">
+          Выберите день в календаре и назначьте заказ на эту дату
+        </p>
+      </div>
+      <div className="gos-hero__stats">
+        <div className="gos-stat">
+          <span className="gos-stat__value">{orders.length}</span>
+          <span className="gos-stat__label">ожидают</span>
+        </div>
+        <div className="gos-stat">
+          <span className="gos-stat__value">
+            {Object.keys(ordersByDate).length}
+          </span>
+          <span className="gos-stat__label">дат</span>
+        </div>
+        <div className="gos-stat">
+          <span className="gos-stat__value">{graphicOrders.length}</span>
+          <span className="gos-stat__label">запланировано</span>
+        </div>
+      </div>
+    </header>
+  );
+
   if (loading && orders.length === 0 && graphicOrders.length === 0) {
     return (
       <div className={`gos-page${embedded ? " gos-page--embedded" : ""}`}>
+        {hero}
         <div className="gos-loading">
           <span className="gos-spinner" />
           Загружаем график…
@@ -247,33 +301,7 @@ export default function ExecutorOrdersSchedule({
 
   return (
     <div className={`gos-page${embedded ? " gos-page--embedded" : ""}`}>
-      {!embedded && (
-      <header className="gos-hero">
-        <div className="gos-hero__text">
-          <span className="gos-hero__badge">Личный кабинет</span>
-          <h1 className="gos-hero__title">График выполнения заказов</h1>
-          <p className="gos-hero__subtitle">
-            Выберите день в календаре и назначьте заказ на эту дату
-          </p>
-        </div>
-        <div className="gos-hero__stats">
-          <div className="gos-stat">
-            <span className="gos-stat__value">{orders.length}</span>
-            <span className="gos-stat__label">ожидают</span>
-          </div>
-          <div className="gos-stat">
-            <span className="gos-stat__value">
-              {Object.keys(ordersByDate).length}
-            </span>
-            <span className="gos-stat__label">дат</span>
-          </div>
-          <div className="gos-stat">
-            <span className="gos-stat__value">{graphicOrders.length}</span>
-            <span className="gos-stat__label">запланировано</span>
-          </div>
-        </div>
-      </header>
-      )}
+      {hero}
 
       {flash.text && (
         <div className={`gos-alert gos-alert--${flash.type}`} role="alert">
@@ -485,7 +513,7 @@ export default function ExecutorOrdersSchedule({
                       onDelete={
                         readOnly
                           ? undefined
-                          : () => confirmDeleteOrder(item.id)
+                          : () => confirmDeleteOrder(item)
                       }
                     />
                   ))}
@@ -518,6 +546,13 @@ export default function ExecutorOrdersSchedule({
               Заказ останется в списке ожидающих выполнения. Это действие нельзя
               отменить.
             </p>
+            {orderToDelete?.contract_date_start && (
+              <p className="gos-modal__warn" role="status">
+                В договоре уже прописана дата начала работ:{" "}
+                <strong>{formatContractDate(orderToDelete.contract_date_start)}</strong>.
+                Удаление из календаря эту дату в договоре не изменит.
+              </p>
+            )}
             <div className="gos-modal__actions">
               <button
                 type="button"
@@ -559,6 +594,11 @@ function OrderRow({ item, onDelete, onSelectDate, readOnly = false }) {
       <h3 className="gos-order__title">
         {item.name_order || "Без названия"}
       </h3>
+      {item.contract_date_start && (
+        <p className="gos-order__contract-date">
+          В договоре: {formatContractDate(item.contract_date_start)}
+        </p>
+      )}
       <div className="gos-order__meta">
         <span className="gos-order__meta-item">
           <FaClock aria-hidden="true" />

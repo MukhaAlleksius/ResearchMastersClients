@@ -27,6 +27,14 @@ const formatDateToRu = (dateString) => {
   }
 };
 
+const isEmptyWorkEndDate = (value) => {
+  const raw = String(value || "").trim();
+  return !raw || raw === "дата окончания";
+};
+
+const formatWorkEndDate = (value) =>
+  isEmptyWorkEndDate(value) ? "не указана" : formatDateToRu(value);
+
 const formatDateToInput = (ruDateString) => {
   if (!ruDateString || ruDateString === "дата окончания") return "";
   try {
@@ -84,7 +92,7 @@ export default function ContractAgreement({
     subject: "",
     price: "Не указана",
     workPeriodFrom: "",
-    workPeriodTo: "дата окончания",
+    workPeriodTo: "",
     currentCurrency: CONTRACT_CURRENCY,
     budgetType: "",
     customerSigned: false,
@@ -183,8 +191,9 @@ export default function ContractAgreement({
             addressWork: serverContract.address_work || "",
             workPeriodFrom:
               formatDateToRu(serverContract.date_start_work) || "",
-            workPeriodTo:
-              formatDateToRu(serverContract.date_end_work) || "дата окончания",
+            workPeriodTo: isEmptyWorkEndDate(serverContract.date_end_work)
+              ? ""
+              : formatDateToRu(serverContract.date_end_work) || "",
             price: budgetDisplay,
             currentCurrency: CONTRACT_CURRENCY,
             budgetType: serverContract.budget_type || "",
@@ -240,7 +249,9 @@ export default function ContractAgreement({
         subject: order?.description || order?.title || "",
         price: budgetDisplay,
         workPeriodFrom: formatDateToRu(offer?.start_time_work) || "",
-        workPeriodTo: formatDateToRu(order?.end_time_work) || "дата окончания",
+        workPeriodTo: isEmptyWorkEndDate(order?.end_time_work)
+          ? ""
+          : formatDateToRu(order?.end_time_work) || "",
         currentCurrency: CONTRACT_CURRENCY,
         budgetType,
         customerSigned: false,
@@ -353,7 +364,7 @@ export default function ContractAgreement({
     if (!order?.id) {
       setError("Нет ID заказа");
       setSuccessMessage("");
-      return;
+      return false;
     }
 
     setIsSaving(true);
@@ -371,27 +382,33 @@ export default function ContractAgreement({
         numericPrice = 9999999999;
         setContract((prev) => ({ ...prev, price: `9 999 999 999 ${CONTRACT_CURRENCY}` }));
         setError("Сумма ограничена 9 999 999 999");
-        return;
+        return false;
       }
 
       if (!estimateBased && numericPrice <= 0) {
         setError("Укажите сумму за работу");
-        return;
+        return false;
       }
 
       const startIso = toIsoDate(snapshot.workPeriodFrom);
-      const endIso = toIsoDate(snapshot.workPeriodTo);
-      if (startIso && !isNotBeforeToday(startIso)) {
+      const endIso = isEmptyWorkEndDate(snapshot.workPeriodTo)
+        ? ""
+        : toIsoDate(snapshot.workPeriodTo);
+      if (!startIso) {
+        setError("Укажите дату начала работ — она обязательна в договоре");
+        return false;
+      }
+      if (!isNotBeforeToday(startIso)) {
         setError("Дата начала работ не может быть раньше сегодняшней");
-        return;
+        return false;
       }
       if (endIso && !isNotBeforeToday(endIso)) {
         setError("Дата окончания работ не может быть раньше сегодняшней");
-        return;
+        return false;
       }
-      if (startIso && endIso && endIso < startIso) {
+      if (endIso && endIso < startIso) {
         setError("Дата окончания не может быть раньше даты начала");
-        return;
+        return false;
       }
 
       // Сметная цена: сумму в БД не сохраняем — она определяется сметой
@@ -402,13 +419,13 @@ export default function ContractAgreement({
         setError(
           "Не удалось определить исполнителя. Обновите страницу или выберите исполнителя в заказе.",
         );
-        return;
+        return false;
       }
 
       const resolvedCustomerId = Number(customer?.id ?? order?.customer_id);
       if (!Number.isFinite(resolvedCustomerId) || resolvedCustomerId <= 0) {
         setError("Не удалось определить заказчика");
-        return;
+        return false;
       }
 
       const contractDataToSave = {
@@ -418,8 +435,8 @@ export default function ContractAgreement({
         address_work: snapshot.addressWork || "",
         title_work: snapshot.title || "",
         name_work: snapshot.subject || "",
-        date_start_work: snapshot.workPeriodFrom,
-        date_end_work: snapshot.workPeriodTo || "",
+        date_start_work: startIso,
+        date_end_work: endIso ? snapshot.workPeriodTo : null,
         budget: budgetToSave,
         currency: CONTRACT_CURRENCY,
         budget_type: priceMode,
@@ -480,9 +497,11 @@ export default function ContractAgreement({
       setIsModalOpen(false);
       setSuccessMessage("Договор сохранён");
       await uiAlert("Договор сохранён");
+      return true;
     } catch (saveError) {
       console.error("Ошибка сохранения:", saveError);
       setError(`Ошибка сохранения: ${saveError.message}`);
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -641,7 +660,8 @@ export default function ContractAgreement({
   }
 
   const periodFrom = formatDateToRu(contract.workPeriodFrom);
-  const periodTo = formatDateToRu(contract.workPeriodTo);
+  const periodTo = formatWorkEndDate(contract.workPeriodTo);
+  const hasEndDate = !isEmptyWorkEndDate(contract.workPeriodTo);
 
   const editModal =
     isModalOpen &&
@@ -743,12 +763,21 @@ export default function ContractAgreement({
               </p>
             )}
 
+            <p className="oi-modal__hint">
+              Дата начала работ обязательна. Дату окончания можно не указывать —
+              её согласуют отдельно, если срок ещё неизвестен.
+            </p>
+
             <label className="oi-modal__field">
-              <span className="oi-modal__field-label">Срок выполнения с</span>
+              <span className="oi-modal__field-label">
+                Дата начала работ{" "}
+                <span className="oi-modal__req">обязательно</span>
+              </span>
               <input
                 type="date"
                 className="oi-modal__input"
                 min={todayIsoDate()}
+                required
                 value={formatDateToInput(contract.workPeriodFrom)}
                 onChange={(e) => {
                   const next = e.target.value;
@@ -759,7 +788,10 @@ export default function ContractAgreement({
             </label>
 
             <label className="oi-modal__field">
-              <span className="oi-modal__field-label">по</span>
+              <span className="oi-modal__field-label">
+                Дата окончания работ{" "}
+                <span className="oi-modal__optional">необязательно</span>
+              </span>
               <input
                 type="date"
                 className="oi-modal__input"
@@ -772,7 +804,10 @@ export default function ContractAgreement({
                   const minTo =
                     formatDateToInput(contract.workPeriodFrom) || todayIsoDate();
                   if (next && next < minTo) return;
-                  updateContractField("workPeriodTo", formatDateToRu(next));
+                  updateContractField(
+                    "workPeriodTo",
+                    next ? formatDateToRu(next) : "",
+                  );
                 }}
               />
             </label>
@@ -791,10 +826,7 @@ export default function ContractAgreement({
               type="button"
               className="oi-modal__btn-submit"
               disabled={isSaving}
-              onClick={async () => {
-                setIsModalOpen(false);
-                await saveContract();
-              }}
+              onClick={saveContract}
             >
               {isSaving ? "Сохранение…" : "Сохранить изменения"}
             </button>
@@ -927,8 +959,19 @@ export default function ContractAgreement({
               Сроки выполнения работ
             </h2>
             <p className="contract-doc__paragraph">
-              3.1. Работы должны быть выполнены в период с «
-              <strong>{periodFrom}</strong>» по «<strong>{periodTo}</strong>».
+              {hasEndDate ? (
+                <>
+                  3.1. Работы должны быть выполнены в период с «
+                  <strong>{periodFrom}</strong>» по «
+                  <strong>{periodTo}</strong>».
+                </>
+              ) : (
+                <>
+                  3.1. Дата начала работ — «<strong>{periodFrom || "не указана"}</strong>
+                  ». Дата окончания работ не установлена и согласовывается
+                  сторонами.
+                </>
+              )}
             </p>
             <p className="contract-doc__paragraph">
               3.2. Возможные изменения сроков согласовываются сторонами в

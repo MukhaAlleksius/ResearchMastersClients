@@ -988,6 +988,20 @@
   color: #64748b;
 }
 
+.oi-modal__req {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #b91c1c;
+}
+
+.oi-modal__optional {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #94a3b8;
+}
+
 .oi-modal__input,
 .oi-modal__select,
 .oi-modal__textarea {

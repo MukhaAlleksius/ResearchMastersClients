@@ -54,44 +54,58 @@ export const transitions = {
   fast: "all 0.15s ease-in-out",
 };
 
-export const getStatusColor = (status) => {
+export const STATUS_TONES = {
+  success: { variant: "success", bg: "#bbf7d0", text: "#14532d", border: "#16a34a", icon: "check" },
+  warning: { variant: "warning", bg: "#fde68a", text: "#78350f", border: "#d97706", icon: "progress" },
+  sky: { variant: "sky", bg: "#bae6fd", text: "#0c4a6e", border: "#0284c7", icon: "clock" },
+  indigo: { variant: "indigo", bg: "#c7d2fe", text: "#312e81", border: "#4f46e5", icon: "eye" },
+  slate: { variant: "slate", bg: "#e2e8f0", text: "#334155", border: "#64748b", icon: "edit" },
+  purple: { variant: "purple", bg: "#ddd6fe", text: "#5b21b6", border: "#7c3aed", icon: "search" },
+  orange: { variant: "orange", bg: "#fed7aa", text: "#7c2d12", border: "#ea580c", icon: "mail" },
+  cyan: { variant: "cyan", bg: "#a5f3fc", text: "#155e75", border: "#0891b2", icon: "settings" },
+  rose: { variant: "rose", bg: "#f5d0fe", text: "#86198f", border: "#c026d3", icon: "close" },
+  danger: { variant: "danger", bg: "#fecaca", text: "#7f1d1d", border: "#dc2626", icon: "alert" },
+  teal: { variant: "teal", bg: "#99f6e4", text: "#115e59", border: "#0d9488", icon: "grid" },
+  muted: { variant: "muted", bg: "#e5e7eb", text: "#374151", border: "#9ca3af", icon: "circle" },
+};
+
+export const getStatusTone = (status) => {
   const normalizedStatus = status?.toLowerCase() || "";
 
-  if (normalizedStatus.includes("выполнен")) {
-    return { bg: "#dcfce7", text: "#166534", border: "#22c55e", icon: "check" };
-  }
-  if (normalizedStatus.includes("процесс")) {
-    return { bg: "#fef3c7", text: "#92400e", border: "#f59e0b", icon: "progress" };
-  }
+  if (normalizedStatus.includes("процесс")) return STATUS_TONES.warning;
+  if (normalizedStatus.includes("выполнен")) return STATUS_TONES.success;
   if (
     normalizedStatus.includes("ожидают") ||
     normalizedStatus.includes("ожидает")
   ) {
-    return { bg: "#dbeafe", text: "#1e40af", border: "#3b82f6", icon: "clock" };
+    return STATUS_TONES.sky;
   }
-  if (normalizedStatus.includes("рассмотрен")) {
-    return { bg: "#e0e7ff", text: "#3730a3", border: "#6366f1", icon: "eye" };
-  }
-  if (
-    normalizedStatus.includes("поиск") ||
-    normalizedStatus.includes("предложен")
-  ) {
-    return { bg: "#f3e8ff", text: "#6b21a8", border: "#a855f7", icon: "search" };
-  }
+  if (normalizedStatus.includes("рассмотрен")) return STATUS_TONES.indigo;
   if (
     normalizedStatus.includes("не предложен") ||
     normalizedStatus.includes("чернов")
   ) {
-    return { bg: "#f1f5f9", text: "#475569", border: "#94a3b8", icon: "edit" };
+    return STATUS_TONES.slate;
   }
-  if (normalizedStatus.includes("самостоятель")) {
-    return { bg: "#ecfeff", text: "#0e7490", border: "#06b6d4", icon: "settings" };
-  }
-  if (normalizedStatus.includes("график")) {
-    return { bg: "#f0fdfa", text: "#0f766e", border: "#14b8a6", icon: "grid" };
-  }
+  if (normalizedStatus.includes("поиск")) return STATUS_TONES.purple;
+  if (normalizedStatus.includes("предложен")) return STATUS_TONES.orange;
+  if (normalizedStatus.includes("самостоятель")) return STATUS_TONES.cyan;
+  if (normalizedStatus.includes("отказано")) return STATUS_TONES.rose;
+  if (normalizedStatus.includes("отказ")) return STATUS_TONES.danger;
+  if (normalizedStatus.includes("график")) return STATUS_TONES.teal;
 
-  return { bg: "#f3f4f6", text: "#4b5563", border: "#d1d5db", icon: "circle" };
+  return STATUS_TONES.muted;
+};
+
+export const getStatusColor = (status) => {
+  const tone = getStatusTone(status);
+  return {
+    bg: tone.bg,
+    text: tone.text,
+    border: tone.border,
+    icon: tone.icon,
+    variant: tone.variant,
+  };
 };
 
 export const cardStyles = {
@@ -161,4 +175,6 @@ export default {
   buttonStyles,
   gradients,
   getStatusColor,
+  getStatusTone,
+  STATUS_TONES,
 };

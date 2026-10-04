@@ -2,6 +2,15 @@ import React, { useLayoutEffect } from "react";
 import "./work-detail-layout.css";
 import { WorkDetailTabIcon } from "../ProfileIcons.jsx";
 import { scrollPageToTop } from "../../../../utils/scrollPageToTop.js";
+import OptionalDocNotice from "./OptionalDocNotice.jsx";
+
+const OPTIONAL_NOTICE_KIND = {
+  estimateWorks: "estimate",
+  estimate: "estimate",
+  schedule: "schedule",
+  graphicWorks: "schedule",
+  customerExecutorContract: "contract",
+};
 
 /**
  * Общая оболочка страницы заказа/услуги:
@@ -32,10 +41,16 @@ export default function WorkDetailLayout({
   onDismissError,
   narrow = false,
   showPanelHead = true,
+  showOptionalNotice = true,
   rootClassName = "",
   children,
 }) {
   const activeTabMeta = tabs.find((t) => t.id === activeTab);
+  const optionalNoticeKind = OPTIONAL_NOTICE_KIND[activeTab];
+  const optionalNotice =
+    showOptionalNotice && optionalNoticeKind ? (
+      <OptionalDocNotice kind={optionalNoticeKind} tight />
+    ) : null;
 
   useLayoutEffect(() => {
     scrollPageToTop();
@@ -171,10 +186,12 @@ export default function WorkDetailLayout({
                 {activeTabMeta.description}
               </p>
             )}
+            {optionalNotice}
           </div>
         )}
 
         <div className="work-detail__panel-body">
+          {!showPanelHead && optionalNotice}
           {showContent ? children : null}
         </div>
       </div>

@@ -5,13 +5,15 @@ import { StatusFilterIcon } from "../ProfileIcons.jsx";
 const TAB_VARIANTS = {
   completed: "success",
   inProgress: "warning",
-  awaiting: "info",
-  considerationCustomer: "purple",
-  offersCustomers: "indigo",
-  myselfExecutor: "slate",
+  awaiting: "sky",
+  considerationCustomer: "indigo",
+  offersCustomers: "orange",
+  myselfExecutor: "cyan",
   graphicOrders: "teal",
-  researchExecutor: "info",
-  waitOfferExecutors: "muted",
+  researchExecutor: "purple",
+  waitOfferExecutors: "slate",
+  refusedByCustomer: "rose",
+  refusedFromOrder: "danger",
   all: "primary",
 };
 

@@ -32,7 +32,6 @@ class Order(Base):
     town = Column(String(100))
     location = Column(String(200))
     deadline = Column(String(100))
-    insurance_required = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   apiFetch, // fetch с базовым URL и обработкой auth
   buildApiUrl, // собрать полный URL эндпоинта
+  consumeAccountBlockedMessage, // сообщение о блокировке после выхода из сессии
   persistAuthSession, // сохранить access/refresh токены в storage
   readApiError, // вытащить текст ошибки из ответа API
 } from "../../../utils/api.js";
@@ -71,12 +72,16 @@ function FieldRow({ label, htmlFor, hint, children }) {
  * - isOpen — показывать форму входа
  * - onClose — закрыть модалку
  */
-export default function LoginModal({ onLogin, isOpen, onClose }) {
+export default function LoginModal({ onLogin, isOpen, onClose, notice = "" }) {
   const [email, setEmail] = useState(""); // логин (email)
   const [password, setPassword] = useState(""); // пароль
   const [register, setRegister] = useState(false); // true → показать RegisterModal вместо логина
+  const [forgot, setForgot] = useState(false); // форма «забыли пароль»
   const [error, setError] = useState(""); // текст ошибки под заголовком
+  const [info, setInfo] = useState(""); // подсказка после регистрации / письма
   const [loading, setLoading] = useState(false); // идёт запрос /token
+  const [unverified, setUnverified] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
 
   const [googleGeoOpen, setGoogleGeoOpen] = useState(false); // true → форма географии после Google
   const [googleIdToken, setGoogleIdToken] = useState(""); // credential (JWT) от Google
@@ -99,6 +104,17 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
   useEffect(() => {
     if (isOpen) rememberReturnPath();
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const blockedMessage = consumeAccountBlockedMessage();
+    if (blockedMessage) setError(blockedMessage);
+    if (notice) {
+      setInfo(notice);
+      setForgot(false);
+      setUnverified(false);
+    }
+  }, [isOpen, notice]);
 
   /**
    * Декодирует base64url-строку (часть JWT) в обычный текст.
@@ -137,6 +153,9 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
     setGoogleIdToken(""); // забыть Google token
     setGoogleProfile(null); // забыть превью профиля
     setRegister(false); // закрыть RegisterModal, если был открыт
+    setForgot(false);
+    setInfo("");
+    setUnverified(false);
     googleButtonRenderedRef.current = false; // разрешить снова вставить кнопку Google
     if (googleButtonContainerRef.current) {
       googleButtonContainerRef.current.innerHTML = ""; // очистить DOM кнопки GIS
@@ -160,7 +179,7 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
    */
   useEffect(() => {
     // Нечего инициализировать: модалка закрыта / другая форма / нет client id
-    if (!isOpen || register || googleGeoOpen || !GOOGLE_CLIENT_ID) return;
+    if (!isOpen || register || googleGeoOpen || forgot || !GOOGLE_CLIENT_ID) return;
 
     let timerId = null; // id setInterval для очистки
 
@@ -248,7 +267,7 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
       // Логин размонтируется при register/geo — иначе кнопка Google не появится снова
       googleButtonRenderedRef.current = false;
     };
-  }, [isOpen, register, googleGeoOpen, GOOGLE_CLIENT_ID]);
+  }, [isOpen, register, googleGeoOpen, forgot, GOOGLE_CLIENT_ID]);
 
   // Ничего не рендерим, если закрыты и логин, и register, и geo
   if (!isOpen && !register && !googleGeoOpen) return null;
@@ -259,6 +278,7 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
   const handleUserEnter = async (e) => {
     e.preventDefault(); // не перезагружать страницу
     setError("");
+    setUnverified(false);
 
     if (!email || !password) {
       setError("Введите логин и пароль");
@@ -275,6 +295,14 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
 
       if (!response.ok) {
         const detail = await readApiError(response); // detail из FastAPI
+        if (
+          response.status === 403 &&
+          String(detail || "").includes("Подтвердите email")
+        ) {
+          setUnverified(true);
+          setError(detail);
+          return;
+        }
         throw new Error(detail || "Неверный логин или пароль");
       }
 
@@ -288,6 +316,66 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
     }
   };
 
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!email) {
+      setError("Введите email");
+      return;
+    }
+    try {
+      setLoading(true);
+      const response = await apiFetch(buildApiUrl("/forgot-password"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!response.ok) {
+        const detail = await readApiError(response);
+        throw new Error(detail || "Не удалось отправить письмо");
+      }
+      const data = await response.json().catch(() => ({}));
+      setInfo(
+        data.message ||
+          "Если аккаунт с таким email есть, мы отправили письмо.",
+      );
+      setForgot(false);
+    } catch (err) {
+      setError(err.message || "Не удалось отправить письмо");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setError("Введите email");
+      return;
+    }
+    setError("");
+    try {
+      setResendLoading(true);
+      const response = await apiFetch(buildApiUrl("/resend-verification"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!response.ok) {
+        const detail = await readApiError(response);
+        throw new Error(detail || "Не удалось отправить письмо");
+      }
+      const data = await response.json().catch(() => ({}));
+      setInfo(
+        data.message ||
+          "Если аккаунт ещё не подтверждён, мы отправили письмо.",
+      );
+    } catch (err) {
+      setError(err.message || "Не удалось отправить письмо");
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   /** Переключить на модалку обычной регистрации. */
   const openRegisterModal = () => {
     setRegister(true);
@@ -297,6 +385,19 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
   const closeRegisterModal = () => {
     googleButtonRenderedRef.current = false; // перерисовать кнопку Google на форме входа
     setRegister(false);
+  };
+
+  const handleRegistered = ({ email: registeredEmail, emailVerificationRequired } = {}) => {
+    closeRegisterModal();
+    setForgot(false);
+    setUnverified(Boolean(emailVerificationRequired));
+    setError("");
+    if (registeredEmail) setEmail(registeredEmail);
+    setInfo(
+      emailVerificationRequired
+        ? "Аккаунт создан. Проверьте почту и перейдите по ссылке, затем войдите."
+        : "Регистрация успешна. Теперь войдите в аккаунт.",
+    );
   };
 
   return (
@@ -321,10 +422,12 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
               <header className="reg-modal__hero">
                 <span className="reg-modal__badge">Fixer</span>
                 <h2 id="loginModalTitle" className="reg-modal__title">
-                  Вход в аккаунт
+                  {forgot ? "Сброс пароля" : "Вход в аккаунт"}
                 </h2>
                 <p className="reg-modal__subtitle">
-                  Войдите, чтобы размещать заказы и управлять услугами
+                  {forgot
+                    ? "Укажите email — отправим ссылку для нового пароля"
+                    : "Войдите, чтобы размещать заказы и управлять услугами"}
                 </p>
                 <button
                   type="button"
@@ -339,7 +442,7 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
 
               <form
                 className="reg-modal__form"
-                onSubmit={handleUserEnter}
+                onSubmit={forgot ? handleForgotSubmit : handleUserEnter}
                 noValidate
                 autoComplete="off"
               >
@@ -361,10 +464,27 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
                       readOnly
                     />
                   </div>
+                  {info && (
+                    <p className="reg-modal__info" role="status">
+                      {info}
+                    </p>
+                  )}
                   {error && (
                     <p className="reg-modal__error" role="alert">
                       {error}
                     </p>
+                  )}
+                  {unverified && !forgot && (
+                    <button
+                      type="button"
+                      className="login-modal__resend"
+                      onClick={handleResendVerification}
+                      disabled={resendLoading || loading}
+                    >
+                      {resendLoading
+                        ? "Отправляем письмо…"
+                        : "Отправить письмо ещё раз"}
+                    </button>
                   )}
 
                   <div className="reg-modal__fields">
@@ -388,6 +508,7 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
                       />
                     </FieldRow>
 
+                    {!forgot && (
                     <FieldRow label="Пароль *" htmlFor="login-password">
                       <PasswordField
                         id="login-password"
@@ -397,16 +518,37 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
                         onChange={(e) => setPassword(e.target.value)}
                         autoComplete="new-password"
                         disabled={loading}
-                        required
+                        required={!forgot}
                       />
                     </FieldRow>
+                    )}
                   </div>
 
                   <div className="login-modal__forgot">
-                    {/* Пока без обработчика — заглушка UI */}
-                    <button type="button" className="login-modal__forgot-btn">
-                      Забыли пароль?
-                    </button>
+                    {forgot ? (
+                      <button
+                        type="button"
+                        className="login-modal__forgot-btn"
+                        onClick={() => {
+                          setForgot(false);
+                          setError("");
+                        }}
+                      >
+                        Вернуться ко входу
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="login-modal__forgot-btn"
+                        onClick={() => {
+                          setForgot(true);
+                          setError("");
+                          setUnverified(false);
+                        }}
+                      >
+                        Забыли пароль?
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -416,8 +558,9 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
                     className="reg-modal__submit"
                     disabled={loading}
                   >
-                    {loading ? "Входим…" : "Войти"}
+                    {forgot ? (loading ? "Отправляем…" : "Отправить письмо") : loading ? "Входим…" : "Войти"}
                   </button>
+                  {!forgot && (
                   <button
                     type="button"
                     className="login-modal__secondary"
@@ -426,10 +569,11 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
                   >
                     Регистрация
                   </button>
+                  )}
                 </footer>
 
                 {/* Кнопка Google только если задан REACT_APP_GOOGLE_CLIENT_ID */}
-                {GOOGLE_CLIENT_ID && (
+                {!forgot && GOOGLE_CLIENT_ID && (
                   <div className="login-modal__google">
                     <div className="login-modal__google-divider">или</div>
                     {/* Пустой div: GIS сам вставит iframe/кнопку сюда */}
@@ -447,7 +591,11 @@ export default function LoginModal({ onLogin, isOpen, onClose }) {
 
       {/* Обычная регистрация поверх / вместо логина */}
       {register && (
-        <RegisterModal isOpen={register} onClose={closeRegisterModal} />
+        <RegisterModal
+          isOpen={register}
+          onClose={closeRegisterModal}
+          onRegistered={handleRegistered}
+        />
       )}
 
       {/* После Google: добор страны/региона/города + POST /auth/google/register */}

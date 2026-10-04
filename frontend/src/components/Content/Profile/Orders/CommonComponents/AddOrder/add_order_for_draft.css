@@ -104,6 +104,13 @@
   color: #dc2626;
 }
 
+.aod-field-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #94a3b8;
+}
+
 .aod-budget-hint {
   margin: 0.75rem 0 0;
   padding: 0.75rem 0.875rem;
@@ -182,45 +189,6 @@
   .aod-grid-3 {
     grid-template-columns: repeat(3, 1fr);
   }
-}
-
-.aod-checkbox {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
-  padding: 0.875rem 1rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.aod-checkbox:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-.aod-checkbox input {
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  accent-color: #2563eb;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.aod-checkbox__text {
-  font-size: 0.9375rem;
-  color: #334155;
-  line-height: 1.4;
-}
-
-.aod-checkbox__hint {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.75rem;
-  color: #94a3b8;
 }
 
 .aod-actions {

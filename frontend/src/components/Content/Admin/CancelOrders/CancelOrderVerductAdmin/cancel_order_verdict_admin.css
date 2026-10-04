@@ -272,6 +272,7 @@
 
 .btn-secondary,
 .btn-primary,
+.btn-danger,
 .btn-back {
   display: inline-flex;
   align-items: center;
@@ -308,8 +309,19 @@
   background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
 }
 
+.btn-danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
 .btn-primary:disabled,
-.btn-secondary:disabled {
+.btn-secondary:disabled,
+.btn-danger:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -435,6 +447,7 @@
 
   .btn-secondary,
   .btn-primary,
+  .btn-danger,
   .btn-back {
     width: 100%;
     justify-content: center;

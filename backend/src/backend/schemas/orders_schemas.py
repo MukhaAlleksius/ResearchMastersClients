@@ -72,9 +72,6 @@ class OrderCreateSchema(BaseModel):
     town: str = Field(..., max_length=100, description="Город")
     location: Optional[str] = Field(None, max_length=200, description="Точный адрес")
     deadline: str = Field(..., max_length=100, description="Срок выполнения")
-    insurance_required: Optional[bool] = Field(
-        default=False, description="Требуется страховка"
-    )
 
     @field_validator("deadline")
     @classmethod
@@ -370,7 +367,7 @@ class NotificationAcknowledgeSchema(BaseModel):
 
 
 class NotificationAcknowledgeResponseSchema(BaseModel):
-    deleted: bool = True
+    deleted: bool = False
     notification_id: int
 
 
@@ -481,13 +478,42 @@ class ExecutorDecisionSchema(BaseModel):
 #         from_attributes = True  # SQLAlchemy 2.0 (был orm_mode)
 
 
-# получение информации об отмене заказа заказчиком администратором для выведения в список
+# получение информации об отмене заказа администратором для выведения в список
 class CancelOrderCustomerForAdminRead(BaseModel):
     id: int
     order_id: int
     order_name: str
     customer_name: str
     executor_name: str
+    source: str = "customer"
+    status: Optional[str] = None
+    customer_id: Optional[int] = None
+    executor_id: Optional[int] = None
+    reason_type: Optional[str] = None
+    reason_text: Optional[str] = None
+    opponent_comment: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+class CancelDisputeRead(BaseModel):
+    id: int
+    source: str
+    order_id: int
+    customer_id: int
+    executor_id: Optional[int] = None
+    status: Optional[str] = None
+    reason_type: Optional[str] = None
+    reason_text: Optional[str] = None
+    executor_comment: Optional[str] = None
+    customer_comment: Optional[str] = None
+    refund_amount_customer: Optional[Decimal] = None
+    refund_amount_executor: Optional[Decimal] = None
+    admin_comment: Optional[str] = None
+    created_at: Optional[datetime] = None
+    order_title: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 
 class GraphicOrderMasterCreate(BaseModel):
@@ -509,6 +535,7 @@ class GraphicOrderMasterRead(BaseModel):
     name_order: Optional[str] = None
     address: Optional[str] = None
     date_start: Optional[datetime]
+    contract_date_start: Optional[date] = None
 
 
 class OrderDeleteResponseSchema(BaseModel):
@@ -520,6 +547,13 @@ class OrderDeleteResponseSchema(BaseModel):
 class OrderCancellationWithdrawResponseSchema(BaseModel):
     order_id: int
     withdrawn: bool = True
+
+
+class CancelDisputeDeleteResponseSchema(BaseModel):
+    deleted: bool = True
+    id: int
+    order_id: int
+    source: str
 
 
 class OrderClearAfterExecutorRefusalResponseSchema(BaseModel):

@@ -2,6 +2,7 @@
   width: 100%;
   min-height: 100vh;
   padding: 2rem 1rem 3rem;
+  overflow-x: clip;
   background: var(--app-page-bg, #f1f5f9);
 }
 
@@ -142,6 +143,8 @@
   display: grid;
   gap: 1rem;
   align-items: start;
+  min-width: 0;
+  width: 100%;
 }
 
 @media (min-width: 768px) {
@@ -155,44 +158,13 @@
   width: 100%;
 }
 
-.order-form-wrapper .order-geo-select__control {
-  min-height: 42px !important;
-  height: 42px !important;
-}
-
-.order-form-wrapper .order-geo-select__value-container {
-  flex-wrap: nowrap !important;
-  overflow: hidden !important;
-  align-items: center !important;
-  height: 40px !important;
-}
-
-.order-form-wrapper .order-geo-select__single-value {
-  margin: 0 !important;
-  max-width: 100% !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-.order-form-wrapper .order-geo-select__placeholder {
-  white-space: nowrap !important;
-}
-
-.order-form-wrapper .order-geo-select__input-container {
-  margin: 0 !important;
-  padding: 0 !important;
-  grid-template-columns: 0 min-content !important;
-}
-
-/* Neutralize order.css input[type=text] rules inside any react-select control */
+/* react-select: не давать order.css (width:auto + size=20) раздувать
+   поле поиска и сдвигать подсказку — как в черновике заказа */
 .order-form-wrapper [class*="-control"] input[type="text"],
-.order-form-wrapper [class*="-Input"] input,
-.order-form-wrapper .order-geo-select__control input,
-.order-form-wrapper .order-geo-select__input,
-.order-form-wrapper .order-geo-select__input input {
-  width: auto !important;
-  min-width: 0 !important;
+.order-form-wrapper [class*="-Control"] input[type="text"],
+.order-form-wrapper [class*="__control"] input[type="text"] {
+  width: 100% !important;
+  min-width: 2px !important;
   max-width: 100% !important;
   height: auto !important;
   min-height: 0 !important;
@@ -207,7 +179,8 @@
 }
 
 .order-form-wrapper [class*="-control"] input[type="text"]:focus,
-.order-form-wrapper .order-geo-select__control input:focus {
+.order-form-wrapper [class*="-Control"] input[type="text"]:focus,
+.order-form-wrapper [class*="__control"] input[type="text"]:focus {
   outline: none !important;
   border: none !important;
   box-shadow: none !important;
@@ -240,21 +213,19 @@
   text-align: center;
 }
 
-.order-form-wrapper .checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9375rem;
-  color: #334155;
-  cursor: pointer;
-}
-
 .order-form-wrapper .profile-settings__label {
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: #64748b;
+}
+
+.order-form-wrapper .field-note {
+  margin: 0.375rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #94a3b8;
 }
 
 .order-form-wrapper .budget-type-hint {

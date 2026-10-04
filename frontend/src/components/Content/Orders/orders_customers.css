@@ -298,21 +298,12 @@
   border-radius: 8px;
 }
 
-.order-card__chip--insurance {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-}
-
 .order-card__chip-label {
   font-size: 0.625rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #94a3b8;
-}
-
-.order-card__chip--insurance .order-card__chip-label {
-  color: #16a34a;
 }
 
 .order-card__chip-value {
@@ -323,10 +314,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.order-card__chip--insurance .order-card__chip-value {
-  color: #15803d;
 }
 
 .order-card__chip--responses {

@@ -456,6 +456,17 @@
   border-radius: 10px;
 }
 
+.reg-modal__info {
+  margin: 0 0 0.65rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #1e40af;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+}
+
 .reg-modal__submit {
   width: 100%;
   padding: 0.65rem 1rem;

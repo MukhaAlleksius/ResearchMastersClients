@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import "./footer.css";
 import { LEGAL, LEGAL_LINKS } from "../Content/Legal/legalConfig";
+import logoSrc from "../../assets/logo.png";
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -12,7 +13,7 @@ export default function Footer() {
         <div className="site-footer__content">
           <Link to="/home" className="site-footer__brand">
             <img
-              src="https://cdn1.genspark.ai/user-upload-image/gpt_image_generated/bc223a8c-c500-4613-9853-0a21cc7f6196"
+              src={logoSrc}
               alt={LEGAL.siteName}
               className="site-footer__logo"
             />

@@ -26,6 +26,7 @@ from cruds.notifications_crud import (  # Уведомления и статус
     notify_customer_on_customer_status_change,  # Статус
     notify_executor_on_status_change,  # Статус
     notify_order_event_safe,  # Продолжение выражения
+    notify_cancel_admin_verdict,
 )  # Закрытие вызова/выражения
 from cruds.users_crud import (
     is_specialization_user,
@@ -256,7 +257,7 @@ async def _sync_customer_status_for_executor_progress(  # Синхрон ста�
     await db.flush()  # В БД
 
 
-async def _release_order_to_search(  # Вернуть заказ в поиск исполнителя
+async def _release_order_to_search(  # Снять исполнителя и перевести заказ в отказ
     db: AsyncSession,  # Продолжение выражения
     *,  # Продолжение выражения
     order_id: int,  # ID заказа
@@ -274,7 +275,7 @@ async def _release_order_to_search(  # Вернуть заказ в поиск �
     if not customer_status_row:  # Нет статуса
         return  # Выход из функции
 
-    customer_status_row.status = SEARCH_EXECUTOR_STATUS  # В поиск
+    customer_status_row.status = executor_status  # Отказ / отказано — не в поиск
     await db.flush()  # Сохраняем изменения в сессии
 
     result = await db.execute(  # Статус исполнителя
@@ -314,7 +315,7 @@ async def _release_order_to_search(  # Вернуть заказ в поиск �
         order_id,
         customer_id=customer_id,
         executor_id=executor_id,
-        preserve_cancellations=False,
+        preserve_cancellations=True,
     )
     await clear_cancel_notifications_for_order(
         db,
@@ -337,7 +338,7 @@ async def apply_in_progress_customer_cancel_agreed(  # Согласие испо
     customer_id: int,  # ID заказчика
     executor_id: int,  # ID исполнителя
 ) -> bool:  # Закрытие вызова/выражения
-    """После согласия исполнителя на отмену заказчиком: заказ → в поиск, услуга → отказано заказчиком."""
+    """После согласия исполнителя: заказ и услуга → «Отказано заказчиком»."""
     result = await db.execute(  # Статус заказчика
         select(StatusOrderCustomer).where(  # SQL SELECT
             StatusOrderCustomer.order_id == order_id,  # ID заказа
@@ -370,7 +371,7 @@ async def apply_executor_cancel_agreed(  # Согласие заказчика �
     customer_id: int,  # ID заказчика
     executor_id: int,  # ID исполнителя
 ) -> bool:  # Закрытие вызова/выражения
-    """После согласия заказчика на отказ исполнителя: заказ → в поиск, услуга → отказ от заказа."""
+    """После согласия заказчика: заказ и услуга → «Отказ от заказа»."""
     result = await db.execute(  # Статус заказчика
         select(StatusOrderCustomer).where(  # SQL SELECT
             StatusOrderCustomer.order_id == order_id,  # ID заказа
@@ -438,7 +439,6 @@ async def add_order_user(
             town=order_schema.town,  # Город
             location=order_schema.location,  # Адрес/локация
             deadline=order_schema.deadline,  # Срок
-            insurance_required=order_schema.insurance_required,  # Страхование
         )  # Закрытие вызова/выражения
 
         db.add(order)  # В сессию
@@ -485,6 +485,12 @@ async def add_status_order_customer(  # Статус заказа для зак�
 
             existing.status = new_status  # Новый статус
             await db.flush()  # Сохраняем изменения в сессии
+            if new_status == SEARCH_EXECUTOR_STATUS:
+                await db.execute(
+                    update(Order)
+                    .where(Order.id == status_order_customer_schema.order_id)
+                    .values(updated_at=datetime.utcnow())
+                )
             await notify_customer_on_customer_status_change(  # Заказ выполнен → исполнителю
                 db=db,  # Сессия БД
                 customer_id=status_order_customer_schema.customer_id,  # ID заказчика
@@ -624,6 +630,17 @@ async def add_status_order_executor(  # Статус заказа для исп�
                 previous_status=previous_status,  # Статус
                 new_status=status_order_executor_schema.status,  # Статус
             )  # Закрытие вызова/выражения
+            if AWAITING_EXECUTION_STATUS not in (
+                status_order_executor_schema.status or ""
+            ):
+                await db.execute(
+                    delete(GraphicOrderMaster).where(
+                        GraphicOrderMaster.user_id
+                        == status_order_executor_schema.executor_id,
+                        GraphicOrderMaster.order_id
+                        == status_order_executor_schema.order_id,
+                    )
+                )
             await db.commit()  # Фиксируем транзакцию
             await db.refresh(existing)  # Обновляем объект из БД
             return existing  # Возвращаем результат
@@ -656,6 +673,17 @@ async def add_status_order_executor(  # Статус заказа для исп�
             previous_status=None,  # Статус
             new_status=status_order_executor_schema.status,  # Статус
         )  # Закрытие вызова/выражения
+        if AWAITING_EXECUTION_STATUS not in (
+            status_order_executor_schema.status or ""
+        ):
+            await db.execute(
+                delete(GraphicOrderMaster).where(
+                    GraphicOrderMaster.user_id
+                    == status_order_executor_schema.executor_id,
+                    GraphicOrderMaster.order_id
+                    == status_order_executor_schema.order_id,
+                )
+            )
         await db.commit()  # Фиксируем транзакцию
         await db.refresh(status_order_executor)  # Обновляем объект из БД
 
@@ -741,6 +769,14 @@ async def add_order_customer_cancel(  # Запрос отмены заказчи
             customer_id=customer_order_cancel_schema.customer_id,  # ID заказчика
             executor_id=customer_order_cancel_schema.executor_id,  # ID исполнителя
         )  # Закрытие вызова/выражения
+        if notification_type == ORDER_REFUSED_NOTIFICATION_TYPE:
+            customer_order_cancel.status = "agree"
+            await apply_in_progress_customer_cancel_agreed(
+                db,
+                order_id=customer_order_cancel_schema.order_id,
+                customer_id=customer_order_cancel_schema.customer_id,
+                executor_id=customer_order_cancel_schema.executor_id,
+            )
         await notify_order_event_safe(  # Уведомить исполнителя
             db,  # Сессия БД
             order_id=customer_order_cancel_schema.order_id,  # ID заказа
@@ -994,6 +1030,11 @@ async def add_verdict_admin_cancel_customer(  # Решение админа по
 
         if cancellation is None:  # Не найдена
             raise HTTPException(404, "Отмена не найдена")  # Выбрасываем HTTP-ошибку
+        if (cancellation.status or "").strip() == "resolved":
+            raise HTTPException(
+                status_code=409,
+                detail="Решение по этому отказу уже вынесено и не может быть изменено",
+            )
 
         print(  # Отладка до сохранения
             f"🔍 Найдена отмена #{cancellation.id}, "  # Форматированная строка
@@ -1022,6 +1063,21 @@ async def add_verdict_admin_cancel_customer(  # Решение админа по
         cancellation.status = "resolved"  # Закрыта
         cancellation.resolved_at = func.now()  # Время решения
 
+        await apply_in_progress_customer_cancel_agreed(
+            db,
+            order_id=cancellation.order_id,
+            customer_id=cancellation.customer_id,
+            executor_id=cancellation.executor_id,
+        )
+
+        await notify_cancel_admin_verdict(
+            db,
+            order_id=cancellation.order_id,
+            customer_id=cancellation.customer_id,
+            executor_id=cancellation.executor_id,
+            comment=cancellation.admin_comment,
+        )
+
         await db.flush()  # Сохраняем изменения в сессии
         await db.commit()  # Фиксируем транзакцию
 
@@ -1048,11 +1104,93 @@ async def add_verdict_admin_cancel_customer(  # Решение админа по
         raise HTTPException(status_code=500, detail=str(e))  # Выбрасываем HTTP-ошибку
 
 
+async def add_verdict_admin_cancel_executor(
+    db: AsyncSession,
+    schema: CustomerOrderCancellationCreateSchema,
+) -> Optional[ExecutorOrderCancellation]:
+    try:
+        stmt = select(ExecutorOrderCancellation).where(
+            and_(
+                ExecutorOrderCancellation.order_id == schema.order_id,
+                ExecutorOrderCancellation.customer_id == schema.customer_id,
+                ExecutorOrderCancellation.executor_id == schema.executor_id,
+            )
+        )
+        result = await db.execute(stmt)
+        cancellation = result.scalar_one_or_none()
+
+        if cancellation is None:
+            raise HTTPException(404, "Отмена не найдена")
+        if (cancellation.status or "").strip() == "resolved":
+            raise HTTPException(
+                status_code=409,
+                detail="Решение по этому отказу уже вынесено и не может быть изменено",
+            )
+
+        if schema.refund_amount_customer is not None:
+            cancellation.refund_amount_customer = Decimal(
+                schema.refund_amount_customer
+            )
+        if schema.refund_amount_executor is not None:
+            cancellation.refund_amount_executor = Decimal(
+                schema.refund_amount_executor
+            )
+        if schema.admin_comment is not None:
+            cancellation.admin_comment = schema.admin_comment
+        cancellation.status = "resolved"
+        cancellation.resolved_at = func.now()
+
+        await apply_executor_cancel_agreed(
+            db,
+            order_id=cancellation.order_id,
+            customer_id=cancellation.customer_id,
+            executor_id=cancellation.executor_id,
+        )
+
+        await notify_cancel_admin_verdict(
+            db,
+            order_id=cancellation.order_id,
+            customer_id=cancellation.customer_id,
+            executor_id=cancellation.executor_id,
+            comment=cancellation.admin_comment,
+        )
+
+        await db.flush()
+        await db.commit()
+        await db.refresh(cancellation)
+        return cancellation
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error("add_verdict_admin_cancel_executor error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 async def add_date_start_execute_order(  # Дата начала работ по заказу
     db: AsyncSession,
     date_start_execute_order_schema: GraphicOrderMasterCreate,  # График работ
 ) -> GraphicOrderMaster:  # Закрытие вызова/выражения
     try:  # Начало блока try
+        status_result = await db.execute(
+            select(StatusOrderExecutor.status)
+            .where(
+                StatusOrderExecutor.order_id
+                == date_start_execute_order_schema.order_id,
+                StatusOrderExecutor.executor_id
+                == date_start_execute_order_schema.user_id,
+            )
+            .order_by(StatusOrderExecutor.id.desc())
+            .limit(1)
+        )
+        executor_status = status_result.scalar_one_or_none() or ""
+        if AWAITING_EXECUTION_STATUS not in executor_status:
+            raise HTTPException(
+                status_code=400,
+                detail="В календарь можно добавить только заказ в статусе «Ожидают выполнения»",
+            )
+
         result = await db.execute(  # Существующая запись графика
             select(GraphicOrderMaster).where(  # SQL SELECT
                 and_(  # Логическое И

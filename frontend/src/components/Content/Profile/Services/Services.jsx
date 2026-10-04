@@ -68,8 +68,10 @@ const statusTabs = [
 const graphicTabHint =
   "Общий график ваших заказов: сроки, этапы и загрузка по работам в одном месте.";
 
-const allTabHint =
-  "Все ваши услуги в одном списке. Выберите статус слева, чтобы отфильтровать заказы по этапу.";
+const allTabHint = [
+  "Здесь собраны ваши услуги — работы, которые вы выполняете для заказчиков.",
+  "Все ваши услуги в одном списке. Выберите статус слева, чтобы отфильтровать заказы по этапу.",
+];
 
 const isSelfExecutionService = (service) =>
   (service?.status_service_executor || "").includes("Самостоятельное выполнение");
@@ -393,7 +395,14 @@ export default function Services() {
           )}
           {activeTabMeta?.hint && !isGraphicTab && (
             <div className="list-hint" role="note">
-              <p className="list-hint__text">{activeTabMeta.hint}</p>
+              {(Array.isArray(activeTabMeta.hint)
+                ? activeTabMeta.hint
+                : [activeTabMeta.hint]
+              ).map((paragraph) => (
+                <p key={paragraph} className="list-hint__text">
+                  {paragraph}
+                </p>
+              ))}
             </div>
           )}
           {isGraphicTab ? (

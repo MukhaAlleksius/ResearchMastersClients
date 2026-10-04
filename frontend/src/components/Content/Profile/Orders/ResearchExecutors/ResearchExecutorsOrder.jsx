@@ -259,6 +259,7 @@ export default function ResearchExecutor({ order, onBack, onOrderUpdated, onOrde
       rootClassName="research-executor"
       title={currentOrder?.title || "Поиск исполнителя"}
       backLabel="Назад к заказам"
+      showOptionalNotice={false}
       onBack={onBack || (() => navigate(-1))}
       headerExtra={
         <button

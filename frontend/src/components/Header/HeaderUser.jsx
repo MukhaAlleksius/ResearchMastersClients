@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import NotificationsBell from "./NotificationsBell";
+import WarningBanner from "./WarningBanner";
 import { apiFetch, buildApiUrl } from "../../utils/api.js";
 import {
   isExecutorsNavActive,
   isOrdersNavActive,
   isProfileCabinetPath,
 } from "../../utils/navActive.js";
+import logoSrc from "../../assets/logo.png";
 import "./header.css";
 
 const navItems = [
@@ -100,7 +102,7 @@ export default function HeaderUser({ onLogout }) {
       <div className="site-header__inner">
         <Link to="/home" className="site-header__brand" onClick={closeMenu}>
           <img
-            src="https://cdn1.genspark.ai/user-upload-image/gpt_image_generated/bc223a8c-c500-4613-9853-0a21cc7f6196"
+            src={logoSrc}
             alt="Fixer"
             className="site-header__logo"
           />
@@ -172,6 +174,7 @@ export default function HeaderUser({ onLogout }) {
           Выход
         </button>
       </nav>
+      <WarningBanner />
     </header>
   );
 }

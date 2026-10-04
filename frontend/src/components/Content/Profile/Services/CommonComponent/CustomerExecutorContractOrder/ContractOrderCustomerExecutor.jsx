@@ -8,7 +8,7 @@ import {
 
 import "./contract_order_executor.css";
 
-const formatDateToRu = (dateString) => {
+function formatDateToRu(dateString) {
   if (!dateString || dateString === "дата окончания") return dateString;
   try {
     const date = new Date(dateString);
@@ -20,7 +20,16 @@ const formatDateToRu = (dateString) => {
   } catch {
     return dateString;
   }
-};
+}
+
+function isEmptyWorkEndDate(value) {
+  const raw = String(value || "").trim();
+  return !raw || raw === "дата окончания";
+}
+
+function formatWorkEndDate(value) {
+  return isEmptyWorkEndDate(value) ? "не указана" : formatDateToRu(value);
+}
 
 export default function ContractExecutor({
   order,
@@ -120,7 +129,8 @@ export default function ContractExecutor({
   }
 
   const periodFrom = formatDateToRu(contract.workPeriodFrom);
-  const periodTo = formatDateToRu(contract.workPeriodTo);
+  const periodTo = formatWorkEndDate(contract.workPeriodTo);
+  const hasEndDate = !isEmptyWorkEndDate(contract.workPeriodTo);
 
   return (
     <div className="contract-doc">
@@ -239,8 +249,19 @@ export default function ContractExecutor({
               Сроки выполнения работ
             </h2>
             <p className="contract-doc__paragraph">
-              3.1. Работы должны быть выполнены в период с «
-              <strong>{periodFrom}</strong>» по «<strong>{periodTo}</strong>».
+              {hasEndDate ? (
+                <>
+                  3.1. Работы должны быть выполнены в период с «
+                  <strong>{periodFrom}</strong>» по «
+                  <strong>{periodTo}</strong>».
+                </>
+              ) : (
+                <>
+                  3.1. Дата начала работ — «
+                  <strong>{periodFrom || "не указана"}</strong>». Дата окончания
+                  работ не установлена и согласовывается сторонами.
+                </>
+              )}
             </p>
             <p className="contract-doc__paragraph">
               3.2. Возможные изменения сроков согласовываются сторонами в

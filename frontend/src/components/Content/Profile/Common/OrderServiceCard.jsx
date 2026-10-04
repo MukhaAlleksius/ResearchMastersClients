@@ -20,18 +20,12 @@ export default function OrderServiceCard({
   highlighted = false,
 }) {
   const statusColor = getStatusColor(statusLabel);
+  const statusVariant = statusColor.variant || "muted";
 
   const content = (
     <>
       <div className="service-card__header">
-        <span
-          className="service-card__status"
-          style={{
-            backgroundColor: statusColor.bg,
-            color: statusColor.text,
-            border: `1px solid ${statusColor.border}`,
-          }}
-        >
+        <span className="service-card__status">
           <StatusIcon name={statusColor.icon} />
           {statusLabel || "Без статуса"}
         </span>
@@ -72,7 +66,7 @@ export default function OrderServiceCard({
       <Link
         to={to}
         state={linkState}
-        className={`service-card service-card--link${highlighted ? " service-card--highlight" : ""}`}
+        className={`service-card service-card--${statusVariant} service-card--link${highlighted ? " service-card--highlight" : ""}`}
       >
         {content}
       </Link>
@@ -81,7 +75,7 @@ export default function OrderServiceCard({
 
   return (
     <div
-      className={`service-card${highlighted ? " service-card--highlight" : ""}`}
+      className={`service-card service-card--${statusVariant}${highlighted ? " service-card--highlight" : ""}`}
       onClick={onClick}
       role="button"
       tabIndex={0}

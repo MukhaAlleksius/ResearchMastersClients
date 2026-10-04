@@ -1,16 +1,16 @@
-"""Transactional email via SMTP. Without SMTP settings the letter is logged."""
+"""Письма через SMTP. Если SMTP не задан — текст письма пишется в лог."""
 
-from __future__ import annotations
+from __future__ import annotations  # Отложенные аннотации типов
 
-import asyncio
+import asyncio  # Отправка в отдельном потоке, чтобы не блокировать API
 import logging
-import smtplib
-import ssl
-from email.message import EmailMessage
+import smtplib  # Протокол почты
+import ssl  # Шифрование соединения с почтовым сервером
+from email.message import EmailMessage  # Письмо: тема, кому, текст/HTML
 from typing import Optional
 
 from core.config import (
-    PUBLIC_APP_URL,
+    PUBLIC_APP_URL,  # Базовый адрес сайта для ссылок в письме
     SMTP_FROM_EMAIL,
     SMTP_FROM_NAME,
     SMTP_HOST,
@@ -25,19 +25,22 @@ logger = logging.getLogger(__name__)
 
 
 def is_smtp_configured() -> bool:
+    """True, если заданы хост и адрес отправителя — можно слать почту."""
     return bool(SMTP_HOST and SMTP_FROM_EMAIL)
 
 
 def build_app_link(action_path: Optional[str]) -> str:
+    """Собирает ссылку на страницу сайта (подтверждение email, сброс пароля)."""
     if not action_path:
-        return PUBLIC_APP_URL
+        return PUBLIC_APP_URL  # Просто главная
     if action_path.startswith("http://") or action_path.startswith("https://"):
-        return action_path
+        return action_path  # Уже полный URL
     path = action_path if action_path.startswith("/") else f"/{action_path}"
     return f"{PUBLIC_APP_URL}{path}"
 
 
 def _from_header() -> str:
+    """Строка From: «Fixer <noreply@...>' или только email."""
     if SMTP_FROM_NAME:
         return f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
     return SMTP_FROM_EMAIL
@@ -50,15 +53,16 @@ def _send_sync(
     text_body: str,
     html_body: Optional[str] = None,
 ) -> None:
+    """Синхронная отправка (вызывается из потока). SSL или STARTTLS — из настроек."""
     message = EmailMessage()
     message["Subject"] = subject
     message["From"] = _from_header()
     message["To"] = to_email
-    message.set_content(text_body)
+    message.set_content(text_body)  # Текстовая версия
     if html_body:
-        message.add_alternative(html_body, subtype="html")
+        message.add_alternative(html_body, subtype="html")  # Красивая версия для почты
 
-    context = ssl.create_default_context()
+    context = ssl.create_default_context()  # Проверка сертификата SMTP
     if SMTP_USE_SSL:
         with smtplib.SMTP_SSL(
             SMTP_HOST, SMTP_PORT, timeout=20, context=context
@@ -70,7 +74,7 @@ def _send_sync(
 
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as smtp:
         if SMTP_USE_TLS:
-            smtp.starttls(context=context)
+            smtp.starttls(context=context)  # Обычный порт 587
         if SMTP_USERNAME:
             smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
         smtp.send_message(message)
@@ -83,6 +87,7 @@ async def send_email(
     text_body: str,
     html_body: Optional[str] = None,
 ) -> bool:
+    """Отправить письмо. True — ушло. False — нет SMTP / битый адрес / ошибка сервера."""
     recipient = (to_email or "").strip()
     if not recipient or "@" not in recipient:
         logger.warning("Skip email: invalid recipient %r", to_email)
@@ -94,11 +99,11 @@ async def send_email(
             recipient,
             subject,
         )
-        logger.info("Email body for %s:\n%s", recipient, text_body)
+        logger.info("Email body for %s:\n%s", recipient, text_body)  # Дома читаете лог
         return False
 
     try:
-        await asyncio.to_thread(
+        await asyncio.to_thread(  # Не блокировать FastAPI, пока идёт SMTP
             _send_sync,
             to_email=recipient,
             subject=subject,

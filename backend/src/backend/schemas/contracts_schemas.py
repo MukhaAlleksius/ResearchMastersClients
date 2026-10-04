@@ -13,7 +13,7 @@ class ContractCreate(BaseModel):
     title_work: str
     name_work: str
     date_start_work: str
-    date_end_work: str | None
+    date_end_work: str | None = None
     # При сметной цене сумма может быть неизвестна → null
     budget: Optional[Decimal] = Field(None, description="Сумма договора; null для сметной цены")
     currency: str = "BYN"
@@ -26,7 +26,20 @@ class ContractCreate(BaseModel):
     def validate_start_not_past(cls, v: str) -> str:
         if cls.__name__ == "ContractResponse":
             return v
-        return ensure_not_before_today(v, field_name="Дата начала работ") or v
+        raw = (v or "").strip()
+        if not raw or not parse_user_date(raw):
+            raise ValueError("Укажите дату начала работ")
+        return ensure_not_before_today(raw, field_name="Дата начала работ") or raw
+
+    @field_validator("date_end_work", mode="before")
+    @classmethod
+    def empty_end_to_none(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        raw = str(v).strip()
+        if not raw or raw.lower() == "дата окончания":
+            return None
+        return raw
 
     @field_validator("date_end_work")
     @classmethod

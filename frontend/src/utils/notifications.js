@@ -1,6 +1,12 @@
 import { API, apiFetch } from "./api.js";
 
 export const NOTIFICATION_POLL_MS = 15000;
+export const NOTIFICATIONS_CHANGED_EVENT = "fixer:notifications-changed";
+
+export function emitNotificationsChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT));
+}
 
 export function formatNotificationDate(value) {
   if (!value) return "";
@@ -60,5 +66,20 @@ export async function markNotificationRead(userId, notificationId) {
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
-  return response.json();
+  const data = await response.json();
+  emitNotificationsChanged();
+  return data;
+}
+
+export async function deleteNotification(userId, notificationId) {
+  const response = await apiFetch(
+    `${API.baseURL}/notifications/${notificationId}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  const data = await response.json();
+  emitNotificationsChanged();
+  return data;
 }

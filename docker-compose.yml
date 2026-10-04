@@ -53,7 +53,7 @@ services:
     environment:
       AUTO_CREATE_DB: "false"
       ENVIRONMENT: production
-      OPEN_ADMIN_ACCESS: "true"
+      OPEN_ADMIN_ACCESS: "false"
       SQL_ECHO: "false"
       RUN_MIGRATIONS_ON_STARTUP: "true"
       SEED_DEFAULT_WORKS: "true"

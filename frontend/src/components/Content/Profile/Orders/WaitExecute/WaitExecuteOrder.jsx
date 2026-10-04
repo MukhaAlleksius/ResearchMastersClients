@@ -154,6 +154,7 @@ export default function WaitExecuteOrder({
     <WorkDetailLayout
       title={currentOrder.title || "Ожидание выполнения"}
       backLabel="Назад к заказам"
+      showOptionalNotice={false}
       onBack={onBack || (() => navigate(-1))}
       meta={
         <EstimateEarningsMeta
@@ -205,6 +206,7 @@ export default function WaitExecuteOrder({
           order={currentOrder}
           executorId={resolvedExecutorId}
           executorResponse={orderResponseExecutor}
+          showExecutorResponseTab
           embedded
           footer={
             <OrderDeleteFooterActions
@@ -226,7 +228,9 @@ export default function WaitExecuteOrder({
           executorId={resolvedExecutorId}
           status="pending_executor"
           onCancelSuccess={async () => {
-            await uiAlert("Заявка отправлена! Ожидайте решения исполнителя.");
+            await uiAlert(
+              "Заказ переведён во вкладку «Отказ». Вы можете убрать его в черновик и снова опубликовать.",
+            );
           }}
           onCancelResolved={onOrderStatusChanged}
         />

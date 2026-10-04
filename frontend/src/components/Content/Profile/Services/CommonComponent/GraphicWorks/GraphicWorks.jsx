@@ -303,6 +303,14 @@ export default function GraphicWorks({ orderId, categoryWorkId }) {
 
   return (
     <div className="gw-page">
+      <header className="gw-hero">
+        <div className="gw-hero__text">
+          <h2 className="gw-hero__title">График работ</h2>
+          <p className="gw-hero__subtitle">
+            Отмечайте выполненные работы по датам и смотрите отчёт
+          </p>
+        </div>
+      </header>
       <div className="gw-tabs" role="tablist">
         <button
           type="button"

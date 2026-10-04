@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { API, apiFetch, buildApiUrl } from "../../../utils/api.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +22,7 @@ import "./service_categories.css";
 
 export default function ServiceCategories() {
   const [categoriesWorks, setCategoriesWorks] = useState([]);
+  const gridRef = useRef(null);
   const navigate = useNavigate();
 
   // ✅ УБРАЛИ transliterate — используем slug из БД!
@@ -151,6 +158,51 @@ export default function ServiceCategories() {
     fetchCategoriesWorks();
   }, []);
 
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return undefined;
+
+    let frame = 0;
+    const equalize = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const cards = [...grid.querySelectorAll(".home-category-card")];
+        if (!cards.length) return;
+        cards.forEach((card) => {
+          card.style.minHeight = "";
+          card.style.height = "auto";
+        });
+        const maxHeight = cards.reduce(
+          (max, card) => Math.max(max, card.getBoundingClientRect().height),
+          0,
+        );
+        cards.forEach((card) => {
+          card.style.height = "";
+          card.style.minHeight = `${Math.ceil(maxHeight)}px`;
+        });
+      });
+    };
+
+    equalize();
+    window.addEventListener("resize", equalize);
+    document.fonts?.ready?.then(equalize);
+
+    let lastWidth = grid.clientWidth;
+    const observer = new ResizeObserver(() => {
+      const nextWidth = grid.clientWidth;
+      if (nextWidth === lastWidth) return;
+      lastWidth = nextWidth;
+      equalize();
+    });
+    observer.observe(grid);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", equalize);
+      observer.disconnect();
+    };
+  }, [categoriesWorks]);
+
   return (
     <section className="home-categories">
       <div className="home-categories__container">
@@ -161,7 +213,7 @@ export default function ServiceCategories() {
             Выберите категорию, чтобы перейти в каталог исполнителей
           </p>
         </header>
-        <div className="home-categories__grid">
+        <div className="home-categories__grid" ref={gridRef}>
           {categoriesWorks.map(
             ({
               id,
@@ -209,13 +261,9 @@ export default function ServiceCategories() {
                   </div>
                   <h3 className="home-category-card__title">{title}</h3>
                   <p className="home-category-card__desc">{description}</p>
-                  {dropdownItems.length > 0 && (
-                    <ul className="home-category-card__samples">
-                      {dropdownItems.slice(0, 2).map((work) => (
-                        <li key={work.id || work.slug}>{work.name}</li>
-                      ))}
-                    </ul>
-                  )}
+                  <ul className="home-category-card__samples">{dropdownItems.slice(0, 2).map((work) => (
+                      <li key={work.id || work.slug}>{work.name}</li>
+                    ))}</ul>
                   <span className="home-category-card__cta">
                     Смотреть каталог
                     <span className="home-category-card__arrow" aria-hidden>

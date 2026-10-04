@@ -251,10 +251,6 @@ function OrderProfileContent({ order, variant = "order" }) {
               value={contractBudget}
               muted={!contractBudget}
             />
-            <InfoField
-              label="Страховка"
-              value={order.insurance_required ? "Требуется" : "Не требуется"}
-            />
           </div>
         </ProfileCard>
 

@@ -14,10 +14,12 @@ from core.config import (  # Настройки подписи и сроков
     SECRET_KEY,  # Секрет для подписи
     TOKEN_TYPE_ACCESS,  # Метка типа access
     TOKEN_TYPE_EMAIL_VERIFY,  # Метка типа email_verify
+    TOKEN_TYPE_PASSWORD_RESET,  # Метка типа сброса пароля
     TOKEN_TYPE_REFRESH,  # Метка типа refresh
 )
 
 EMAIL_VERIFY_EXPIRE_HOURS = 48  # Срок ссылки подтверждения email — 48 часов
+PASSWORD_RESET_EXPIRE_HOURS = 2  # Срок ссылки сброса пароля — 2 часа
 
 
 def _encode(payload: dict) -> str:  # Внутренняя упаковка payload в JWT-строку
@@ -55,6 +57,17 @@ def create_email_verification_token(*, subject: str) -> str:  # JWT для сс�
             "sub": subject,  # Email
             "exp": expire.timestamp(),  # Истечение
             "type": TOKEN_TYPE_EMAIL_VERIFY,  # Тип — email_verify
+        }
+    )
+
+
+def create_password_reset_token(*, subject: str) -> str:  # JWT для ссылки сброса пароля
+    expire = datetime.now(timezone.utc) + timedelta(hours=PASSWORD_RESET_EXPIRE_HOURS)
+    return _encode(
+        {
+            "sub": subject,
+            "exp": expire.timestamp(),
+            "type": TOKEN_TYPE_PASSWORD_RESET,
         }
     )
 

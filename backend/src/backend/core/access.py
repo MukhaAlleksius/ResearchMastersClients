@@ -15,6 +15,14 @@ from schemas.users_schemas import UserCommonSchema  # Текущий польз�
 CATALOG_PUBLIC_STATUS = "В поиске исполнителя"  # Статус заказа в каталоге
 
 
+def _aware_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
 def is_user_blocked(user: User) -> bool:
     """Проверяет, заблокирован ли пользователь (постоянно или до даты blocked_until)."""
     if not user:  # Нет объекта пользователя
@@ -22,12 +30,48 @@ def is_user_blocked(user: User) -> bool:
 
     now = datetime.now(timezone.utc)  # Текущее время UTC
     if user.blocked_until:  # Есть временная блокировка до даты
-        blocked_until = user.blocked_until  # До какой даты заблокирован
-        if blocked_until.tzinfo is None:  # В БД могло лежать без таймзоны
-            blocked_until = blocked_until.replace(tzinfo=timezone.utc)  # Считаем как UTC
+        blocked_until = _aware_utc(user.blocked_until)
         return blocked_until > now  # True, пока дата блокировки ещё в будущем
 
     return bool(user.blocked)  # Постоянный флаг blocked
+
+
+def blocked_account_detail(user: User) -> dict:
+    """Структура 403 для логина и API: код, причина, срок."""
+    until = _aware_utc(getattr(user, "blocked_until", None) if user else None)
+    reason = " ".join(str(getattr(user, "block_reason", None) or "").split()) or None
+    return {
+        "code": "account_blocked",
+        "message": "Аккаунт заблокирован",
+        "reason": reason,
+        "blocked_until": until.isoformat() if until else None,
+    }
+
+
+def apply_user_block(
+    user: User,
+    *,
+    reason: str,
+    until: datetime | None = None,
+) -> None:
+    """Ставит блокировку на объект пользователя (постоянную или до даты)."""
+    user.blocked = True
+    user.blocked_until = _aware_utc(until)
+    text = " ".join(str(reason or "").split()) or None
+    user.block_reason = text
+
+
+def clear_expired_block(user: User) -> bool:
+    """Если срок blocked_until уже прошёл — снимаем блокировку в записи."""
+    if not user or not user.blocked_until:
+        return False
+    if is_user_blocked(user):
+        return False
+    user.blocked = False
+    user.blocked_until = None
+    if hasattr(user, "block_reason"):
+        user.block_reason = None
+    return True
 
 
 def assert_user_not_blocked(user: User) -> None:
@@ -35,7 +79,7 @@ def assert_user_not_blocked(user: User) -> None:
     if is_user_blocked(user):  # Проверка блокировки
         raise HTTPException(  # Запрет доступа
             status_code=status.HTTP_403_FORBIDDEN,  # 403 Forbidden
-            detail="Аккаунт заблокирован",  # Текст для клиента
+            detail=blocked_account_detail(user),
         )
 
 

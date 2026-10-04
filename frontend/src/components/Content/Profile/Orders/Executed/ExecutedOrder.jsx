@@ -145,6 +145,7 @@ export default function ExecutedOrder({ order, onBack, userId }) {
     <WorkDetailLayout
       title={currentOrder.title || "Выполненный заказ"}
       backLabel="Назад к заказам"
+      showOptionalNotice={false}
       onBack={onBack || (() => navigate(-1))}
       meta={
         <EstimateEarningsMeta
@@ -170,6 +171,7 @@ export default function ExecutedOrder({ order, onBack, userId }) {
           order={currentOrder}
           executorId={resolvedExecutorId}
           executorResponse={orderResponseExecutor}
+          showExecutorResponseTab
           embedded
         />
       )}

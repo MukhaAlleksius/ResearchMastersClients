@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { isExecutorsNavActive, isOrdersNavActive } from "../../utils/navActive.js";
+import logoSrc from "../../assets/logo.png";
 import "./header.css";
 
 const navItems = [
@@ -49,7 +50,7 @@ export default function Header({ openModal }) {
       <div className="site-header__inner">
         <Link to="/home" className="site-header__brand" onClick={closeMenu}>
           <img
-            src="https://cdn1.genspark.ai/user-upload-image/gpt_image_generated/bc223a8c-c500-4613-9853-0a21cc7f6196"
+            src={logoSrc}
             alt="Fixer"
             className="site-header__logo"
           />
@@ -61,6 +62,13 @@ export default function Header({ openModal }) {
         </nav>
 
         <div className="site-header__actions">
+          <button
+            type="button"
+            onClick={() => openModal("registerModal")}
+            className="site-header__btn site-header__btn--ghost"
+          >
+            Регистрация
+          </button>
           <button
             type="button"
             onClick={() => openModal("loginModal")}
@@ -90,6 +98,16 @@ export default function Header({ openModal }) {
         aria-label="Мобильная навигация"
       >
         <NavLinks className="site-header__link" onNavigate={closeMenu} />
+        <button
+          type="button"
+          onClick={() => {
+            closeMenu();
+            openModal("registerModal");
+          }}
+          className="site-header__btn site-header__btn--ghost"
+        >
+          Регистрация
+        </button>
         <button
           type="button"
           onClick={() => {

@@ -3,7 +3,7 @@ import logging  # Логирование чтения заказов
 from typing import Optional  # Опциональные параметры
 from fastapi import HTTPException  # HTTP-ошибки
 from pydantic import ValidationError  # Ошибки Pydantic
-from sqlalchemy import and_, or_, select, func  # SQL-запросы
+from sqlalchemy import and_, delete, or_, select, func  # SQL-запросы
 from models.contracts_models import Contract  # Договор
 from models.geography_models import Region, Town
 from models.users_models import User  # Пользователь
@@ -27,7 +27,9 @@ from cruds.orders.order_constants import (
     is_hidden_customer_executor_phone,
 )  # Скрытый телефон
 from cruds.orders.sync_order_budget import resolve_order_display_budget
+from core.future_dates import parse_user_date
 from schemas.orders_schemas import (  # Схемы ответов
+    CancelDisputeRead,
     CancelOrderCustomerForAdminRead,  # Продолжение выражения
     CustomerOrderCancellationReadSchema,  # Продолжение выражения
     ExecutorOrderCancellationReadSchema,  # Продолжение выражения
@@ -480,7 +482,6 @@ async def get_order(
             town=order.town,  # Город
             location=order.location,  # Адрес/локация
             deadline=order.deadline,  # Срок
-            insurance_required=order.insurance_required,  # Страхование
             created_at=order.created_at or datetime.utcnow(),  # Дата создания
             updated_at=order.updated_at or datetime.utcnow(),  # Дата обновления
             can_offer_service=order.id
@@ -768,7 +769,6 @@ async def get_orders_customers(  # Каталог заказов «в поиск
                 town=order.town,  # Город
                 location=order.location,  # Адрес/локация
                 deadline=order.deadline,  # Срок
-                insurance_required=order.insurance_required,  # Страхование
                 created_at=order.created_at,  # Дата создания
                 updated_at=order.updated_at,  # Дата обновления
                 responses_count=response_counts.get(order.id, 0),  # Число откликов
@@ -1194,7 +1194,6 @@ async def get_order_profile_for_admin(  # Полный профиль заказ
             town=order.town,  # Город
             location=order.location,  # Адрес/локация
             deadline=order.deadline,  # Срок
-            insurance_required=order.insurance_required,  # Страхование
             created_at=order.created_at,  # Дата создания
             updated_at=order.updated_at,  # Дата обновления
             customer_name={  # Данные заказчика
@@ -1316,7 +1315,6 @@ async def get_service_profile_for_admin(  # Профиль услуги (зак�
             town=order.town,  # Город
             location=order.location,  # Адрес/локация
             deadline=order.deadline,  # Срок
-            insurance_required=order.insurance_required,  # Страхование
             created_at=order.created_at,  # Дата создания
             updated_at=order.updated_at,  # Дата обновления
             customer_name={  # Данные заказчика
@@ -1419,112 +1417,241 @@ async def get_executor_order_cancel(  # Отмена исполнителем п
         return None  # Ничего не найдено
 
 
-async def get_cancel_orders_customers_for_admin(  # Спорные отмены для админа
-    db: AsyncSession,  # Продолжение выражения
-) -> Optional[list[CancelOrderCustomerForAdminRead]]:  # Закрытие вызова/выражения
-    try:  # Начало блока try
-        UserCustomer = aliased(User)  # Алиас заказчика
-        UserExecutor = aliased(User)  # Алиас исполнителя
+def _user_display_name(user: Optional[User]) -> str:
+    if not user:
+        return ""
+    name = " ".join(
+        part for part in (user.first_name, user.last_name) if part
+    ).strip()
+    return name or f"ID {user.id}"
 
-        stmt = (  # status == disagree
+
+def _cancel_admin_card(
+    *,
+    cancellation,
+    order: Optional[Order],
+    user_customer: Optional[User],
+    user_executor: Optional[User],
+    source: str,
+    opponent_comment: Optional[str],
+) -> CancelOrderCustomerForAdminRead:
+    return CancelOrderCustomerForAdminRead(
+        id=cancellation.id,
+        order_id=cancellation.order_id,
+        order_name=(order.title if order and order.title else "") or "",
+        customer_name=_user_display_name(user_customer),
+        executor_name=_user_display_name(user_executor),
+        source=source,
+        status=cancellation.status,
+        customer_id=cancellation.customer_id,
+        executor_id=cancellation.executor_id,
+        reason_type=cancellation.reason_type,
+        reason_text=cancellation.reason_text,
+        opponent_comment=opponent_comment,
+        created_at=cancellation.created_at,
+    )
+
+
+async def get_cancel_orders_customers_for_admin(
+    db: AsyncSession,
+) -> list[CancelOrderCustomerForAdminRead]:
+    """Спорные отказы: на рассмотрении и уже с решением администратора."""
+    UserCustomer = aliased(User)
+    UserExecutor = aliased(User)
+
+    customer_stmt = (
+        select(CustomerOrderCancellation, Order, UserCustomer, UserExecutor)
+        .outerjoin(Order, CustomerOrderCancellation.order_id == Order.id)
+        .outerjoin(
+            UserCustomer,
+            CustomerOrderCancellation.customer_id == UserCustomer.id,
+        )
+        .outerjoin(
+            UserExecutor,
+            CustomerOrderCancellation.executor_id == UserExecutor.id,
+        )
+        .where(CustomerOrderCancellation.status.in_(("disagree", "resolved")))
+    )
+    executor_stmt = (
+        select(ExecutorOrderCancellation, Order, UserCustomer, UserExecutor)
+        .outerjoin(Order, ExecutorOrderCancellation.order_id == Order.id)
+        .outerjoin(
+            UserCustomer,
+            ExecutorOrderCancellation.customer_id == UserCustomer.id,
+        )
+        .outerjoin(
+            UserExecutor,
+            ExecutorOrderCancellation.executor_id == UserExecutor.id,
+        )
+        .where(ExecutorOrderCancellation.status.in_(("disagree", "resolved")))
+    )
+
+    customer_rows = (await db.execute(customer_stmt)).all()
+    executor_rows = (await db.execute(executor_stmt)).all()
+
+    items: list[CancelOrderCustomerForAdminRead] = []
+    for cancellation, order, user_customer, user_executor in customer_rows:
+        items.append(
+            _cancel_admin_card(
+                cancellation=cancellation,
+                order=order,
+                user_customer=user_customer,
+                user_executor=user_executor,
+                source="customer",
+                opponent_comment=cancellation.executor_comment,
+            )
+        )
+    for cancellation, order, user_customer, user_executor in executor_rows:
+        items.append(
+            _cancel_admin_card(
+                cancellation=cancellation,
+                order=order,
+                user_customer=user_customer,
+                user_executor=user_executor,
+                source="executor",
+                opponent_comment=cancellation.customer_comment,
+            )
+        )
+
+    items.sort(
+        key=lambda item: (
+            0 if item.status == "disagree" else 1,
+            -(
+                item.created_at.replace(tzinfo=None).timestamp()
+                if item.created_at
+                else 0
+            ),
+        )
+    )
+    return items
+
+
+async def get_cancel_order_customer_for_admin(
+    db: AsyncSession, cancel_order_customer_id: int
+) -> Optional[CustomerOrderCancellation]:
+    result = await db.execute(
+        select(CustomerOrderCancellation).where(
+            CustomerOrderCancellation.id == cancel_order_customer_id
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_cancel_dispute_for_admin(
+    db: AsyncSession,
+    *,
+    source: str,
+    cancel_id: int,
+) -> Optional[CancelDisputeRead]:
+    source_key = (source or "customer").strip().lower()
+    model = (
+        ExecutorOrderCancellation
+        if source_key == "executor"
+        else CustomerOrderCancellation
+    )
+    result = await db.execute(select(model).where(model.id == cancel_id))
+    cancellation = result.scalar_one_or_none()
+    if cancellation is None:
+        return None
+
+    order = (
+        await db.execute(select(Order).where(Order.id == cancellation.order_id))
+    ).scalar_one_or_none()
+
+    return CancelDisputeRead(
+        id=cancellation.id,
+        source=source_key if source_key in {"customer", "executor"} else "customer",
+        order_id=cancellation.order_id,
+        customer_id=cancellation.customer_id,
+        executor_id=cancellation.executor_id,
+        status=cancellation.status,
+        reason_type=cancellation.reason_type,
+        reason_text=cancellation.reason_text,
+        executor_comment=getattr(cancellation, "executor_comment", None),
+        customer_comment=getattr(cancellation, "customer_comment", None),
+        refund_amount_customer=cancellation.refund_amount_customer,
+        refund_amount_executor=cancellation.refund_amount_executor,
+        admin_comment=cancellation.admin_comment,
+        created_at=cancellation.created_at,
+        order_title=order.title if order else None,
+    )
+
+
+_WAIT_EXECUTE_STATUS = "Ожидают выполнения"
+
+
+def _is_wait_execute_status(status: Optional[str]) -> bool:
+    return _WAIT_EXECUTE_STATUS in (status or "")
+
+
+async def _prune_calendar_not_waiting(db: AsyncSession, user_id: int) -> None:
+    """Убрать из календаря заказы, которые уже не ждут выполнения."""
+    calendar_rows = (
+        await db.execute(
+            select(GraphicOrderMaster.id, GraphicOrderMaster.order_id).where(
+                GraphicOrderMaster.user_id == user_id
+            )
+        )
+    ).all()
+    if not calendar_rows:
+        return
+
+    order_ids = [order_id for _gid, order_id in calendar_rows]
+    status_rows = (
+        await db.execute(
             select(
-                CustomerOrderCancellation, Order, UserCustomer, UserExecutor
-            )  # SQL SELECT
-            .outerjoin(
-                Order, CustomerOrderCancellation.order_id == Order.id
-            )  # JOIN таблиц
-            .outerjoin(  # JOIN таблиц
-                UserCustomer,
-                CustomerOrderCancellation.customer_id
-                == UserCustomer.id,  # Алиас User для JOIN
-            )  # Закрытие вызова/выражения
-            .outerjoin(  # JOIN таблиц
-                UserExecutor,
-                CustomerOrderCancellation.executor_id
-                == UserExecutor.id,  # Алиас User для JOIN
-            )  # Закрытие вызова/выражения
-            .where(CustomerOrderCancellation.status == "disagree")  # Условие WHERE
-        )  # Закрытие вызова/выражения
+                StatusOrderExecutor.order_id,
+                StatusOrderExecutor.status,
+                StatusOrderExecutor.id,
+            )
+            .where(
+                StatusOrderExecutor.executor_id == user_id,
+                StatusOrderExecutor.order_id.in_(order_ids),
+            )
+            .order_by(StatusOrderExecutor.id.desc())
+        )
+    ).all()
+    latest_status: dict[int, str] = {}
+    for order_id, status, _status_id in status_rows:
+        if order_id not in latest_status:
+            latest_status[order_id] = status or ""
 
-        result = await db.execute(stmt)  # Результат запроса
-        rows = result.all()  # Все спорные отмены
+    stale_ids = [
+        graphic_id
+        for graphic_id, order_id in calendar_rows
+        if not _is_wait_execute_status(latest_status.get(order_id))
+    ]
+    if not stale_ids:
+        return
 
-        cancel_orders_customers: list[CancelOrderCustomerForAdminRead] = (
-            []
-        )  # Данные заказа
-
-        for (
-            customer_order_cancel,
-            order,
-            user_customer,
-            user_executor,
-        ) in rows:  # Цикл по элементам
-            cancel_order_customer = CancelOrderCustomerForAdminRead(  # Карточка для админа
-                id=customer_order_cancel.id,  # Продолжение выражения
-                order_id=customer_order_cancel.order_id,  # ID заказа
-                order_name=order.title if order else "",  # Заголовок
-                customer_name=(  # Данные заказчика
-                    f"{user_customer.first_name} {user_customer.last_name}"  # Форматированная строка
-                    if user_customer  # Условная проверка
-                    else ""  # Строка кода
-                ),  # Продолжение выражения
-                executor_name=(  # Данные исполнителя
-                    f"{user_executor.first_name} {user_executor.last_name}"  # Форматированная строка
-                    if user_executor  # Условная проверка
-                    else ""  # Строка кода
-                ),  # Продолжение выражения
-            )  # Закрытие вызова/выражения
-            cancel_orders_customers.append(
-                cancel_order_customer
-            )  # Закрывающая скобка вызова
-
-        if not cancel_orders_customers:  # Проверка отрицания
-            return None  # Ничего не найдено
-
-        return cancel_orders_customers  # Возвращаем результат
-
-    except Exception as e:  # Обработка исключения
-        print(
-            f"❌ Ошибка get_cancel_orders_customers_for_admin: {str(e)}"
-        )  # Отладочный вывод
-        import traceback  # Импорт traceback
-
-        traceback.print_exc()  # Трассировка стека
-        return None  # Ничего не найдено
-
-
-async def get_cancel_order_customer_for_admin(  # Одна отмена по ID для админа
-    db: AsyncSession, cancel_order_customer_id: int  # Строка кода
-) -> Optional[CustomerOrderCancellationReadSchema]:  # Закрытие вызова/выражения
-    try:  # Начало блока try
-        result = await db.execute(  # Результат запроса
-            select(CustomerOrderCancellation).where(  # SQL SELECT
-                CustomerOrderCancellation.id
-                == cancel_order_customer_id  # Идентификатор
-            )  # Закрытие вызова/выражения
-        )  # Закрытие вызова/выражения
-        cancel_order_customer = result.scalar_one_or_none()  # Запись или None
-        if cancel_order_customer is None:  # Проверка на None
-            return None  # Ничего не найдено
-
-        return cancel_order_customer  # Возвращаем результат
-
-    except Exception as e:  # Обработка исключения
-        print(
-            f"❌ Ошибка get_cancel_order_customer_for_admin: {str(e)}"
-        )  # Отладочный вывод
-        import traceback  # Импорт traceback
-
-        traceback.print_exc()  # Трассировка стека
-        return None  # Ничего не найдено
+    await db.execute(
+        delete(GraphicOrderMaster).where(GraphicOrderMaster.id.in_(stale_ids))
+    )
+    await db.flush()
+    logger.info(
+        "calendar pruned not-waiting user_id=%s removed=%s",
+        user_id,
+        len(stale_ids),
+    )
 
 
 async def get_dates_start_execute_orders(  # График дат начала работ
     db: AsyncSession, user_id: int  # Строка кода
 ) -> list[GraphicOrderMasterRead]:  # Закрытие вызова/выражения
     try:  # Начало блока try
+        await _prune_calendar_not_waiting(db, user_id)
+        contract_start = (
+            select(Contract.date_start_work)
+            .where(
+                Contract.order_id == GraphicOrderMaster.order_id,
+                Contract.executor_id == user_id,
+            )
+            .limit(1)
+            .correlate(GraphicOrderMaster)
+            .scalar_subquery()
+        )
         result = await db.execute(  # Заказы с датами пользователя
-            select(Order, GraphicOrderMaster)  # SQL SELECT
+            select(Order, GraphicOrderMaster, contract_start)  # SQL SELECT
             .join(
                 GraphicOrderMaster, Order.id == GraphicOrderMaster.order_id
             )  # JOIN таблиц
@@ -1536,13 +1663,14 @@ async def get_dates_start_execute_orders(  # График дат начала р
             return []  # Пустой список
 
         list_graphic_orders_master = []  # Накопленный список
-        for order, graphic_order_master in rows:  # Цикл по элементам
+        for order, graphic_order_master, contract_date_raw in rows:  # Цикл по элементам
             list_graphic_orders_master.append(  # Элемент графика
                 GraphicOrderMasterRead(  # График работ
                     id=graphic_order_master.id,  # Продолжение выражения
                     name_order=order.title,  # Заголовок
                     address=f"{order.country}, {order.region}, {order.town}, {order.location}",  # Страна
                     date_start=graphic_order_master.date_start,  # Дата начала
+                    contract_date_start=parse_user_date(contract_date_raw),
                 )  # Закрытие вызова/выражения
             )  # Закрытие вызова/выражения
         return list_graphic_orders_master  # Возвращаем результат

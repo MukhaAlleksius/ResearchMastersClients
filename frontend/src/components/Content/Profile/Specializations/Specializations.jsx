@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { API, apiFetch, buildApiUrl } from "../../../../utils/api.js";
-import CreatableSelect from "react-select/creatable";
+import Select from "react-select";
 import EditSpecialization from "./EditSpecialization/EditSpecialization";
 import MyWorks from "./MyWorks/MyWorks";
 import WorksSpecialization from "./WorksSpecialization/WorksSpecialization";
@@ -188,9 +188,25 @@ export default function Specializations() {
     }
   };
 
+  const availableCategories = useMemo(() => {
+    const takenIds = new Set(
+      categoriesWorksMaster
+        .map((spec) => spec.category_work_id)
+        .filter((id) => id != null),
+    );
+    return categoriesWorks.filter((option) => !takenIds.has(option.value));
+  }, [categoriesWorks, categoriesWorksMaster]);
+
   const handleAddSpecialization = async (e) => {
     e.preventDefault();
-    if (!categoryWorkMaster || !description || !experience || !costHour) {
+    const selectedFromList = availableCategories.some(
+      (option) => option.value === categoryWorkMaster?.value,
+    );
+    if (!selectedFromList) {
+      await uiAlert("Выберите специализацию из списка");
+      return;
+    }
+    if (!description || !experience || !costHour) {
       await uiAlert("Пожалуйста, заполните все поля");
       return;
     }
@@ -286,7 +302,7 @@ export default function Specializations() {
           <p className="spec-page__subtitle">
             {subTab === "list"
               ? "Направления работ, которые видят заказчики в вашем профиле"
-              : "Укажите категорию, описание и ставку за час"}
+              : "Выберите категорию из списка, укажите описание и ставку за час"}
           </p>
         </div>
         {subTab === "list" ? (
@@ -324,8 +340,8 @@ export default function Specializations() {
         <>
           {categoriesWorksMaster.length === 0 ? (
             <div className="spec-empty">
-              У вас пока нет специализаций. Нажмите «Добавить», чтобы создать
-              первую.
+              У вас пока нет специализаций. Нажмите «Добавить», чтобы выбрать
+              первую из списка.
             </div>
           ) : (
             <div className="spec-grid">
@@ -375,13 +391,19 @@ export default function Specializations() {
               <label className="spec-label" htmlFor="spec-category">
                 Категория работ
               </label>
-              <CreatableSelect
+              <Select
                 inputId="spec-category"
-                options={categoriesWorks}
+                options={availableCategories}
                 value={categoryWorkMaster}
                 onChange={setCategoryWorkMaster}
                 isClearable
-                placeholder="Выберите или создайте категорию..."
+                isSearchable
+                placeholder="Выберите специализацию из списка..."
+                noOptionsMessage={() =>
+                  availableCategories.length === 0
+                    ? "Все специализации уже добавлены"
+                    : "Нет подходящих специализаций"
+                }
                 className="spec-select"
                 classNamePrefix="spec-react"
                 styles={selectStyles}

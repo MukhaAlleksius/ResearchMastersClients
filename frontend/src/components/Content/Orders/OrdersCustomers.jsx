@@ -527,12 +527,6 @@ function OrderCatalogCard({
         </p>
 
         <div className="order-card__chips">
-          {order.insurance_required && (
-            <span className="order-card__chip order-card__chip--insurance">
-              <span className="order-card__chip-label">Страховка</span>
-              <span className="order-card__chip-value">Требуется</span>
-            </span>
-          )}
           <span className="order-card__chip order-card__chip--responses">
             <span className="order-card__chip-label">Отклики</span>
             <span className="order-card__chip-value">

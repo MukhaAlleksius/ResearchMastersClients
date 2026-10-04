@@ -54,6 +54,26 @@
   text-decoration: underline;
 }
 
+.login-modal__resend {
+  display: block;
+  width: 100%;
+  margin: 0 0 0.65rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-modal__resend:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .login-modal__footer {
   display: flex;
   flex-direction: column;

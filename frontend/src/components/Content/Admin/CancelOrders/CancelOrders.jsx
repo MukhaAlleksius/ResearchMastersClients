@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { API, apiFetch } from "../../../../utils/api.js";
 import { Link } from "react-router-dom";
 import {
@@ -10,7 +10,9 @@ import {
   FaArrowRight,
   FaInbox,
   FaBalanceScale,
+  FaTrashAlt,
 } from "react-icons/fa";
+import { uiConfirm } from "../../../UiDialog/uiDialog.js";
 import "./cancel_orders.css";
 
 function formatDate(value) {
@@ -26,11 +28,18 @@ function formatDate(value) {
   });
 }
 
+function cancelStatusLabel(status) {
+  if (status === "resolved") return "Решение вынесено";
+  if (status === "disagree") return "На рассмотрении";
+  return status || "Ожидает";
+}
+
 export default function AdminCancelOrdersList() {
   const [cancelOrders, setCancelOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [deletingKey, setDeletingKey] = useState("");
 
   useEffect(() => {
     const fetchCancelOrders = async () => {
@@ -64,6 +73,45 @@ export default function AdminCancelOrdersList() {
     fetchCancelOrders();
   }, []);
 
+  const handleDelete = useCallback(async (cancelOrder) => {
+    const source = cancelOrder.source || "customer";
+    const label =
+      source === "executor" ? "отказ исполнителя" : "отказ заказчика";
+    if (
+      !(await uiConfirm(
+        `Удалить ${label} #${cancelOrder.id} по заказу «${
+          cancelOrder.order_name || cancelOrder.order_id
+        }»? Заявка исчезнет у заказчика и исполнителя.`,
+      ))
+    ) {
+      return;
+    }
+
+    const key = `${source}-${cancelOrder.id}`;
+    setDeletingKey(key);
+    setError("");
+    try {
+      const res = await apiFetch(
+        `${API.baseURL}/admin/cancel_dispute/${source}/${cancelOrder.id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Не удалось удалить отказ");
+      }
+      setCancelOrders((prev) =>
+        prev.filter(
+          (item) =>
+            !(item.id === cancelOrder.id && (item.source || "customer") === source),
+        ),
+      );
+    } catch (err) {
+      setError(err.message || "Ошибка удаления");
+    } finally {
+      setDeletingKey("");
+    }
+  }, []);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return cancelOrders;
@@ -76,6 +124,9 @@ export default function AdminCancelOrdersList() {
         item.executor_name,
         item.reason_type,
         item.reason_text,
+        item.status,
+        cancelStatusLabel(item.status),
+        item.source === "executor" ? "исполнитель" : "заказчик",
       ]
         .filter(Boolean)
         .join(" ")
@@ -89,9 +140,9 @@ export default function AdminCancelOrdersList() {
       <header className="cancel-hero">
         <div className="cancel-hero__text">
           <span className="cancel-hero__badge">Админ · Модерация</span>
-          <h1 className="cancel-hero__title">Отказы заказчиков</h1>
+          <h1 className="cancel-hero__title">Отказы</h1>
           <p className="cancel-hero__subtitle">
-            Заявки на отмену заказа, по которым исполнитель не согласен — требуют решения администратора
+            Заявки на отмену, по которым вторая сторона не согласна, и уже вынесенные решения
           </p>
         </div>
         <div className="cancel-hero__stats">
@@ -139,26 +190,34 @@ export default function AdminCancelOrdersList() {
           </h2>
           <p className="cancel-empty__text">
             {cancelOrders.length === 0
-              ? "Сейчас нет заявок на отмену заказов, требующих решения администратора."
+              ? "Сейчас нет заявок на отмену заказов."
               : "Попробуйте изменить поисковый запрос."}
           </p>
         </div>
       ) : (
         <div className="cancel-grid">
-          {filtered.map((cancelOrder) => (
+          {filtered.map((cancelOrder) => {
+            const source = cancelOrder.source || "customer";
+            const itemKey = `${source}-${cancelOrder.id}`;
+            const isDeleting = deletingKey === itemKey;
+            return (
+            <article key={itemKey} className="cancel-card">
             <Link
-              key={cancelOrder.id}
-              to={`/admin/cancel_order/${cancelOrder.id}`}
+              to={`/admin/cancel_order/${source}/${cancelOrder.id}`}
               className="cancel-card-link"
             >
-              <article className="cancel-card">
                 <div className="cancel-card__head">
                   <div className="cancel-card__id-block">
                     <span className="cancel-card__icon" aria-hidden="true">
                       <FaBan size={14} />
                     </span>
                     <div>
-                      <div className="cancel-card__id">Отказ #{cancelOrder.id}</div>
+                      <div className="cancel-card__id">
+                        {cancelOrder.source === "executor"
+                          ? "Отказ исполнителя"
+                          : "Отказ заказчика"}{" "}
+                        #{cancelOrder.id}
+                      </div>
                       {cancelOrder.order_name && (
                         <div className="cancel-card__order-id">
                           {cancelOrder.order_name}
@@ -166,10 +225,14 @@ export default function AdminCancelOrdersList() {
                       )}
                     </div>
                   </div>
-                  <span className="cancel-card__status">
-                    {cancelOrder.status === "disagree"
-                      ? "На рассмотрении"
-                      : cancelOrder.status || "Ожидает"}
+                  <span
+                    className={`cancel-card__status${
+                      cancelOrder.status === "resolved"
+                        ? " cancel-card__status--resolved"
+                        : ""
+                    }`}
+                  >
+                    {cancelStatusLabel(cancelOrder.status)}
                   </span>
                 </div>
 
@@ -177,12 +240,22 @@ export default function AdminCancelOrdersList() {
                   {cancelOrder.order_name || "Заказ"}
                 </h3>
 
-                {(cancelOrder.reason_type || cancelOrder.reason_text) && (
+                {(cancelOrder.reason_type ||
+                  cancelOrder.reason_text ||
+                  cancelOrder.opponent_comment) && (
                   <div className="cancel-card__reason">
                     {cancelOrder.reason_type && (
                       <strong>{cancelOrder.reason_type}</strong>
                     )}
                     {cancelOrder.reason_text && <div>{cancelOrder.reason_text}</div>}
+                    {cancelOrder.opponent_comment && (
+                      <div>
+                        {cancelOrder.source === "executor"
+                          ? "Комментарий заказчика: "
+                          : "Комментарий исполнителя: "}
+                        {cancelOrder.opponent_comment}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -218,6 +291,11 @@ export default function AdminCancelOrdersList() {
                     Ответ исполнителя: {cancelOrder.executor_comment}
                   </div>
                 )}
+                {cancelOrder.customer_comment && (
+                  <div className="cancel-card__comment">
+                    Ответ заказчика: {cancelOrder.customer_comment}
+                  </div>
+                )}
 
                 <div className="cancel-card__footer">
                   <span className="cancel-card__date">
@@ -226,13 +304,25 @@ export default function AdminCancelOrdersList() {
                   </span>
                   <span className="cancel-card__action">
                     <FaBalanceScale size={12} />
-                    Вынести вердикт
+                    {cancelOrder.status === "resolved"
+                      ? "Открыть решение"
+                      : "Вынести вердикт"}
                     <FaArrowRight size={10} />
                   </span>
                 </div>
-              </article>
             </Link>
-          ))}
+            <button
+              type="button"
+              className="cancel-card__delete"
+              onClick={() => handleDelete(cancelOrder)}
+              disabled={isDeleting}
+            >
+              <FaTrashAlt size={12} />
+              {isDeleting ? "Удаление…" : "Удалить отказ"}
+            </button>
+            </article>
+            );
+          })}
         </div>
       )}
     </div>

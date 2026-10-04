@@ -2,11 +2,21 @@ import React, { useState, useEffect, useCallback } from "react";
 import Select from "react-select";
 import { API, apiFetch, buildApiUrl, formatApiDetail } from "../../../../../../utils/api.js";
 import DeadlineField, {
+  DEFAULT_DEADLINE,
   isValidDeadline,
 } from "../../../../Common/DeadlineField.jsx";
+import GeoTownSelect from "../../../../../Common/GeoTownSelect.jsx";
+import {
+  canCreateTownInRegion,
+  createTownByUser,
+} from "../../../../../../utils/geographyApi.js";
+import {
+  normalizeTownName,
+  validateTownName,
+} from "../../../../../../utils/townNameValidation.js";
 import "./add_order_for_draft.css";
 
-import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+import { uiAlert, uiWarn } from "../../../../../UiDialog/uiDialog.js";
 import {
   budgetTypeHint,
   BUDGET_TYPE_OPTIONS,
@@ -23,8 +33,7 @@ export default function AddOrderForDraft({ onSuccess }) {
   const currency = "BYN";
   const [budgetType, setBudgetType] = useState("");
   const [location, setLocation] = useState("");
-  const [deadline, setDeadline] = useState("Как можно скорее");
-  const [insuranceRequired, setInsuranceRequired] = useState(false);
+  const [deadline, setDeadline] = useState(DEFAULT_DEADLINE);
 
   const [categoryWorkMaster, setCategoryWorkMaster] = useState(null);
   const [categoriesWorks, setCategoriesWorks] = useState([]);
@@ -134,6 +143,37 @@ export default function AddOrderForDraft({ onSuccess }) {
     [fetchTownsRegion]
   );
 
+  const handleCreateTown = async (inputValue) => {
+    if (!canCreateTownInRegion(geoRegion?.label)) {
+      await uiWarn(
+        "Для выбранного региона город задаётся только из справочника",
+      );
+      return;
+    }
+    const name = normalizeTownName(inputValue);
+    const nameError = validateTownName(name);
+    if (nameError) {
+      await uiWarn(nameError);
+      return;
+    }
+    if (!geoRegion?.value) {
+      await uiWarn("Сначала выберите область из справочника");
+      return;
+    }
+    try {
+      const created = await createTownByUser(geoRegion.value, name);
+      setTowns((prev) => {
+        if (prev.some((t) => String(t.value) === String(created.value))) {
+          return prev;
+        }
+        return [...prev, created];
+      });
+      setGeoTown(created);
+    } catch (err) {
+      await uiAlert(err.message || "Не удалось добавить город");
+    }
+  };
+
   // Загрузка категорий работ
   const fetchCategoriesWorks = useCallback(async () => {
     try {
@@ -176,10 +216,6 @@ export default function AddOrderForDraft({ onSuccess }) {
     }
     if (!description.trim()) {
       await uiAlert("Опишите задачу");
-      return;
-    }
-    if (!location.trim()) {
-      await uiAlert("Укажите локацию");
       return;
     }
     if (!geoTown) {
@@ -228,7 +264,6 @@ export default function AddOrderForDraft({ onSuccess }) {
       town_id: geoTown.value,
       location: location,
       deadline: deadline,
-      insurance_required: insuranceRequired,
     };
 
     try {
@@ -284,7 +319,7 @@ export default function AddOrderForDraft({ onSuccess }) {
     }
   };
 
-  // Функция очистки формы
+  // Функция очистки формы после успешного размещения
   const resetForm = () => {
     setCategoryWorkMaster(null);
     setTitle("");
@@ -295,8 +330,7 @@ export default function AddOrderForDraft({ onSuccess }) {
     setGeoRegion(null);
     setGeoTown(null);
     setLocation("");
-    setDeadline("Как можно скорее");
-    setInsuranceRequired(false);
+    setDeadline(DEFAULT_DEADLINE);
     setRegions([]);
     setTowns([]);
   };
@@ -526,19 +560,15 @@ export default function AddOrderForDraft({ onSuccess }) {
               <label htmlFor="geo-town" className="aod-label">
                 Город <span className="aod-required">*</span>
               </label>
-              <Select
+              <GeoTownSelect
                 {...selectProps}
                 inputId="geo-town"
+                regionLabel={geoRegion?.label}
                 options={townOptions}
                 value={geoTown}
                 onChange={setGeoTown}
+                onCreateOption={handleCreateTown}
                 isClearable
-                placeholder="Выберите город"
-                noOptionsMessage={() =>
-                  !geoRegion
-                    ? "Выберите город"
-                    : "Нет городов для выбранной области"
-                }
                 isDisabled={!geoRegion}
               />
             </div>
@@ -546,7 +576,7 @@ export default function AddOrderForDraft({ onSuccess }) {
 
           <div className="aod-field">
             <label htmlFor="location" className="aod-label">
-              Точная локация <span className="aod-required">*</span>
+              Точная локация
             </label>
             <input
               type="text"
@@ -556,6 +586,9 @@ export default function AddOrderForDraft({ onSuccess }) {
               placeholder="Улица, дом, квартира..."
               className="aod-input"
             />
+            <p className="aod-field-note">
+              Необязательно, если не хотите публиковать точный адрес.
+            </p>
           </div>
         </section>
 
@@ -576,20 +609,6 @@ export default function AddOrderForDraft({ onSuccess }) {
             inputClassName="aod-input"
             fieldClassName="aod-field"
           />
-
-          <label className="aod-checkbox">
-            <input
-              type="checkbox"
-              checked={insuranceRequired}
-              onChange={(e) => setInsuranceRequired(e.target.checked)}
-            />
-            <span className="aod-checkbox__text">
-              Требуется страхование
-              <span className="aod-checkbox__hint">
-                Дополнительная защита на время выполнения работ
-              </span>
-            </span>
-          </label>
         </section>
 
         <div className="aod-actions">

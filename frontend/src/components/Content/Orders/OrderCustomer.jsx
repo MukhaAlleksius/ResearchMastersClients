@@ -213,7 +213,6 @@ export default function OrderCustomer({
           <p>
             {budget.label}: {budget.value}
           </p>
-          {order.insurance_required && <p>Требуется страховка исполнителя</p>}
         </div>
 
         <div className="order-customer-section">

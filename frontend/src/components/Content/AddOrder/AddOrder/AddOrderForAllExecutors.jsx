@@ -2,11 +2,20 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch, buildApiUrl, formatApiDetail } from "../../../../utils/api.js";
 import Select from "react-select";
-import DeadlineField, { isValidDeadline } from "../../Common/DeadlineField.jsx";
+import DeadlineField, { DEFAULT_DEADLINE, isValidDeadline } from "../../Common/DeadlineField.jsx";
+import GeoTownSelect from "../../../Common/GeoTownSelect.jsx";
+import {
+  canCreateTownInRegion,
+  createTownByUser,
+} from "../../../../utils/geographyApi.js";
+import {
+  normalizeTownName,
+  validateTownName,
+} from "../../../../utils/townNameValidation.js";
 import "./add_order_for_all_executors.css";
 import "./order.css";
 
-import { uiAlert } from "../../../UiDialog/uiDialog.js";
+import { uiAlert, uiWarn } from "../../../UiDialog/uiDialog.js";
 import {
   budgetTypeHint,
   BUDGET_TYPE_OPTIONS,
@@ -26,8 +35,7 @@ export default function AddOrderForAllExecutors({
   const currency = "BYN";
   const [budgetType, setBudgetType] = useState("");
   const [location, setLocation] = useState("");
-  const [deadline, setDeadline] = useState("Как можно скорее");
-  const [insuranceRequired, setInsuranceRequired] = useState(false);
+  const [deadline, setDeadline] = useState(DEFAULT_DEADLINE);
 
   const [categoryWorkMaster, setCategoryWorkMaster] = useState(null);
   const [categoriesWorks, setCategoriesWorks] = useState([]);
@@ -137,6 +145,37 @@ export default function AddOrderForAllExecutors({
     [fetchTownsRegion],
   );
 
+  const handleCreateTown = async (inputValue) => {
+    if (!canCreateTownInRegion(geoRegion?.label)) {
+      await uiWarn(
+        "Для выбранного региона город задаётся только из справочника",
+      );
+      return;
+    }
+    const name = normalizeTownName(inputValue);
+    const nameError = validateTownName(name);
+    if (nameError) {
+      await uiWarn(nameError);
+      return;
+    }
+    if (!geoRegion?.value) {
+      await uiWarn("Сначала выберите область из справочника");
+      return;
+    }
+    try {
+      const created = await createTownByUser(geoRegion.value, name);
+      setTowns((prev) => {
+        if (prev.some((t) => String(t.value) === String(created.value))) {
+          return prev;
+        }
+        return [...prev, created];
+      });
+      setGeoTown(created);
+    } catch (err) {
+      await uiAlert(err.message || "Не удалось добавить город");
+    }
+  };
+
   // Загрузка категорий работ
   const fetchCategoriesWorks = useCallback(async () => {
     try {
@@ -179,10 +218,6 @@ export default function AddOrderForAllExecutors({
     }
     if (!description.trim()) {
       await uiAlert("Опишите задачу");
-      return;
-    }
-    if (!location.trim()) {
-      await uiAlert("Укажите локацию");
       return;
     }
     if (!geoTown) {
@@ -231,7 +266,6 @@ export default function AddOrderForAllExecutors({
       town_id: geoTown.value,
       location: location,
       deadline: deadline,
-      insurance_required: insuranceRequired,
     };
 
     try {
@@ -308,8 +342,7 @@ export default function AddOrderForAllExecutors({
     setGeoRegion(null);
     setGeoTown(null);
     setLocation("");
-    setDeadline("Как можно скорее");
-    setInsuranceRequired(false);
+    setDeadline(DEFAULT_DEADLINE);
     setRegions([]);
     setTowns([]);
   };
@@ -412,13 +445,13 @@ export default function AddOrderForAllExecutors({
               Категория услуги <span className="required">*</span>
             </label>
             <Select
+              {...selectMenuProps}
               options={categoriesWorksOptions}
               value={categoryWorkMaster}
               onChange={handleSelectCategoryWorkMaster}
               isClearable
               placeholder="Выберите категорию работ"
               noOptionsMessage={() => "Нет подходящих категорий"}
-              styles={customStyles}
             />
           </div>
 
@@ -511,13 +544,12 @@ export default function AddOrderForAllExecutors({
                 Страна <span className="required">*</span>
               </label>
               <Select
+                {...selectMenuProps}
                 inputId="order-geo-country"
-                classNamePrefix="order-geo-select"
                 options={countryOptions}
                 value={geoCountry}
                 onChange={handleSelectCountriesAndAddRegions}
                 isClearable
-                styles={customStyles}
                 placeholder="Выберите страну"
                 isDisabled={countries.length === 0}
                 noOptionsMessage={() => "Нет стран в справочнике"}
@@ -528,13 +560,12 @@ export default function AddOrderForAllExecutors({
                 Область <span className="required">*</span>
               </label>
               <Select
+                {...selectMenuProps}
                 inputId="order-geo-region"
-                classNamePrefix="order-geo-select"
                 options={areaOptions}
                 value={geoRegion}
                 onChange={handleSelectRegionsAndAddTowns}
                 isClearable
-                styles={customStyles}
                 placeholder="Выберите область"
                 isDisabled={!geoCountry || regions.length === 0}
                 noOptionsMessage={() =>
@@ -548,20 +579,15 @@ export default function AddOrderForAllExecutors({
               <label className="label" htmlFor="order-geo-town">
                 Город <span className="required">*</span>
               </label>
-              <Select
+              <GeoTownSelect
+                {...selectMenuProps}
                 inputId="order-geo-town"
-                classNamePrefix="order-geo-select"
+                regionLabel={geoRegion?.label}
                 options={townOptions}
                 value={geoTown}
                 onChange={setGeoTown}
+                onCreateOption={handleCreateTown}
                 isClearable
-                styles={customStyles}
-                placeholder="Выберите город"
-                noOptionsMessage={() =>
-                  !geoRegion
-                    ? "Сначала выберите область"
-                    : "Нет городов для выбранной области"
-                }
                 isDisabled={!geoRegion}
               />
             </div>
@@ -570,7 +596,7 @@ export default function AddOrderForAllExecutors({
           {/* Точная локация */}
           <div>
             <label htmlFor="location" className="label">
-              Точная локация <span className="required">*</span>
+              Точная локация
             </label>
             <input
               type="text"
@@ -580,6 +606,9 @@ export default function AddOrderForAllExecutors({
               placeholder="Улица, дом, квартира..."
               className="input"
             />
+            <p className="field-note">
+              Необязательно, если не хотите публиковать точный адрес.
+            </p>
           </div>
 
           {/* Срок выполнения */}
@@ -591,19 +620,6 @@ export default function AddOrderForAllExecutors({
             selectClassName="select"
             inputClassName="input"
           />
-
-          {/* Страхование */}
-          <div>
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={insuranceRequired}
-                onChange={(e) => setInsuranceRequired(e.target.checked)}
-                className="checkbox"
-              />
-              Требуется страхование
-            </label>
-          </div>
 
           {/* Кнопка отправки */}
           <div>
@@ -631,30 +647,19 @@ const customStyles = {
     boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : "none",
     backgroundColor: "#f8fafc",
     fontSize: "0.9375rem",
-    alignItems: "center",
-    flexWrap: "nowrap",
     "&:hover": { borderColor: "#94a3b8" },
-  }),
-  dropdownIndicator: (base) => ({
-    ...base,
-    padding: "0 8px",
-  }),
-  clearIndicator: (base) => ({
-    ...base,
-    padding: "0 4px",
-  }),
-  indicatorsContainer: (base) => ({
-    ...base,
-    height: 40,
-    alignSelf: "center",
   }),
   valueContainer: (base) => ({
     ...base,
     padding: "0 10px",
     height: 40,
     flexWrap: "nowrap",
-    alignItems: "center",
     overflow: "hidden",
+    alignItems: "center",
+  }),
+  indicatorsContainer: (base) => ({
+    ...base,
+    height: 40,
   }),
   input: (base) => ({
     ...base,
@@ -664,15 +669,14 @@ const customStyles = {
   singleValue: (base) => ({
     ...base,
     margin: 0,
-    padding: 0,
-    maxWidth: "calc(100% - 8px)",
+    maxWidth: "100%",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   }),
   placeholder: (base) => ({
     ...base,
-    margin: 0,
+    color: "#94a3b8",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -685,13 +689,28 @@ const customStyles = {
     boxShadow: "0 10px 28px rgba(15, 23, 42, 0.12)",
     zIndex: 50,
   }),
+  menuPortal: (base) => ({
+    ...base,
+    zIndex: 9999,
+  }),
   option: (base, state) => ({
     ...base,
-    backgroundColor: state.isFocused ? "#eff6ff" : "white",
-    color: "#0f172a",
+    fontSize: "0.875rem",
+    backgroundColor: state.isSelected
+      ? "#2563eb"
+      : state.isFocused
+        ? "#eff6ff"
+        : "#fff",
+    color: state.isSelected ? "#fff" : "#0f172a",
     cursor: "pointer",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
   }),
+};
+
+const selectMenuProps = {
+  styles: customStyles,
+  menuPortalTarget: typeof document !== "undefined" ? document.body : null,
+  menuPosition: "fixed",
 };

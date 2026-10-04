@@ -6,7 +6,9 @@ import {
   FaCheckCircle,
   FaExclamationCircle,
   FaBalanceScale,
+  FaTrashAlt,
 } from "react-icons/fa";
+import { uiConfirm } from "../../../../UiDialog/uiDialog.js";
 import "./cancel_order_verdict_admin.css";
 
 const STRATEGIES = {
@@ -36,8 +38,20 @@ const STRATEGIES = {
   },
 };
 
+function strategyFromAmounts(customerShare, executorShare) {
+  const customer = Number(customerShare);
+  const executor = Number(executorShare);
+  if (Number.isNaN(customer) || Number.isNaN(executor)) return "full_customer";
+  const match = Object.entries(STRATEGIES).find(
+    ([, cfg]) => cfg.customer === customer && cfg.executor === executor,
+  );
+  return match?.[0] || "full_customer";
+}
+
 export default function CancelOrderVerdictAdmin() {
-  const { cancel_order_customer_id } = useParams();
+  const { source, cancel_order_customer_id } = useParams();
+  const cancelSource = source === "executor" ? "executor" : "customer";
+  const cancelId = cancel_order_customer_id;
 
   const [data, setData] = useState(null);
   const [totalAmount, setTotalAmount] = useState(0);
@@ -45,18 +59,21 @@ export default function CancelOrderVerdictAdmin() {
   const [comment, setComment] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
   const [error, setError] = useState(null);
 
   const config = STRATEGIES[strategy] || STRATEGIES.full_customer;
+  const isLocked = data?.status === "resolved";
 
-  const loadCancellation = useCallback(async (id) => {
+  const loadCancellation = useCallback(async (id, disputeSource) => {
     try {
       setIsLoading(true);
       setError(null);
 
       const response = await apiFetch(
-        `${API.baseURL}/admin/cancel_order_customer/${id}`,
+        `${API.baseURL}/admin/cancel_dispute/${disputeSource}/${id}`,
       );
 
       if (!response.ok) {
@@ -66,7 +83,12 @@ export default function CancelOrderVerdictAdmin() {
       const cancellation = await response.json();
       setData(cancellation);
       setTotalAmount(parseFloat(cancellation.order_total_amount) || 0);
-      setStrategy(cancellation.refund_strategy || "full_customer");
+      setStrategy(
+        strategyFromAmounts(
+          cancellation.refund_amount_customer,
+          cancellation.refund_amount_executor,
+        ),
+      );
       setComment(cancellation.admin_comment || "");
     } catch (err) {
       setError(err.message);
@@ -76,15 +98,44 @@ export default function CancelOrderVerdictAdmin() {
   }, []);
 
   useEffect(() => {
-    if (cancel_order_customer_id) {
-      loadCancellation(cancel_order_customer_id);
+    if (cancelId) {
+      loadCancellation(cancelId, cancelSource);
     }
-  }, [cancel_order_customer_id, loadCancellation]);
+  }, [cancelId, cancelSource, loadCancellation]);
 
-  const isValid = !!strategy && !!comment.trim() && !isSubmitting;
+  const isValid = !!strategy && !!comment.trim() && !isSubmitting && !isLocked && !isDeleting;
+
+  const handleDelete = useCallback(async () => {
+    if (!cancelId || isDeleting) return;
+    if (
+      !(await uiConfirm(
+        "Удалить этот отказ? Заявка исчезнет у заказчика и исполнителя.",
+      ))
+    ) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setError(null);
+    try {
+      const response = await apiFetch(
+        `${API.baseURL}/admin/cancel_dispute/${cancelSource}/${cancelId}`,
+        { method: "DELETE" },
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.detail || "Не удалось удалить отказ");
+      }
+      setIsDeleted(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [cancelId, cancelSource, isDeleting]);
 
   const handleSubmit = useCallback(async () => {
-    if (!isValid || !data) return;
+    if (!isValid || !data || isLocked) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -100,7 +151,11 @@ export default function CancelOrderVerdictAdmin() {
 
     try {
       const response = await apiFetch(
-        `${API.baseURL}/admin/add_verdict_cancel_customer`,
+        `${API.baseURL}/admin/${
+          cancelSource === "executor"
+            ? "add_verdict_cancel_executor"
+            : "add_verdict_cancel_customer"
+        }`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -109,7 +164,8 @@ export default function CancelOrderVerdictAdmin() {
       );
 
       if (!response.ok) {
-        throw new Error("Не удалось сохранить решение");
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.detail || "Не удалось сохранить решение");
       }
 
       setIsSuccess(true);
@@ -118,7 +174,7 @@ export default function CancelOrderVerdictAdmin() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [isValid, data, config, comment]);
+  }, [isValid, isLocked, data, config, comment, cancelSource]);
 
   if (isLoading) {
     return (
@@ -149,6 +205,24 @@ export default function CancelOrderVerdictAdmin() {
     );
   }
 
+  if (isDeleted) {
+    return (
+      <div className="verdict-admin">
+        <div className="status-screen status-success">
+          <span className="status-screen__icon">
+            <FaCheckCircle />
+          </span>
+          <h1>Отказ удалён</h1>
+          <p>Заявка на отказ снята. Заказчик и исполнитель получили уведомление.</p>
+          <Link to="/admin/cancel_orders" className="btn-back">
+            <FaArrowLeft size={12} />
+            К списку
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (isSuccess) {
     return (
       <div className="verdict-admin">
@@ -157,7 +231,7 @@ export default function CancelOrderVerdictAdmin() {
             <FaCheckCircle />
           </span>
           <h1>Решение сохранено</h1>
-          <p>Вердикт по отказу успешно вынесен и отправлен участникам.</p>
+          <p>Вердикт по отказу успешно вынесен и отправлен участникам. Изменить его больше нельзя.</p>
           <Link to="/admin/cancel_orders" className="btn-back">
             <FaArrowLeft size={12} />
             К списку
@@ -178,10 +252,18 @@ export default function CancelOrderVerdictAdmin() {
         <div>
           <span className="cancel-verdict-hero__badge">Админ · Вердикт</span>
           <h1 className="cancel-verdict-hero__title">
-            Решение по отказу #{data?.id}
+            Решение по{" "}
+            {cancelSource === "executor"
+              ? "отказу исполнителя"
+              : "отказу заказчика"}{" "}
+            #{data?.id}
           </h1>
           <p className="cancel-verdict-hero__subtitle">
-            Распределите возврат между заказчиком и исполнителем
+            {isLocked
+              ? "Решение уже вынесено. Повторно изменить его нельзя."
+              : cancelSource === "executor"
+                ? "Заказчик не согласился с отменой исполнителя"
+                : "Исполнитель не согласился с отменой заказчика"}
           </p>
         </div>
       </header>
@@ -191,7 +273,9 @@ export default function CancelOrderVerdictAdmin() {
         <div className="info-grid">
           <div className="info-item">
             <span className="info-label">Заказ</span>
-            <span className="info-value">{data?.order_name || "—"}</span>
+            <span className="info-value">
+              {data?.order_title || data?.order_name || "—"}
+            </span>
           </div>
           {totalAmount > 0 && (
             <div className="info-item">
@@ -244,7 +328,7 @@ export default function CancelOrderVerdictAdmin() {
                 strategy === key ? "active" : ""
               }`}
               onClick={() => setStrategy(key)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLocked}
             >
               <h3>{cfg.title}</h3>
               <div className="strategy-card__split">
@@ -266,6 +350,8 @@ export default function CancelOrderVerdictAdmin() {
             placeholder="Объясните ваше решение участникам…"
             rows={4}
             maxLength={500}
+            readOnly={isLocked}
+            disabled={isLocked}
           />
           <div className="form-hint">{comment.length}/500</div>
         </div>
@@ -275,16 +361,27 @@ export default function CancelOrderVerdictAdmin() {
 
       <footer className="action-buttons">
         <Link to="/admin/cancel_orders" className="btn-secondary">
-          Отмена
+          {isLocked ? "К списку" : "Отмена"}
         </Link>
         <button
           type="button"
-          onClick={handleSubmit}
-          disabled={!isValid}
-          className="btn-primary"
+          onClick={handleDelete}
+          disabled={isSubmitting || isDeleting}
+          className="btn-danger"
         >
-          {isSubmitting ? "Сохранение…" : "Сохранить решение"}
+          <FaTrashAlt size={12} />
+          {isDeleting ? "Удаление…" : "Удалить отказ"}
         </button>
+        {!isLocked && (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!isValid}
+            className="btn-primary"
+          >
+            {isSubmitting ? "Сохранение…" : "Сохранить решение"}
+          </button>
+        )}
       </footer>
     </div>
   );

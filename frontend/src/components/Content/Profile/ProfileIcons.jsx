@@ -347,6 +347,9 @@ const STATUS_ICONS = {
   grid: IconGrid,
   circle: IconCircle,
   progress: IconProgress,
+  mail: IconMail,
+  close: IconClose,
+  alert: IconAlert,
 };
 
 export function StatusIcon({ name, ...props }) {
@@ -364,6 +367,8 @@ const FILTER_ICONS = {
   graphicOrders: IconGrid,
   researchExecutor: IconSearch,
   waitOfferExecutors: IconEdit,
+  refusedByCustomer: IconClose,
+  refusedFromOrder: IconAlert,
   all: IconMenu,
 };
 

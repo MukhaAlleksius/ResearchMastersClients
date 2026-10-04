@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import asyncio
 
 try:
     import truststore
@@ -34,7 +35,7 @@ from core.config import (
     SENTRY_DSN,
     SENTRY_TRACES_SAMPLE_RATE,
 )
-from core.database import check_connection, init_db
+from core.database import check_connection, init_db, ensure_users_admin_note_column
 from core.error_responses import (
     format_validation_errors,
     public_exception_detail,
@@ -74,6 +75,7 @@ _APP_STARTED_AT = time.monotonic()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    reminder_task = None
     try:
         load_all_models()
         if AUTO_CREATE_DB:
@@ -83,6 +85,10 @@ async def lifespan(app: FastAPI):
             logger.info(
                 "AUTO_CREATE_DB=false; schema is managed by Alembic migrations."
             )
+        try:
+            await ensure_users_admin_note_column()
+        except Exception:
+            logger.exception("Could not ensure users.admin_note column")
 
         # Docker entrypoint already seeds after migrations. Skip here so
         # each gunicorn worker does not re-run the catalog on startup.
@@ -104,12 +110,24 @@ async def lifespan(app: FastAPI):
         async with async_session_maker() as session:
             await preload_nbrb_rates(session)
             await session.commit()
+
+        from core.work_start_reminders import run_work_start_reminder_loop
+
+        reminder_task = asyncio.create_task(run_work_start_reminder_loop())
     except Exception as e:
         logger.error("Database initialization failed: %s", e)
         raise
 
-    yield
-    logger.info("Application shutdown complete.")
+    try:
+        yield
+    finally:
+        if reminder_task is not None:
+            reminder_task.cancel()
+            try:
+                await reminder_task
+            except asyncio.CancelledError:
+                pass
+        logger.info("Application shutdown complete.")
 
 
 app = FastAPI(lifespan=lifespan, redirect_slashes=False)

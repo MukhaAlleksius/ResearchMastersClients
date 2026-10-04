@@ -5,10 +5,21 @@ import Select from "react-select";
 import DeleteOrderButton from "../DeleteOrder/DeleteOrderButton";
 import { formatDateTime } from "../../../Services/CommonComponent/CustomerOrderInfo/OrderInfoContent";
 import DeadlineField, {
+  DEFAULT_DEADLINE,
   isValidDeadline,
+  normalizeDeadline,
 } from "../../../../Common/DeadlineField.jsx";
+import GeoTownSelect from "../../../../../Common/GeoTownSelect.jsx";
+import {
+  canCreateTownInRegion,
+  createTownByUser,
+} from "../../../../../../utils/geographyApi.js";
+import {
+  normalizeTownName,
+  validateTownName,
+} from "../../../../../../utils/townNameValidation.js";
 import "../AddOrder/add_order_for_draft.css";
-import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+import { uiAlert, uiWarn } from "../../../../../UiDialog/uiDialog.js";
 import {
   budgetTypeHint,
   BUDGET_TYPE_OPTIONS,
@@ -112,9 +123,6 @@ function normalizeOrder(order) {
     updated_at: order.updated_at || order.updatedAt || "",
     status_order_customer:
       order.status_order_customer || order.status || "",
-    insurance_required: Boolean(
-      order.insurance_required ?? order.insuranceRequired,
-    ),
   };
 }
 
@@ -163,8 +171,7 @@ function CustomerOrderEditForm({
   const currency = "BYN";
   const [budgetType, setBudgetType] = useState("");
   const [location, setLocation] = useState("");
-  const [deadline, setDeadline] = useState("Как можно скорее");
-  const [insuranceRequired, setInsuranceRequired] = useState(false);
+  const [deadline, setDeadline] = useState(DEFAULT_DEADLINE);
 
   const [categoryWorkMaster, setCategoryWorkMaster] = useState(null);
   const [categoriesWorks, setCategoriesWorks] = useState([]);
@@ -278,8 +285,7 @@ function CustomerOrderEditForm({
     );
     setBudgetType(normalizeBudgetTypeForForm(order.budget_type || ""));
     setLocation(order.location || "");
-    setDeadline(order.deadline || "Как можно скорее");
-    setInsuranceRequired(Boolean(order.insurance_required));
+    setDeadline(normalizeDeadline(order.deadline));
 
     if (order.category_work_id || order.category_work) {
       setCategoryWorkMaster(
@@ -358,6 +364,37 @@ function CustomerOrderEditForm({
     }
   };
 
+  const handleCreateTown = async (inputValue) => {
+    if (!canCreateTownInRegion(geoRegion?.label)) {
+      await uiWarn(
+        "Для выбранного региона город задаётся только из справочника",
+      );
+      return;
+    }
+    const name = normalizeTownName(inputValue);
+    const nameError = validateTownName(name);
+    if (nameError) {
+      await uiWarn(nameError);
+      return;
+    }
+    if (!geoRegion?.value) {
+      await uiWarn("Сначала выберите область из справочника");
+      return;
+    }
+    try {
+      const created = await createTownByUser(geoRegion.value, name);
+      setTowns((prev) => {
+        if (prev.some((t) => String(t.value) === String(created.value))) {
+          return prev;
+        }
+        return [...prev, created];
+      });
+      setGeoTown(created);
+    } catch (err) {
+      await uiAlert(err.message || "Не удалось добавить город");
+    }
+  };
+
   const handleKeyDown = (e) => {
     const allowedKeys = [
       "Backspace",
@@ -384,7 +421,6 @@ function CustomerOrderEditForm({
     if (!categoryWorkMaster) return "Выберите категорию услуги";
     if (!title.trim()) return "Введите заголовок заказа";
     if (!description.trim()) return "Опишите задачу";
-    if (!location.trim()) return "Укажите точную локацию";
     if (!geoCountry) return "Укажите страну";
     if (!geoRegion) return "Укажите область";
     if (!geoTown) return "Укажите населённый пункт";
@@ -419,7 +455,6 @@ function CustomerOrderEditForm({
     town_id: geoTown.value,
     location: location.trim(),
     deadline,
-    insurance_required: insuranceRequired,
   });
 
   const updateOrderOnServer = async (orderId, payload) => {
@@ -726,27 +761,23 @@ function CustomerOrderEditForm({
               <label htmlFor="coi-town" className="aod-label">
                 Город <span className="aod-required">*</span>
               </label>
-              <Select
+              <GeoTownSelect
                 {...selectProps}
                 inputId="coi-town"
+                regionLabel={geoRegion?.label}
                 options={towns}
                 value={geoTown}
                 onChange={setGeoTown}
+                onCreateOption={handleCreateTown}
                 isClearable
-                placeholder="Выберите город"
                 isDisabled={!geoRegion}
-                noOptionsMessage={() =>
-                  geoRegion
-                    ? "Нет городов для выбранной области"
-                    : "Выберите город"
-                }
               />
             </div>
           </div>
 
           <div className="aod-field">
             <label htmlFor="coi-location" className="aod-label">
-              Точная локация <span className="aod-required">*</span>
+              Точная локация
             </label>
             <input
               type="text"
@@ -755,8 +786,10 @@ function CustomerOrderEditForm({
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Улица, дом, квартира..."
               className="aod-input"
-              required
             />
+            <p className="aod-field-note">
+              Необязательно, если не хотите публиковать точный адрес.
+            </p>
           </div>
         </section>
 
@@ -777,21 +810,6 @@ function CustomerOrderEditForm({
             inputClassName="aod-input"
             fieldClassName="aod-field"
           />
-
-          <label className="aod-checkbox" htmlFor="coi-insurance">
-            <input
-              type="checkbox"
-              id="coi-insurance"
-              checked={insuranceRequired}
-              onChange={(e) => setInsuranceRequired(e.target.checked)}
-            />
-            <span className="aod-checkbox__text">
-              Требуется страхование
-              <span className="aod-checkbox__hint">
-                Дополнительная защита на время выполнения работ
-              </span>
-            </span>
-          </label>
         </section>
 
         <div className="aod-actions">
