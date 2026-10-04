@@ -32,11 +32,9 @@ export async function fetchCurrentUserAccess() {
 }
 
 export function useStaffAccess() {
-  const [isStaff, setIsStaff] = useState(() =>
-    isStaffRole(getStoredUserRole()),
-  );
+  const [isStaff, setIsStaff] = useState(false);
   const [loading, setLoading] = useState(
-    () => Boolean(localStorage.getItem("access_token")) && !getStoredUserRole(),
+    () => Boolean(localStorage.getItem("access_token")),
   );
 
   useEffect(() => {
@@ -44,18 +42,10 @@ export function useStaffAccess() {
     if (!token) {
       setIsStaff(false);
       setLoading(false);
-      return;
-    }
-
-    const cachedRole = getStoredUserRole();
-    if (cachedRole) {
-      setIsStaff(isStaffRole(cachedRole));
-      setLoading(false);
-      return;
+      return undefined;
     }
 
     let cancelled = false;
-    setLoading(true);
 
     fetchCurrentUserAccess()
       .then((data) => {

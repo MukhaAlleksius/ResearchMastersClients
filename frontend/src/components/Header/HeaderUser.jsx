@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import NotificationsBell from "./NotificationsBell";
 import WarningBanner from "./WarningBanner";
 import { apiFetch, buildApiUrl } from "../../utils/api.js";
+import { useStaffAccess } from "../../utils/userAccess.js";
 import {
   isExecutorsNavActive,
   isOrdersNavActive,
@@ -58,7 +59,11 @@ function formatUserName(profile) {
 export default function HeaderUser({ onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userName, setUserName] = useState("");
+  const { isStaff } = useStaffAccess();
   const closeMenu = () => setMenuOpen(false);
+  const visibleNavItems = navItems.filter(
+    (item) => item.to !== "/admin" || isStaff,
+  );
 
   useEffect(() => {
     const userId = localStorage.getItem("user_id");
@@ -110,7 +115,7 @@ export default function HeaderUser({ onLogout }) {
         </Link>
 
         <nav className="site-header__nav" aria-label="Основная навигация">
-          <NavLinks className="site-header__link" items={navItems} />
+          <NavLinks className="site-header__link" items={visibleNavItems} />
         </nav>
 
         <div className="site-header__actions">
@@ -162,7 +167,11 @@ export default function HeaderUser({ onLogout }) {
             <span className="site-header__user-name">{userName}</span>
           </Link>
         )}
-        <NavLinks className="site-header__link" onNavigate={closeMenu} items={navItems} />
+        <NavLinks
+          className="site-header__link"
+          onNavigate={closeMenu}
+          items={visibleNavItems}
+        />
         <button
           type="button"
           onClick={() => {
