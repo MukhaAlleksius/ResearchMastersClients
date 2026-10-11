@@ -62,8 +62,10 @@ class OrderCreateSchema(BaseModel):
     budget: Optional[float] = Field(None, ge=0, description="Бюджет")
     currency: str = Field(default="BYN", max_length=3, description="Валюта")
     budget_type: Optional[str] = Field(
-        None, max_length=20, description="Тип бюджета (fixed/hourly)"
-    )  # ✅ Optional!
+        None,
+        max_length=50,
+        description="Тип бюджета: фиксированная, договорная или сметная цена",
+    )
     urgency_level: Optional[str] = Field(
         default="", max_length=20, description="Уровень срочности (устарело)"
     )
