@@ -128,6 +128,20 @@
   color: var(--ct-text);
 }
 
+.cancel-tab__required {
+  margin-left: 3px;
+  color: var(--ct-danger);
+  font-weight: 700;
+}
+
+.cancel-tab__field-error {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ct-danger);
+}
+
 .cancel-tab__input,
 .cancel-tab__select,
 .cancel-tab__textarea {
@@ -155,6 +169,15 @@
   outline: none;
   border-color: #93c5fd;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.cancel-tab__select--invalid,
+.cancel-tab__textarea--invalid,
+.cancel-tab__select--invalid:focus,
+.cancel-tab__textarea--invalid:focus {
+  border-color: var(--ct-danger);
+  background: #fef2f2;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
 }
 
 .cancel-tab__input:disabled,

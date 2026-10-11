@@ -586,6 +586,10 @@ function ExecutorsGrid({
       ) : (
         executors.map((executor) => {
           const slug = executorProfileSlug(executor);
+          const specializations = Array.isArray(executor.specializations)
+            ? executor.specializations.filter(Boolean)
+            : [];
+          const specializationLabel = specializations.join(", ");
           return (
           <Link
             key={executor.id}
@@ -622,9 +626,11 @@ function ExecutorsGrid({
                   <h3 className="executor-name">
                     {executor.first_name} {executor.last_name}
                   </h3>
-                  <p className="executor-description">
-                    {executor.short_review_master || "Опытный исполнитель"}
-                  </p>
+                  {specializationLabel && (
+                    <p className="executor-description" title={specializationLabel}>
+                      {specializationLabel}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="executor-location">

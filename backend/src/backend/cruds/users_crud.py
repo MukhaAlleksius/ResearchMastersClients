@@ -36,7 +36,6 @@ from models.works_materials_models import (  # Категории работ м�
     WorkMasterMyself,
 )
 from models.geography_models import Country, Region, Town  # Справочник географии
-from cruds.geography_crud import _is_city_as_region  # регион-город: только справочник
 from core.access import is_user_blocked, clear_expired_block  # Проверка блокировки аккаунта
 from models.users_models import (  # ORM-модели пользователя и профиля
     BusinessForm,
@@ -82,19 +81,13 @@ async def _ensure_town_exists(db: AsyncSession, town_id: int) -> Town:
 
 
 async def _ensure_town_allowed_for_profile(db: AsyncSession, town_id: int) -> Town:
-    """Город должен существовать; для г. Минск — только пункт из справочника."""
+    """Город должен быть из справочника."""
     town = await _ensure_town_exists(db, town_id)
-    region = await db.get(Region, town.region_id)
-    if region and _is_city_as_region(region.name_region):
-        source = (town.source or "admin").lower()
-        if source == "user" or town.is_verified is False:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Для г. Минск и других регионов-городов "
-                    "выберите населённый пункт из справочника"
-                ),
-            )
+    if town.is_verified is False:
+        raise HTTPException(
+            status_code=400,
+            detail="Выберите населённый пункт из справочника",
+        )
     return town
 
 
@@ -531,6 +524,22 @@ async def get_profiles_executors_for_cards_user(  # Карточки испол�
         profiles = result.all()  # строки результата
         print(f"🔥 Найдено профилей: {total}, страница {page}")  # отладка
 
+        user_ids = [row[0] for row in profiles]
+        spec_rows = await db.execute(
+            select(CategoryWorkMaster.master_id, CategoryWork.name)
+            .join(CategoryWork, CategoryWorkMaster.category_work_id == CategoryWork.id)
+            .where(CategoryWorkMaster.master_id.in_(user_ids))
+            .order_by(CategoryWork.name)
+        )
+        specs_by_master: dict[int, list[str]] = {}
+        for master_id, name in spec_rows.all():
+            label = (name or "").strip()
+            if not label:
+                continue
+            names = specs_by_master.setdefault(master_id, [])
+            if label not in names:
+                names.append(label)
+
         profiles_executors_for_cards = []  # DTO для фронта
         for profile in profiles:  # каждая строка
             (
@@ -565,6 +574,7 @@ async def get_profiles_executors_for_cards_user(  # Карточки испол�
                 short_review_master=short_review or "",  # отзыв
                 operating_mode=operating_mode or "Договорная",  # режим
                 avatar_url=avatar_url,  # аватар
+                specializations=specs_by_master.get(user_id, []),
             )
             profiles_executors_for_cards.append(profile_card)  # в список
 

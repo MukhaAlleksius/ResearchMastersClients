@@ -45,12 +45,18 @@ export default function CustomerCancelOrder({
   const [reasonText, setReasonText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({
+    reasonType: false,
+    reasonText: false,
+  });
   const [customerCancel, setCustomerCancel] = useState(null);
   const [executorCancel, setExecutorCancel] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const executorIdResolved = executorId ?? order?.executor_id;
-  const canSubmit = reasonType && reasonText.trim() && !isSubmitting;
+  const clearFieldError = (field) => {
+    setFieldErrors((prev) => (prev[field] ? { ...prev, [field]: false } : prev));
+  };
 
   const loadCancellationState = useCallback(async () => {
     if (!order?.id || !executorIdResolved || !order.customer_id) {
@@ -98,8 +104,13 @@ export default function CustomerCancelOrder({
 
   const handleSubmitCancel = async (e) => {
     e.preventDefault();
-    if (!reasonType || !reasonText.trim()) {
-      setFormError("Заполните причину отказа");
+    const nextErrors = {
+      reasonType: !reasonType,
+      reasonText: !reasonText.trim(),
+    };
+    setFieldErrors(nextErrors);
+    if (nextErrors.reasonType || nextErrors.reasonText) {
+      setFormError("");
       return;
     }
 
@@ -222,12 +233,21 @@ export default function CustomerCancelOrder({
 
           <form className="cancel-tab__form" onSubmit={handleSubmitCancel}>
             <label className="cancel-tab__field">
-              <span className="cancel-tab__label">Причина отмены</span>
+              <span className="cancel-tab__label">
+                Причина отмены
+                <span className="cancel-tab__required" aria-hidden="true">
+                  *
+                </span>
+              </span>
               <select
-                className="cancel-tab__select"
+                className={`cancel-tab__select${fieldErrors.reasonType ? " cancel-tab__select--invalid" : ""}`}
                 value={reasonType}
-                onChange={(e) => setReasonType(e.target.value)}
-                required
+                onChange={(e) => {
+                  setReasonType(e.target.value);
+                  if (e.target.value) clearFieldError("reasonType");
+                }}
+                aria-invalid={fieldErrors.reasonType || undefined}
+                aria-required="true"
                 disabled={isSubmitting}
               >
                 <option value="">Выберите причину</option>
@@ -237,20 +257,39 @@ export default function CustomerCancelOrder({
                   </option>
                 ))}
               </select>
+              {fieldErrors.reasonType && (
+                <p className="cancel-tab__field-error" role="alert">
+                  Выберите причину отмены
+                </p>
+              )}
             </label>
 
             <label className="cancel-tab__field">
-              <span className="cancel-tab__label">Подробное объяснение</span>
+              <span className="cancel-tab__label">
+                Подробное объяснение
+                <span className="cancel-tab__required" aria-hidden="true">
+                  *
+                </span>
+              </span>
               <textarea
-                className="cancel-tab__textarea"
+                className={`cancel-tab__textarea${fieldErrors.reasonText ? " cancel-tab__textarea--invalid" : ""}`}
                 value={reasonText}
-                onChange={(e) => setReasonText(e.target.value)}
+                onChange={(e) => {
+                  setReasonText(e.target.value);
+                  if (e.target.value.trim()) clearFieldError("reasonText");
+                }}
                 placeholder="Опишите, почему хотите отменить заказ…"
                 rows={4}
-                required
                 maxLength={1000}
+                aria-invalid={fieldErrors.reasonText || undefined}
+                aria-required="true"
                 disabled={isSubmitting}
               />
+              {fieldErrors.reasonText && (
+                <p className="cancel-tab__field-error" role="alert">
+                  Опишите причину отмены
+                </p>
+              )}
               <span className="cancel-tab__hint">{reasonText.length}/1000</span>
             </label>
 
@@ -263,7 +302,7 @@ export default function CustomerCancelOrder({
               <button
                 type="submit"
                 className="cancel-tab__btn cancel-tab__btn--danger"
-                disabled={!canSubmit}
+                disabled={isSubmitting}
               >
                 {isSubmitting ? "Отправка…" : "Отправить заявку на отмену"}
               </button>

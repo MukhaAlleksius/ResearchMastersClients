@@ -346,6 +346,22 @@
   color: var(--spec-muted);
 }
 
+.spec-required {
+  margin-left: 3px;
+  color: var(--spec-danger);
+  font-weight: 700;
+}
+
+.spec-field__error {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--spec-danger);
+}
+
 .spec-input,
 .spec-textarea {
   width: 100%;
@@ -370,6 +386,15 @@
   outline: none;
   border-color: var(--spec-primary);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.spec-input--invalid,
+.spec-textarea--invalid,
+.spec-input--invalid:focus,
+.spec-textarea--invalid:focus {
+  border-color: var(--spec-danger);
+  background: var(--spec-danger-soft);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
 }
 
 .spec-form__actions {
@@ -405,6 +430,13 @@
 .spec-select .spec-react__control--is-focused {
   border-color: var(--spec-primary);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.spec-select--invalid .spec-react__control,
+.spec-select--invalid .spec-react__control--is-focused {
+  border-color: var(--spec-danger);
+  background: var(--spec-danger-soft);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
 }
 
 /* Table */

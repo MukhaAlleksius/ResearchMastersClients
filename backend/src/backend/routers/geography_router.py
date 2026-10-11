@@ -3,12 +3,11 @@ import logging  # Логирование ошибок географии
 from fastapi import APIRouter, Depends, HTTPException, Query  # Роутер, DI, ошибки, query
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
-from core.auth import get_current_admin_user, get_optional_current_user  # Админ / опциональный юзер
+from core.auth import get_current_admin_user  # Только админ
 from core.config import get_db  # Зависимость сессии БД
 from cruds.geography_crud import (  # CRUD стран/регионов/городов
     add_country,  # Добавить страну
     add_region_for_country,  # Добавить регион
-    add_town_by_user,  # Город от пользователя
     add_town_for_region,  # Добавить город
     delete_country,  # Удалить страну
     delete_region,  # Удалить регион
@@ -28,7 +27,6 @@ from schemas.geography_schemas import (  # Pydantic-схемы географи�
     RegionSchema,  # Регион
     TownSchema,  # Город
     UnverifiedTownSchema,
-    UserTownCreateSchema,
 )
 from schemas.users_schemas import UserCommonSchema  # Схема текущего пользователя
 
@@ -151,26 +149,6 @@ async def add_town_api(
         return town_to_schema(town)
     except HTTPException as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
-
-
-@router.post("/add_town_by_user", response_model=TownSchema)  # POST город при регистрации/профиле
-async def add_town_by_user_api(
-    payload: UserTownCreateSchema,
-    db: AsyncSession = Depends(get_db),
-    current_user: UserCommonSchema | None = Depends(get_optional_current_user),
-):
-    try:
-        town = await add_town_by_user(
-            db=db,
-            payload=payload,
-            created_by_user_id=current_user.user_id if current_user else None,
-        )
-        return town_to_schema(town)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("add_town_by_user error: %s", e)
-        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/edit_town", response_model=TownSchema)  # POST редактировать город

@@ -77,15 +77,36 @@ export default function EditSpecialization({
   );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({
+    description: false,
+    experience: false,
+    costHour: false,
+  });
 
   useEffect(() => {
     setDescription(specialization.description_master || "");
     setExperience(sanitizeDecimalInput(specialization.experience ?? "", 1));
     setCostHour(sanitizeDecimalInput(specialization.cost_hour ?? "", 2));
     setSaved(false);
+    setFieldErrors({ description: false, experience: false, costHour: false });
   }, [specialization]);
 
+  const clearFieldError = (field) => {
+    setFieldErrors((prev) => (prev[field] ? { ...prev, [field]: false } : prev));
+  };
+
   const handleSave = async () => {
+    const nextErrors = {
+      description: String(description ?? "").trim() === "",
+      experience: String(experience ?? "").trim() === "",
+      costHour: String(costHour ?? "").trim() === "",
+    };
+    setFieldErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) {
+      setSaved(false);
+      return;
+    }
+
     setSaving(true);
     setSaved(false);
     try {
@@ -156,53 +177,90 @@ export default function EditSpecialization({
       <div className="spec-field">
         <label className="spec-label" htmlFor="edit-desc">
           Описание
+          <span className="spec-required" aria-hidden="true">
+            *
+          </span>
         </label>
         <textarea
           id="edit-desc"
-          className="spec-textarea"
+          className={`spec-textarea${fieldErrors.description ? " spec-textarea--invalid" : ""}`}
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          aria-invalid={fieldErrors.description || undefined}
+          aria-required="true"
+          onChange={(e) => {
+            setDescription(e.target.value);
+            if (e.target.value.trim()) clearFieldError("description");
+          }}
           placeholder="Опишите специализацию..."
         />
+        {fieldErrors.description && (
+          <p className="spec-field__error" role="alert">
+            Заполните описание
+          </p>
+        )}
       </div>
 
       <div className="spec-field">
         <label className="spec-label" htmlFor="edit-exp">
           Опыт (лет)
+          <span className="spec-required" aria-hidden="true">
+            *
+          </span>
         </label>
         <input
           id="edit-exp"
           type="text"
           inputMode="decimal"
           autoComplete="off"
-          className="spec-input"
+          className={`spec-input${fieldErrors.experience ? " spec-input--invalid" : ""}`}
           value={experience}
-          onChange={(e) =>
-            setExperience(sanitizeDecimalInput(e.target.value, 1))
-          }
+          aria-invalid={fieldErrors.experience || undefined}
+          aria-required="true"
+          onChange={(e) => {
+            const next = sanitizeDecimalInput(e.target.value, 1);
+            setExperience(next);
+            if (next.trim()) clearFieldError("experience");
+          }}
           onKeyDown={(e) => handleDecimalKeyDown(e, 1)}
           placeholder="0.0"
         />
+        {fieldErrors.experience && (
+          <p className="spec-field__error" role="alert">
+            Укажите стаж
+          </p>
+        )}
       </div>
 
       <div className="spec-row-2 spec-row-2--rate">
         <div className="spec-field">
           <label className="spec-label" htmlFor="edit-rate">
             Стоимость за час ({displayCurrency})
+            <span className="spec-required" aria-hidden="true">
+              *
+            </span>
           </label>
           <input
             id="edit-rate"
             type="text"
             inputMode="decimal"
             autoComplete="off"
-            className="spec-input"
+            className={`spec-input${fieldErrors.costHour ? " spec-input--invalid" : ""}`}
             value={costHour}
-            onChange={(e) =>
-              setCostHour(sanitizeDecimalInput(e.target.value, 2))
-            }
+            aria-invalid={fieldErrors.costHour || undefined}
+            aria-required="true"
+            onChange={(e) => {
+              const next = sanitizeDecimalInput(e.target.value, 2);
+              setCostHour(next);
+              if (next.trim()) clearFieldError("costHour");
+            }}
             onKeyDown={(e) => handleDecimalKeyDown(e, 2)}
             placeholder="0.00"
           />
+          {fieldErrors.costHour && (
+            <p className="spec-field__error" role="alert">
+              Укажите стоимость за час
+            </p>
+          )}
         </div>
         <div className="spec-field">
           <span className="spec-label">Валюта</span>

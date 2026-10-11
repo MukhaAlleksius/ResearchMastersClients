@@ -1,6 +1,6 @@
 import logging  # Логирование CRUD географии
 from fastapi import HTTPException  # HTTP-ошибки
-from sqlalchemy import and_, delete, func, or_, select, text  # SQL-операции
+from sqlalchemy import delete, func, select, text  # SQL-операции
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
 from models.geography_models import Country, Region, Town  # ORM географии
@@ -12,24 +12,10 @@ from schemas.geography_schemas import (  # Pydantic-схемы географи�
     TownReadSchema,  # город для чтения
     TownSchema,  # город для записи
     UnverifiedTownSchema,
-    UserTownCreateSchema,
     validate_town_name_value,
 )
 
 logger = logging.getLogger(__name__)  # Логгер модуля
-
-
-def _is_city_as_region(region_name: str | None) -> bool:
-    """Регион-город (напр. «г. Минск») — города только из справочника."""
-    label = " ".join(str(region_name or "").strip().lower().replace("ё", "е").split())
-    if not label:
-        return False
-    return (
-        label.startswith("г.")
-        or label.startswith("г ")
-        or label.startswith("город ")
-        or label == "минск"
-    )
 
 
 def _block_delete(reasons: list[str]) -> None:  # Запрет удаления с перечислением причин
@@ -305,67 +291,6 @@ async def add_town_for_region(
         raise HTTPException(status_code=400, detail=f"Ошибка: {str(e)}")  # 400
 
 
-async def add_town_by_user(
-    db: AsyncSession,
-    payload: UserTownCreateSchema,
-    *,
-    created_by_user_id: int | None = None,
-) -> Town:  # город от пользователя (регистрация / профиль)
-    region_result = await db.execute(
-        select(Region).where(Region.id == payload.region_id)
-    )
-    region = region_result.scalar_one_or_none()
-    if not region:
-        raise HTTPException(status_code=404, detail="Регион не найден")
-    if _is_city_as_region(region.name_region):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Для региона-города (например, г. Минск) "
-                "можно выбрать только город из справочника"
-            ),
-        )
-    town_schema = TownSchema(
-        region_id=payload.region_id,
-        name_town=payload.name_town,
-    )
-    town, created = await add_town_for_region(
-        db,
-        town_schema,
-        source="user",
-        is_verified=False,
-        created_by_user_id=created_by_user_id,
-    )
-    if created:
-        await _notify_admins_new_town(db, town)
-    return town
-
-
-async def _notify_admins_new_town(db: AsyncSession, town: Town) -> None:
-    """Оповестить админов о новом городе; сбой уведомления не откатывает город."""
-    from cruds.notifications_crud import notify_admins_new_town
-
-    region = await db.get(Region, town.region_id)
-    country = await db.get(Country, region.country_id) if region else None
-    try:
-        await notify_admins_new_town(
-            db,
-            town_id=town.id,
-            town_name=town.name_town,
-            region_id=town.region_id,
-            region_name=region.name_region if region else "",
-            country_id=country.id if country else 0,
-            country_name=country.name_country if country else "",
-            created_by_user_id=town.created_by_user_id,
-        )
-    except Exception as error:
-        logger.warning(
-            "notify new town failed town_id=%s: %s",
-            town.id,
-            error,
-        )
-
-
 def town_to_schema(town: Town) -> TownSchema:
     return TownSchema(
         town_id=town.id,
@@ -459,14 +384,10 @@ async def get_towns_for_region(
     db: AsyncSession, region_id: int
 ) -> list[TownReadSchema]:  # READ городов региона
     try:  # обработка ошибок
-        region = await db.get(Region, region_id)
-        query = select(Town).where(Town.region_id == region_id)
-        if region and _is_city_as_region(region.name_region):
-            # г. Минск и аналоги: только проверенные пункты справочника
-            query = query.where(
-                Town.is_verified.is_(True),
-                or_(Town.source == "admin", Town.source.is_(None)),
-            )
+        query = select(Town).where(
+            Town.region_id == region_id,
+            Town.is_verified.is_(True),
+        )
         result = await db.execute(query)
         towns = result.scalars().all()  # список ORM
         return [

@@ -6,17 +6,10 @@ import DeadlineField, {
   isValidDeadline,
 } from "../../../../Common/DeadlineField.jsx";
 import GeoTownSelect from "../../../../../Common/GeoTownSelect.jsx";
-import {
-  canCreateTownInRegion,
-  createTownByUser,
-} from "../../../../../../utils/geographyApi.js";
-import {
-  normalizeTownName,
-  validateTownName,
-} from "../../../../../../utils/townNameValidation.js";
+import { isCityAsRegion } from "../../../../../../utils/geographyApi.js";
 import "./add_order_for_draft.css";
 
-import { uiAlert, uiWarn } from "../../../../../UiDialog/uiDialog.js";
+import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
 import {
   budgetTypeHint,
   BUDGET_TYPE_OPTIONS,
@@ -96,7 +89,7 @@ export default function AddOrderForDraft({ onSuccess }) {
   const fetchTownsRegion = useCallback(async (regionId) => {
     if (!regionId) {
       setTowns([]);
-      return;
+      return [];
     }
     try {
       const response_towns = await apiFetch(
@@ -109,9 +102,11 @@ export default function AddOrderForDraft({ onSuccess }) {
         label: town.name_town || town.name || town,
       }));
       setTowns(formattedTowns);
+      return formattedTowns;
     } catch (error) {
       setTowns([]);
       console.log("Ошибка: ", error);
+      return [];
     }
   }, []);
 
@@ -137,42 +132,17 @@ export default function AddOrderForDraft({ onSuccess }) {
       setGeoTown(null);
       setTowns([]);
       if (selectedOption) {
-        await fetchTownsRegion(selectedOption.value);
+        const loadedTowns = await fetchTownsRegion(selectedOption.value);
+        if (
+          isCityAsRegion(selectedOption.label) &&
+          loadedTowns.length === 1
+        ) {
+          setGeoTown(loadedTowns[0]);
+        }
       }
     },
     [fetchTownsRegion]
   );
-
-  const handleCreateTown = async (inputValue) => {
-    if (!canCreateTownInRegion(geoRegion?.label)) {
-      await uiWarn(
-        "Для выбранного региона город задаётся только из справочника",
-      );
-      return;
-    }
-    const name = normalizeTownName(inputValue);
-    const nameError = validateTownName(name);
-    if (nameError) {
-      await uiWarn(nameError);
-      return;
-    }
-    if (!geoRegion?.value) {
-      await uiWarn("Сначала выберите область из справочника");
-      return;
-    }
-    try {
-      const created = await createTownByUser(geoRegion.value, name);
-      setTowns((prev) => {
-        if (prev.some((t) => String(t.value) === String(created.value))) {
-          return prev;
-        }
-        return [...prev, created];
-      });
-      setGeoTown(created);
-    } catch (err) {
-      await uiAlert(err.message || "Не удалось добавить город");
-    }
-  };
 
   // Загрузка категорий работ
   const fetchCategoriesWorks = useCallback(async () => {
@@ -567,7 +537,6 @@ export default function AddOrderForDraft({ onSuccess }) {
                 options={townOptions}
                 value={geoTown}
                 onChange={setGeoTown}
-                onCreateOption={handleCreateTown}
                 isClearable
                 isDisabled={!geoRegion}
               />

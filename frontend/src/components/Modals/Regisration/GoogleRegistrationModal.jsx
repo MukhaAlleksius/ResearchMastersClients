@@ -4,20 +4,12 @@ import { createPortal } from "react-dom"; // рендер модалки в body
 import { apiFetch, buildApiUrl, formatApiDetail } from "../../../utils/api.js"; // HTTP + URL + текст ошибки
 import GeoTownSelect from "../../Common/GeoTownSelect.jsx";
 import {
-  canCreateTownInRegion,
-  createTownByUser,
   fetchRegionsList, // GET регионов по стране
   fetchTownsList, // GET городов по региону
   getFallbackRegistrationGeography, // локальный дефолт без API
-  isCityAsRegion,
   loadDefaultRegistrationGeography, // дефолт с API (Беларусь и т.д.)
   townFieldHint,
 } from "../../../utils/geographyApi.js";
-import {
-  normalizeTownName,
-  validateTownName,
-} from "../../../utils/townNameValidation.js";
-import RulesDisclosure from "./RulesDisclosure.jsx";
 import { uiAlert, uiWarn } from "../../UiDialog/uiDialog.js";
 import "./registration_modal.css"; // общие стили reg-modal
 
@@ -225,44 +217,6 @@ export default function GoogleRegistrationModal({
     }
   };
 
-  /** Создать город в выбранном регионе (если нет в списке). */
-  const handleCreateTown = async (inputValue) => {
-    const regionOption = findOption(regions, regionId);
-    if (!canCreateTownInRegion(regionOption?.label)) {
-      await uiWarn(
-        "Для выбранного региона город задаётся только из справочника",
-      );
-      return;
-    }
-    const name = normalizeTownName(inputValue);
-    const nameError = validateTownName(name);
-    if (nameError) {
-      await uiWarn(nameError);
-      return;
-    }
-    if (!regionId || !/^\d+$/.test(String(regionId))) {
-      await uiWarn("Сначала выберите регион из справочника");
-      return;
-    }
-
-    setGeoLoading(true);
-    try {
-      const created = await createTownByUser(regionId, name);
-      setTowns((prev) => {
-        if (prev.some((t) => String(t.value) === String(created.value))) {
-          return prev;
-        }
-        return [...prev, created];
-      });
-      setTownId(String(created.value));
-      clearInvalid("townId");
-    } catch (err) {
-      await uiAlert(err.message || "Не удалось добавить город");
-    } finally {
-      setGeoLoading(false);
-    }
-  };
-
   /** Submit: id_token + town_id → POST /auth/google/register. */
   const handleSubmit = async (e) => {
     e.preventDefault(); // без reload страницы
@@ -436,32 +390,13 @@ export default function GoogleRegistrationModal({
                     setTownId(option ? String(option.value) : "");
                     clearInvalid("townId");
                   }}
-                  onCreateOption={handleCreateTown}
                   isDisabled={fieldsDisabled || !regionId || geoLoading}
                   isClearable={false}
                   menuPortalTarget={document.body}
                   menuPosition="fixed"
                   styles={buildGeoSelectStyles(Boolean(invalidFields.townId))}
-                  aria-describedby="google-reg-town-rules"
                 />
               </FieldRow>
-
-              {!isCityAsRegion(findOption(regions, regionId)?.label) && (
-              <RulesDisclosure
-                id="google-reg-town-rules"
-                title="Правила названия города"
-              >
-                <ul>
-                  <li>название начинается с заглавной буквы (например: Минск);</li>
-                  <li>только русский язык (кириллица);</li>
-                  <li>пишите название правильно, без опечаток;</li>
-                  <li>
-                    если города нет в списке — введите название и выберите
-                    «Добавить город».
-                  </li>
-                </ul>
-              </RulesDisclosure>
-              )}
             </div>
           </div>
 

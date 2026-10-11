@@ -1,22 +1,17 @@
 import Select from "react-select";
-import CreatableSelect from "react-select/creatable";
-import {
-  canCreateTownInRegion,
-  isCityAsRegion,
-} from "../../utils/geographyApi.js";
-import { normalizeTownName } from "../../utils/townNameValidation.js";
+import { isCityAsRegion } from "../../utils/geographyApi.js";
 
 /**
- * Город из справочника. Для региона-города (г. Минск) — только справочник,
- * без поиска и без свободного ввода; при одном пункте поле фиксируется.
+ * Город только из справочника. Для региона-города (г. Минск) список без поиска,
+ * при одном пункте поле фиксируется.
  */
 export default function GeoTownSelect({
   regionLabel,
   options = [],
   value,
   onChange,
-  onCreateOption,
   isDisabled = false,
+  isClearable = false,
   placeholder,
   ...rest
 }) {
@@ -25,50 +20,26 @@ export default function GeoTownSelect({
   const disabled = Boolean(isDisabled || singleLocked);
   const emptyPlaceholder = placeholder || "Сначала выберите область";
 
-  if (locked) {
-    return (
-      <Select
-        {...rest}
-        options={options}
-        value={value}
-        onChange={onChange}
-        isDisabled={disabled}
-        isClearable={false}
-        isSearchable={false}
-        placeholder={
-          regionLabel ? "Город задан справочником" : emptyPlaceholder
-        }
-        noOptionsMessage={() => "Нет городов в справочнике"}
-      />
-    );
-  }
-
   return (
-    <CreatableSelect
+    <Select
       {...rest}
       options={options}
       value={value}
       onChange={onChange}
-      onCreateOption={onCreateOption}
-      isValidNewOption={(inputValue) =>
-        canCreateTownInRegion(regionLabel) &&
-        Boolean(normalizeTownName(inputValue))
-      }
-      formatCreateLabel={(inputValue) =>
-        `Добавить город «${normalizeTownName(inputValue)}»`
-      }
-      isDisabled={isDisabled}
+      isDisabled={disabled}
+      isClearable={locked ? false : isClearable}
+      isSearchable={!locked}
       placeholder={
-        regionLabel
-          ? placeholder || "Выберите или введите город"
-          : emptyPlaceholder
+        locked
+          ? regionLabel
+            ? "Город задан справочником"
+            : emptyPlaceholder
+          : regionLabel
+            ? "Выберите город"
+            : emptyPlaceholder
       }
-      noOptionsMessage={({ inputValue } = {}) =>
-        !regionLabel
-          ? "Сначала выберите область"
-          : inputValue
-            ? "Нет совпадений — можно добавить свой город"
-            : "Нет городов — можно ввести свой"
+      noOptionsMessage={() =>
+        regionLabel ? "Нет городов в справочнике" : "Сначала выберите область"
       }
     />
   );

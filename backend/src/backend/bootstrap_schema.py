@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import sys
+from pathlib import Path
 
 from sqlalchemy import inspect, select, text
 from sqlalchemy.exc import IntegrityError
@@ -11,18 +13,17 @@ from core.database import Base, async_session_maker, engine
 from core.models_loader import load_all_models
 from models.geography_models import Country, Region, Town
 
-# Minimal directory so registration geography selects are not empty on first run.
-DEFAULT_GEOGRAPHY = {
-    "Беларусь": {
-        "г. Минск": ["Минск"],
-        "Минская область": ["Борисов", "Молодечно", "Жодино", "Солигорск"],
-        "Брестская область": ["Брест", "Барановичи", "Пинск"],
-        "Гродненская область": ["Гродно", "Лида"],
-        "Витебская область": ["Витебск", "Орша", "Полоцк"],
-        "Гомельская область": ["Гомель", "Мозырь"],
-        "Могилёвская область": ["Могилёв", "Бобруйск"],
-    }
-}
+# Города и посёлки городского типа Беларуси. Пользовательские города в базе не затираются:
+# seed только добавляет отсутствующие названия.
+GEOGRAPHY_PATH = Path(__file__).resolve().parent / "data" / "belarus_geography.json"
+
+
+def load_default_geography() -> dict[str, dict[str, list[str]]]:
+    with GEOGRAPHY_PATH.open(encoding="utf-8") as geography_file:
+        data = json.load(geography_file)
+    if not isinstance(data, dict) or "Беларусь" not in data:
+        raise ValueError(f"Некорректный справочник географии: {GEOGRAPHY_PATH}")
+    return data
 
 
 def _needs_bootstrap(sync_conn) -> bool:
@@ -208,8 +209,9 @@ async def seed_default_geography() -> bool:
     await dedupe_geography()
 
     changed = False
+    geography = load_default_geography()
     async with async_session_maker() as session:
-        for country_name, regions in DEFAULT_GEOGRAPHY.items():
+        for country_name, regions in geography.items():
             country, created = await _get_or_create_country(session, country_name)
             changed = changed or created
 

@@ -142,7 +142,6 @@ const PUBLIC_POST_EXACT = new Set([
   "/auth/google/register",
   "/api/auth/google/register",
   "/payment/callback",
-  "/add_town_by_user",
   "/resend-verification",
   "/forgot-password",
   "/reset-password",

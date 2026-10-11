@@ -57,16 +57,6 @@ class TownSchema(TownReadSchema):
         return validate_town_name_value(value)
 
 
-class UserTownCreateSchema(BaseModel):
-    region_id: int
-    name_town: str = Field(..., max_length=255)
-
-    @field_validator("name_town")
-    @classmethod
-    def town_name_rules(cls, value: str) -> str:
-        return validate_town_name_value(value)
-
-
 class UnverifiedTownSchema(BaseModel):
     town_id: int
     name_town: str

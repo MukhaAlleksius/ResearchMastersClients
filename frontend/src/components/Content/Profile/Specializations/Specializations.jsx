@@ -12,16 +12,42 @@ import {
 import "./specializations.css";
 import { uiAlert, uiConfirm } from "../../../UiDialog/uiDialog.js";
 
-const selectStyles = {
-  control: (base, state) => ({
-    ...base,
-    minHeight: 44,
-    borderRadius: 10,
-    borderColor: state.isFocused ? "#2563eb" : "#e2e8f0",
-    boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : "none",
-  }),
-  menu: (base) => ({ ...base, borderRadius: 10, zIndex: 40 }),
+const emptyFieldErrors = {
+  category: false,
+  description: false,
+  experience: false,
+  costHour: false,
 };
+
+function isBlank(value) {
+  return String(value ?? "").trim() === "";
+}
+
+function selectStyles(invalid) {
+  return {
+    control: (base, state) => ({
+      ...base,
+      minHeight: 44,
+      borderRadius: 10,
+      borderColor: invalid ? "#dc2626" : state.isFocused ? "#2563eb" : "#e2e8f0",
+      backgroundColor: invalid ? "#fef2f2" : "#fff",
+      boxShadow: invalid
+        ? "0 0 0 3px rgba(220, 38, 38, 0.15)"
+        : state.isFocused
+          ? "0 0 0 3px rgba(37, 99, 235, 0.12)"
+          : "none",
+    }),
+    menu: (base) => ({ ...base, borderRadius: 10, zIndex: 40 }),
+  };
+}
+
+function RequiredMark() {
+  return (
+    <span className="spec-required" aria-hidden="true">
+      *
+    </span>
+  );
+}
 
 function SpecializationDetail({ specialization, onBack, onDelete, deleting }) {
   const [activeInnerTab, setActiveInnerTab] = useState("works");
@@ -153,6 +179,7 @@ export default function Specializations() {
   const [categoriesWorks, setCategoriesWorks] = useState([]);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState(emptyFieldErrors);
 
   const fetchCategoriesWorksMaster = async () => {
     try {
@@ -197,17 +224,23 @@ export default function Specializations() {
     return categoriesWorks.filter((option) => !takenIds.has(option.value));
   }, [categoriesWorks, categoriesWorksMaster]);
 
+  const clearFieldError = (field) => {
+    setFieldErrors((prev) => (prev[field] ? { ...prev, [field]: false } : prev));
+  };
+
   const handleAddSpecialization = async (e) => {
     e.preventDefault();
     const selectedFromList = availableCategories.some(
       (option) => option.value === categoryWorkMaster?.value,
     );
-    if (!selectedFromList) {
-      await uiAlert("Выберите специализацию из списка");
-      return;
-    }
-    if (!description || !experience || !costHour) {
-      await uiAlert("Пожалуйста, заполните все поля");
+    const nextErrors = {
+      category: !selectedFromList,
+      description: isBlank(description),
+      experience: isBlank(experience),
+      costHour: isBlank(costHour),
+    };
+    setFieldErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) {
       return;
     }
     setSaving(true);
@@ -233,6 +266,7 @@ export default function Specializations() {
       setDescription("");
       setExperience("");
       setCostHour("");
+      setFieldErrors(emptyFieldErrors);
       setSubTab("list");
     } catch (error) {
       console.error(error);
@@ -390,12 +424,16 @@ export default function Specializations() {
             <div className="spec-field">
               <label className="spec-label" htmlFor="spec-category">
                 Категория работ
+                <RequiredMark />
               </label>
               <Select
                 inputId="spec-category"
                 options={availableCategories}
                 value={categoryWorkMaster}
-                onChange={setCategoryWorkMaster}
+                onChange={(option) => {
+                  setCategoryWorkMaster(option);
+                  if (option) clearFieldError("category");
+                }}
                 isClearable
                 isSearchable
                 placeholder="Выберите специализацию из списка..."
@@ -404,55 +442,95 @@ export default function Specializations() {
                     ? "Все специализации уже добавлены"
                     : "Нет подходящих специализаций"
                 }
-                className="spec-select"
+                className={`spec-select${fieldErrors.category ? " spec-select--invalid" : ""}`}
                 classNamePrefix="spec-react"
-                styles={selectStyles}
+                styles={selectStyles(fieldErrors.category)}
+                aria-invalid={fieldErrors.category || undefined}
+                aria-required="true"
               />
+              {fieldErrors.category && (
+                <p className="spec-field__error" role="alert">
+                  Выберите специализацию из списка
+                </p>
+              )}
             </div>
 
             <div className="spec-field">
               <label className="spec-label" htmlFor="spec-desc">
                 Описание
+                <RequiredMark />
               </label>
               <textarea
                 id="spec-desc"
-                className="spec-textarea"
+                className={`spec-textarea${fieldErrors.description ? " spec-textarea--invalid" : ""}`}
                 placeholder="Расскажите о своём опыте в этой области..."
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                aria-invalid={fieldErrors.description || undefined}
+                aria-required="true"
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  if (!isBlank(e.target.value)) clearFieldError("description");
+                }}
               />
+              {fieldErrors.description && (
+                <p className="spec-field__error" role="alert">
+                  Заполните описание
+                </p>
+              )}
             </div>
 
             <div className="spec-field">
               <label className="spec-label" htmlFor="spec-exp">
                 Стаж (лет)
+                <RequiredMark />
               </label>
               <input
                 id="spec-exp"
                 type="number"
                 min="0"
-                className="spec-input"
+                className={`spec-input${fieldErrors.experience ? " spec-input--invalid" : ""}`}
                 placeholder="0"
                 value={experience}
-                onChange={(e) => setExperience(e.target.value)}
+                aria-invalid={fieldErrors.experience || undefined}
+                aria-required="true"
+                onChange={(e) => {
+                  setExperience(e.target.value);
+                  if (!isBlank(e.target.value)) clearFieldError("experience");
+                }}
               />
+              {fieldErrors.experience && (
+                <p className="spec-field__error" role="alert">
+                  Укажите стаж
+                </p>
+              )}
             </div>
 
             <div className="spec-row-2 spec-row-2--rate">
               <div className="spec-field">
                 <label className="spec-label" htmlFor="spec-rate">
                   Стоимость за час (BYN)
+                  <RequiredMark />
                 </label>
                 <input
                   id="spec-rate"
                   type="number"
                   min="0"
                   step="0.01"
-                  className="spec-input"
+                  className={`spec-input${fieldErrors.costHour ? " spec-input--invalid" : ""}`}
                   placeholder="50"
                   value={costHour}
-                  onChange={(e) => setCostHour(e.target.value)}
+                  aria-invalid={fieldErrors.costHour || undefined}
+                  aria-required="true"
+                  onChange={(e) => {
+                    setCostHour(e.target.value);
+                    if (!isBlank(e.target.value)) clearFieldError("costHour");
+                  }}
                 />
+                {fieldErrors.costHour && (
+                  <p className="spec-field__error" role="alert">
+                    Укажите стоимость за час
+                  </p>
+                )}
               </div>
               <div className="spec-field">
                 <span className="spec-label">Валюта</span>

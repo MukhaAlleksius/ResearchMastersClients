@@ -86,14 +86,9 @@ export function isCityAsRegion(regionLabel) {
 export function townFieldHint(regionLabel, { hasRegion } = {}) {
   if (!hasRegion) return "сначала регион";
   if (isCityAsRegion(regionLabel)) {
-    return "город задаётся справочником, другой ввести нельзя";
+    return "город задаётся справочником";
   }
-  return "см. правила";
-}
-
-/** Можно ли создавать новый город в выбранном регионе. */
-export function canCreateTownInRegion(regionLabel) {
-  return Boolean(regionLabel) && !isCityAsRegion(regionLabel);
+  return "выберите город из списка";
 }
 
 export async function fetchCountriesList() {
@@ -124,29 +119,6 @@ export async function fetchTownsList(regionId) {
   if (!response.ok) throw new Error("Не удалось загрузить список городов");
   const data = await response.json();
   return Array.isArray(data) ? data.map(formatTown) : [];
-}
-
-/** Создать город пользователем (регистрация / профиль), если его нет в справочнике. */
-export async function createTownByUser(regionId, nameTown) {
-  const response = await apiFetch(`${API.baseURL}/add_town_by_user`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      region_id: Number(regionId),
-      name_town: nameTown,
-    }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail =
-      typeof data?.detail === "string"
-        ? data.detail
-        : Array.isArray(data?.detail)
-          ? data.detail.map((d) => d.msg || d).join("; ")
-          : "Не удалось добавить город";
-    throw new Error(detail);
-  }
-  return formatTown(data);
 }
 
 /**
