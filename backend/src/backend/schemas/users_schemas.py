@@ -263,6 +263,8 @@ class UserProfileReadSchema(BaseModel):
 class UserProfileForCardSchema(UserProfileReadSchema):
     avatar_url: Optional[str] = Field(None)
     specializations: List[str] = Field(default_factory=list)
+    average_rating: float = 0.0
+    reviews_count: int = 0
 
 
 class Town(BaseModel):

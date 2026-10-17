@@ -525,6 +525,24 @@ async def get_profiles_executors_for_cards_user(  # Карточки испол�
         print(f"🔥 Найдено профилей: {total}, страница {page}")  # отладка
 
         user_ids = [row[0] for row in profiles]
+        ratings_by_master: dict[int, tuple[float, int]] = {}
+        if user_ids:
+            rating_rows = await db.execute(
+                select(
+                    Review.reviewee_id,
+                    func.coalesce(func.avg(Review.rating), 0),
+                    func.count(Review.id),
+                )
+                .where(Review.reviewee_id.in_(user_ids))
+                .group_by(Review.reviewee_id)
+            )
+            for reviewee_id, avg_rating, reviews_count in rating_rows.all():
+                count = int(reviews_count or 0)
+                ratings_by_master[reviewee_id] = (
+                    round(float(avg_rating or 0), 1) if count else 0.0,
+                    count,
+                )
+
         spec_rows = await db.execute(
             select(CategoryWorkMaster.master_id, CategoryWork.name)
             .join(CategoryWork, CategoryWorkMaster.category_work_id == CategoryWork.id)
@@ -562,6 +580,7 @@ async def get_profiles_executors_for_cards_user(  # Карточки испол�
             except:  # ошибка storage — без аватара
                 pass
 
+            average_rating, reviews_count = ratings_by_master.get(user_id, (0.0, 0))
             profile_card = UserProfileForCardSchema(  # карточка исполнителя
                 id=user_id,  # id
                 first_name=first_name or "",  # имя
@@ -575,6 +594,8 @@ async def get_profiles_executors_for_cards_user(  # Карточки испол�
                 operating_mode=operating_mode or "Договорная",  # режим
                 avatar_url=avatar_url,  # аватар
                 specializations=specs_by_master.get(user_id, []),
+                average_rating=average_rating,
+                reviews_count=reviews_count,
             )
             profiles_executors_for_cards.append(profile_card)  # в список
 

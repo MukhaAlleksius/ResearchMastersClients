@@ -474,6 +474,28 @@ function FilterSelect({ label, options, value, onChange }) {
   );
 }
 
+function formatReviewsCount(count) {
+  const n = Number(count) || 0;
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${n} отзыв`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+    return `${n} отзыва`;
+  }
+  return `${n} отзывов`;
+}
+
+function CatalogStars({ rating }) {
+  const value = Math.min(5, Math.max(0, Number(rating) || 0));
+  const full = Math.round(value);
+  return (
+    <div className="stars" aria-hidden="true">
+      <span className="stars__filled">{"★".repeat(full)}</span>
+      <span className="stars__empty">{"☆".repeat(5 - full)}</span>
+    </div>
+  );
+}
+
 function executorProfileSlug(executor) {
   return `${executor.first_name}-${executor.last_name}`
     .toLowerCase()
@@ -590,6 +612,12 @@ function ExecutorsGrid({
             ? executor.specializations.filter(Boolean)
             : [];
           const specializationLabel = specializations.join(", ");
+          const reviewsCount = Number(executor.reviews_count) || 0;
+          const averageRating = Number(executor.average_rating) || 0;
+          const ratingLabel =
+            reviewsCount > 0
+              ? `${averageRating.toFixed(1)} · ${formatReviewsCount(reviewsCount)}`
+              : "Пока нет отзывов";
           return (
           <Link
             key={executor.id}
@@ -639,11 +667,16 @@ function ExecutorsGrid({
                   {formatGeoAddress(executor, "Локация не указана")}
                 </span>
               </div>
-              <div className="executor-rating">
-                <div className="stars" aria-hidden="true">
-                  ★★★★☆
-                </div>
-                <span className="rating-text">4.8 · 12 отзывов</span>
+              <div
+                className="executor-rating"
+                aria-label={
+                  reviewsCount > 0
+                    ? `Рейтинг ${averageRating.toFixed(1)} из 5, ${formatReviewsCount(reviewsCount)}`
+                    : "Пока нет отзывов"
+                }
+              >
+                <CatalogStars rating={averageRating} />
+                <span className="rating-text">{ratingLabel}</span>
               </div>
               <div className="executor-footer">
                 <div className="executor-price">

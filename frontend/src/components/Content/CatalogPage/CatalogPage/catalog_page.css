@@ -238,8 +238,16 @@
 }
 
 .stars {
-  color: #fbbf24;
   letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.stars__filled {
+  color: #fbbf24;
+}
+
+.stars__empty {
+  color: #cbd5e1;
 }
 
 .executor-footer {
