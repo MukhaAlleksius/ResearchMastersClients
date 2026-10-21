@@ -1476,8 +1476,9 @@ label > div {
     min-width: 0;
   }
 
-  .estimate-table thead {
-    display: none;
+  .estimate-table thead,
+  .estimate-thead-clip {
+    display: none !important;
   }
 
   .estimate-table tbody {

@@ -70,6 +70,7 @@ export function useEstimateTablePan() {
 
     const lockBodyColumns = (widths) => {
       if (!table || !widths.length) return;
+      if (widths.some((w) => !(Number.parseFloat(w) > 0))) return;
 
       const total = widths.reduce(
         (sum, w) => sum + (Number.parseFloat(w) || 0),
@@ -162,8 +163,14 @@ export function useEstimateTablePan() {
       homeNextSibling = null;
     };
 
+    const isPhoneCardLayout = () =>
+      window.matchMedia("(max-width: 900px)").matches;
+
     const updateStickyHead = () => {
-      if (!thead || !table) return;
+      if (!thead || !table || isPhoneCardLayout()) {
+        unstick();
+        return;
+      }
 
       const offset = headerOffsetPx();
       const wrapRect = node.getBoundingClientRect();
