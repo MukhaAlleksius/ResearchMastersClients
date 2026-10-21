@@ -14,7 +14,7 @@ export default function Footer() {
           <Link to="/home" className="site-footer__brand">
             <img
               src={logoSrc}
-              alt={LEGAL.siteName}
+              alt=""
               className="site-footer__logo"
             />
             <span className="site-footer__name">{LEGAL.siteName}</span>

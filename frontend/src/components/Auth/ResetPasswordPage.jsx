@@ -54,7 +54,7 @@ export default function ResetPasswordPage({ openModal }) {
   return (
     <div className="page active auth-page">
       <div className="auth-page__card">
-        <span className="auth-page__badge">Fixer</span>
+        <span className="auth-page__badge">Берусь</span>
         <h1 className="auth-page__title">Новый пароль</h1>
         {done ? (
           <>

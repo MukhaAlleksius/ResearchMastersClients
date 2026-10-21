@@ -3,7 +3,7 @@
  * Перед подключением WebPay заполните поля совместно с юристом.
  */
 export const LEGAL = {
-  siteName: "Fixer",
+  siteName: "Берусь",
   companyName: "ООО «__________»",
   unp: "000000000",
   legalAddress: "220000, г. Минск, ул. __________, д. __",

@@ -108,10 +108,10 @@ export default function HeaderUser({ onLogout }) {
         <Link to="/home" className="site-header__brand" onClick={closeMenu}>
           <img
             src={logoSrc}
-            alt="Fixer"
+            alt=""
             className="site-header__logo"
           />
-          <span className="site-header__title">Fixer</span>
+          <span className="site-header__title">Берусь</span>
         </Link>
 
         <nav className="site-header__nav" aria-label="Основная навигация">

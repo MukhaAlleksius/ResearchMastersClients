@@ -713,6 +713,12 @@
   margin-top: 10px;
 }
 
+@media (max-width: 560px) {
+  .gw-modal__row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .gw-modal__row > * {
   min-width: 0;
 }

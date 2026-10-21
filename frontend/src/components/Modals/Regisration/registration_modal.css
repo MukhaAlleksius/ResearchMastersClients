@@ -497,7 +497,7 @@
   box-shadow: none;
 }
 
-@media (max-width: 460px) {
+@media (max-width: 640px) {
   .reg-modal-overlay {
     padding: 2vh 8px 8px;
     align-items: flex-start;
@@ -521,5 +521,17 @@
   .reg-modal__hint {
     text-align: left;
     margin-top: -0.1rem;
+  }
+
+  .reg-modal input[type="text"].reg-modal__input,
+  .reg-modal input[type="email"].reg-modal__input,
+  .reg-modal input[type="password"].reg-modal__input,
+  .login-modal input[type="text"].reg-modal__input,
+  .login-modal input[type="email"].reg-modal__input,
+  .login-modal input[type="password"].reg-modal__input,
+  .reg-modal input.reg-modal__input,
+  .login-modal input.reg-modal__input {
+    height: 42px;
+    font-size: 16px;
   }
 }

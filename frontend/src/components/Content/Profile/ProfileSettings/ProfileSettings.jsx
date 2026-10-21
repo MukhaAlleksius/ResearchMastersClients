@@ -14,6 +14,10 @@ import {
 import { isCityAsRegion, townFieldHint } from "../../../../utils/geographyApi.js";
 import { uiAlert, uiWarn } from "../../../UiDialog/uiDialog.js";
 import {
+  IMAGE_PRESETS,
+  prepareImageFile,
+} from "../../../../utils/prepareImageFile.js";
+import {
   CONTACT_TYPES,
   contactAutoComplete,
   contactInputMode,
@@ -481,16 +485,17 @@ export default function ProfileSettings() {
   // Выбор фото: сразу грузим на сервер (удобно в Docker / без отдельного «Сохранить» только ради фото).
   const handlePhotoChange = async (event) => {
     const file = event.target.files && event.target.files[0];
+    event.target.value = "";
     if (!file) return;
-    setSelectedPhoto(file);
-    setPreviewUrl(URL.createObjectURL(file));
     try {
-      await uploadAvatarFile(file);
+      const prepared = await prepareImageFile(file, IMAGE_PRESETS.avatar);
+      setSelectedPhoto(prepared);
+      setPreviewUrl(URL.createObjectURL(prepared));
+      await uploadAvatarFile(prepared);
       refreshAvatarPreview();
     } catch (error) {
       console.error("Ошибка загрузки фото:", error);
-    } finally {
-      event.target.value = "";
+      await uiWarn(error?.message || "Не удалось загрузить фото");
     }
   };
 
@@ -1072,7 +1077,7 @@ export default function ProfileSettings() {
                     className="ps-file-input"
                   />
                   <span className="ps-section__hint">
-                    JPG или PNG, до загрузки на сервер — предпросмотр
+                    JPG, PNG или снимок с телефона. Большое фото сожмётся само
                   </span>
                 </div>
               </div>

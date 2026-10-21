@@ -420,7 +420,7 @@ export default function LoginModal({ onLogin, isOpen, onClose, notice = "" }) {
               aria-labelledby="loginModalTitle"
             >
               <header className="reg-modal__hero">
-                <span className="reg-modal__badge">Fixer</span>
+                <span className="reg-modal__badge">Берусь</span>
                 <h2 id="loginModalTitle" className="reg-modal__title">
                   {forgot ? "Сброс пароля" : "Вход в аккаунт"}
                 </h2>

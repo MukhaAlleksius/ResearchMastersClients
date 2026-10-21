@@ -378,7 +378,7 @@ export default function RegisterModal({ isOpen, onClose, onRegistered }) {
         aria-labelledby="registerModalTitle"
       >
         <header className="reg-modal__hero">
-          <span className="reg-modal__badge">Fixer</span>
+          <span className="reg-modal__badge">Берусь</span>
           <h2 id="registerModalTitle" className="reg-modal__title">
             Создать аккаунт
           </h2>

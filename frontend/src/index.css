@@ -3,6 +3,12 @@
   --header-height: 64px;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body {
   margin: 0;
@@ -32,11 +38,20 @@ code {
 
 .app-shell {
   max-width: 1280px;
-  width: 96%;
+  width: 100%;
   padding-left: 1rem;
   padding-right: 1rem;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* iPhone увеличивает страницу, если в поле шрифт меньше 16px, и вёрстка съезжает */
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 .main-content {

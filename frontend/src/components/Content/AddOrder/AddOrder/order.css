@@ -83,8 +83,11 @@ textarea:focus {
 div[class*="-control"] input[type="text"],
 div[class*="-Control"] input[type="text"],
 div[class*="__control"] input[type="text"] {
-  width: auto;
+  width: 100%;
   min-width: 2px;
+  max-width: 100%;
+  height: auto;
+  min-height: 0;
   padding: 0;
   margin: 0;
   border: none;

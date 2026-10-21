@@ -127,7 +127,7 @@ const AdminSidebar = () => {
           <FaShieldAlt />
         </div>
         <div className="admin-sidebar__brand-text">
-          <span className="admin-sidebar__badge">Fixer Admin</span>
+          <span className="admin-sidebar__badge">Берусь · админ</span>
           <h2 className="admin-sidebar__title">Панель управления</h2>
         </div>
       </div>

@@ -9,6 +9,10 @@ import "../portfolio.css";
 import "./portfolio_information.css";
 
 import { uiAlert, uiConfirm } from "../../../../UiDialog/uiDialog.js";
+import {
+  IMAGE_PRESETS,
+  prepareImageFile,
+} from "../../../../../utils/prepareImageFile.js";
 
 function resolveImageUrl(path) {
   if (!path) return null;
@@ -70,9 +74,19 @@ function PortfolioInformation({
     loadProjectImages();
   }, [loadProjectImages]);
 
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
-    setSelectedFiles(files);
+  const handleFileSelect = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    try {
+      const prepared = [];
+      for (const file of files) {
+        prepared.push(await prepareImageFile(file, IMAGE_PRESETS.portfolio));
+      }
+      setSelectedFiles(prepared);
+    } catch (error) {
+      await uiAlert(error?.message || "Не удалось обработать фото");
+    }
   };
 
   const handleSaveImages = async () => {
@@ -382,7 +396,7 @@ function PortfolioInformation({
             <div className="pf-upload">
               <p className="pf-upload__title">Загрузить фотографии</p>
               <p className="pf-upload__hint">
-                JPG, PNG или WEBP — можно выбрать несколько файлов сразу
+                JPG, PNG, WEBP или снимок с телефона. Большие фото сожмутся сами
               </p>
 
               <div className="pf-upload__drop">

@@ -283,7 +283,7 @@ export default function GoogleRegistrationModal({
         aria-labelledby="google-register-modal-title"
       >
         <header className="reg-modal__hero">
-          <span className="reg-modal__badge">Fixer</span> {/* бренд */}
+          <span className="reg-modal__badge">Берусь</span> {/* бренд */}
           <h2 id="google-register-modal-title" className="reg-modal__title">
             Регистрация через Google
           </h2>

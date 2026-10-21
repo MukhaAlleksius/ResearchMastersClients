@@ -562,7 +562,7 @@
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 640px) {
   .work-detail__panel-body .form-field-row--metrics {
     grid-template-columns: 1fr;
   }

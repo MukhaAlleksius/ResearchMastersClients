@@ -1631,7 +1631,7 @@ label > div {
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 640px) {
   .form-field-row--metrics {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -2157,12 +2157,9 @@ label > div {
     max-width: none;
   }
 
-  .materials-modal__form-row {
-    grid-template-columns: 1fr;
-  }
-
+  .materials-modal__form-row,
   .materials-modal__form-row--triple {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
   .materials-modal__header {

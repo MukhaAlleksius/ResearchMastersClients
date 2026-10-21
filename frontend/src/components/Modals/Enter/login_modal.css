@@ -12,6 +12,12 @@
   grid-template-columns: 4.75rem minmax(0, 1fr);
 }
 
+@media (max-width: 640px) {
+  .login-modal .reg-modal__row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .login-modal .reg-modal__row > :last-child {
   display: none;
 }
