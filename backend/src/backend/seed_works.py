@@ -40,7 +40,27 @@ async def _get_or_create_category(session, item: dict) -> tuple[CategoryWork, bo
         select(CategoryWork).where(CategoryWork.slug == slug)
     )
     if category:
-        return category, False
+        # Имя и описание берём из словаря, чтобы переименование доезжало
+        # до уже созданной категории. access_users не трогаем: его закрывает админ.
+        updated = False
+        description = item.get("description") or ""
+        icon_name = item.get("icon_name") or "Работа"
+        icon_color = item.get("icon_color") or "#2c72dc"
+        if category.name != name:
+            category.name = name
+            updated = True
+        if (category.description or "") != description:
+            category.description = description
+            updated = True
+        if (category.icon_name or "") != icon_name:
+            category.icon_name = icon_name
+            updated = True
+        if (category.icon_color or "") != icon_color:
+            category.icon_color = icon_color
+            updated = True
+        if updated:
+            await session.flush()
+        return category, updated
 
     try:
         async with session.begin_nested():
@@ -101,8 +121,10 @@ async def _get_or_create_work(
 async def seed_default_works(path: Path | None = None) -> bool:
     """
     Ensure catalog categories/works from the dictionary exist.
-    Safe to call repeatedly: only inserts missing rows (by slug / name_work).
-    Returns True if anything was inserted.
+    Inserts missing rows (by slug / name_work) and refreshes name, description
+    and icon of an existing category. Does not delete categories removed from
+    the dictionary and does not overwrite access_users or work prices.
+    Returns True if anything was inserted or updated.
     """
     load_all_models()
     catalog = load_works_dictionary(path)

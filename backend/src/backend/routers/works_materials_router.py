@@ -21,7 +21,9 @@ from cruds.works_materials_crud import (  # CRUD: категории и рабо
     change_category_work_master,
     change_work_master_from_admin,
     change_work_master_myself,
+    delete_category_work,
     delete_category_work_master,
+    delete_work,
     delete_work_master_from_admin,
     delete_work_master_myself,
     get_categories_works,
@@ -72,6 +74,26 @@ async def add_category_work_api(
         }
     except HTTPException:  # Ошибка доступа или валидации
         raise HTTPException(status_code=403, detail="Ошибка создания категории")
+
+
+@router.delete("/delete_category_work/{category_work_id}")  # DELETE: категория каталога
+async def delete_category_work_api(
+    category_work_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    await delete_category_work(db=db, category_work_id=category_work_id)
+    return {"detail": "Категория удалена"}
+
+
+@router.delete("/delete_work/{work_id}")  # DELETE: работа каталога
+async def delete_work_api(
+    work_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserCommonSchema = Depends(get_current_admin_user),
+):
+    await delete_work(db=db, work_id=work_id)
+    return {"detail": "Работа удалена"}
 
 
 class AccessRequest(BaseModel):  # Тело запроса смены доступа категории

@@ -283,19 +283,37 @@ export default function AdminCategoriesAndWorks() {
     }
   };
 
+  const readDeleteError = async (response, fallback) => {
+    let message = fallback;
+    try {
+      const data = await response.json();
+      if (typeof data?.detail === "string" && data.detail.trim()) {
+        message = data.detail;
+      }
+    } catch {
+      // ответ без JSON
+    }
+    return message;
+  };
+
   const deleteCategory = async (id, e) => {
     e.stopPropagation();
     if (!(await uiConfirm("Удалить категорию? Все работы тоже будут удалены."))) return;
     try {
-      await apiFetch(`${API.baseURL}/delete_category_work/${id}`, { method: "DELETE" });
+      const response = await apiFetch(`${API.baseURL}/delete_category_work/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error(await readDeleteError(response, "Ошибка удаления категории"));
+      }
       setCategories((prev) => prev.filter((cat) => cat.id !== id));
       if (selectedCategory?.id === id) {
         setSelectedCategory(null);
         setWorks([]);
       }
       showFlash("success", "Категория удалена");
-    } catch {
-      showFlash("error", "Ошибка удаления категории");
+    } catch (error) {
+      showFlash("error", error.message || "Ошибка удаления категории");
     }
   };
 
@@ -373,11 +391,16 @@ export default function AdminCategoriesAndWorks() {
   const deleteWork = async (id) => {
     if (!(await uiConfirm("Удалить работу?"))) return;
     try {
-      await apiFetch(`${API.baseURL}/delete_work/${id}`, { method: "DELETE" });
+      const response = await apiFetch(`${API.baseURL}/delete_work/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error(await readDeleteError(response, "Ошибка удаления работы"));
+      }
       setWorks((prev) => prev.filter((w) => w.id !== id));
       showFlash("success", "Работа удалена");
-    } catch {
-      showFlash("error", "Ошибка удаления работы");
+    } catch (error) {
+      showFlash("error", error.message || "Ошибка удаления работы");
     }
   };
 

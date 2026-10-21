@@ -106,50 +106,38 @@ export default function ServiceCategories() {
   const getFallbackData = () => [
     {
       id: 1,
-      title: "Программирование",
-      slug: "programmirovanie", // ✅ Правильный slug!
-      icon: faLaptopCode,
-      iconColorClass: "blue",
-      description: "Разработка сайтов и приложений",
+      title: "Ремонт и отделка",
+      slug: "stroitelstvo",
+      icon: faHammer,
+      iconColorClass: "red",
+      description: "Ремонт, отделка и строительные работы",
       dropdownItems: [
-        {
-          id: 1,
-          name: "Создание сайта",
-          slug: "sozdanie-sayta",
-          cost: 50,
-          unit: "час",
-        },
-        {
-          id: 2,
-          name: "Мобильное приложение",
-          slug: "mobilnoe-prilozhenie",
-          cost: 70,
-          unit: "час",
-        },
+        { id: 1, name: "Штукатурка", cost: 15, unit: "м²" },
+        { id: 2, name: "Укладка плитки", cost: 25, unit: "м²" },
       ],
     },
     {
       id: 2,
-      title: "Строительство",
-      slug: "stroitelstvo", // ✅ Правильный slug!
-      icon: faHammer,
-      iconColorClass: "orange",
-      description: "Ремонт и строительство",
+      title: "Электрика",
+      slug: "elektrika",
+      icon: faTasks,
+      iconColorClass: "red",
+      description: "Монтаж и ремонт электропроводки, розеток и освещения",
       dropdownItems: [
-        {
-          id: 3,
-          name: "Кирпичная кладка",
-          slug: "kirpichnaya-k ladka",
-          cost: 20,
-          unit: "м²",
-        },
-        {
-          id: 4,
-          name: "Штукатурка",
-          slug: "shtukaturka",
-          cost: 15,
-          unit: "м²",
-        },
+        { id: 3, name: "Установка розетки / выключателя", cost: 15, unit: "шт" },
+        { id: 4, name: "Прокладка кабеля", cost: 5, unit: "м.п." },
+      ],
+    },
+    {
+      id: 3,
+      title: "Сантехника",
+      slug: "santehnika",
+      icon: faTasks,
+      iconColorClass: "green",
+      description: "Установка и ремонт сантехнического оборудования",
+      dropdownItems: [
+        { id: 5, name: "Установка смесителя", cost: 30, unit: "шт" },
+        { id: 6, name: "Установка унитаза", cost: 50, unit: "шт" },
       ],
     },
   ];

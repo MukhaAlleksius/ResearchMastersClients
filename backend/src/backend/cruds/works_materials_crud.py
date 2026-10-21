@@ -2,9 +2,12 @@ import traceback  # Трассировка для отладки ошибок
 from typing import Optional  # Опциональные типы
 
 from fastapi import HTTPException  # HTTP-ошибки API
-from sqlalchemy import and_, select  # AND-условия и SELECT
+from sqlalchemy import and_, delete, select, update  # AND, DELETE, SELECT, UPDATE
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
+from models.orders_models import Order  # Заказ: category_id обнуляем, сам заказ оставляем
+from models.prices_works_materials import PriceWorkMaster  # Цена мастера на работу каталога
+from models.users_models import PortfolioItem  # Портфолио: category_id обнуляем
 from models.works_materials_models import (  # ORM категорий и работ
     CategoryWork,
     CategoryWorkMaster,
@@ -656,6 +659,74 @@ async def add_work_master_myself(
     await db.commit()
     await db.refresh(db_work_master)
     return db_work_master
+
+
+async def _delete_catalog_work_links(db: AsyncSession, work_ids: list[int]) -> None:
+    """Снимает цены и выборы мастеров, которые ссылаются на работы каталога."""
+    if not work_ids:
+        return
+    await db.execute(
+        delete(PriceWorkMaster).where(PriceWorkMaster.work_id.in_(work_ids))
+    )
+    await db.execute(
+        delete(WorkMasterFromAdmin).where(WorkMasterFromAdmin.work_id.in_(work_ids))
+    )
+
+
+async def delete_work(db: AsyncSession, work_id: int) -> None:
+    """Удаляет работу каталога вместе с ценами и выборами мастеров."""
+    result = await db.execute(select(Work).where(Work.id == work_id))
+    work = result.scalar_one_or_none()
+    if not work:
+        raise HTTPException(status_code=404, detail="Работа не найдена")
+
+    await _delete_catalog_work_links(db, [work_id])
+    await db.delete(work)
+    await db.commit()
+
+
+async def delete_category_work(db: AsyncSession, category_work_id: int) -> None:
+    """Удаляет категорию, её работы и специализации. Заказы и портфолио остаются."""
+    result = await db.execute(
+        select(CategoryWork).where(CategoryWork.id == category_work_id)
+    )
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Категория не найдена")
+
+    work_ids = list(
+        (
+            await db.execute(
+                select(Work.id).where(Work.category_work_id == category_work_id)
+            )
+        ).scalars()
+    )
+    await _delete_catalog_work_links(db, work_ids)
+    if work_ids:
+        await db.execute(delete(Work).where(Work.id.in_(work_ids)))
+
+    await db.execute(
+        delete(CategoryWorkMaster).where(
+            CategoryWorkMaster.category_work_id == category_work_id
+        )
+    )
+    await db.execute(
+        delete(WorkMasterMyself).where(
+            WorkMasterMyself.category_work_id == category_work_id
+        )
+    )
+    await db.execute(
+        update(Order)
+        .where(Order.category_id == category_work_id)
+        .values(category_id=None)
+    )
+    await db.execute(
+        update(PortfolioItem)
+        .where(PortfolioItem.category_id == category_work_id)
+        .values(category_id=None)
+    )
+    await db.delete(category)
+    await db.commit()
 
 
 # удаление работы мастера от администратора
