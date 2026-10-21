@@ -91,14 +91,29 @@ async def _get_or_create_work(
     if not name_work:
         return False
 
-    existing_id = await session.scalar(
-        select(Work.id).where(
+    existing = await session.scalar(
+        select(Work).where(
             Work.category_work_id == category_id,
             Work.name_work == name_work,
         )
     )
-    if existing_id:
-        return False
+    if existing:
+        updated = False
+        unit = work_item.get("unit_measurement") or ""
+        currency = work_item.get("currency") or DEFAULT_CURRENCY
+        cost = work_item.get("cost")
+        if (existing.unit_measurement or "") != unit:
+            existing.unit_measurement = unit
+            updated = True
+        if (existing.currency or "") != currency:
+            existing.currency = currency
+            updated = True
+        if cost is not None and float(existing.cost or 0) != float(cost):
+            existing.cost = cost
+            updated = True
+        if updated:
+            await session.flush()
+        return updated
 
     try:
         async with session.begin_nested():
@@ -122,8 +137,9 @@ async def seed_default_works(path: Path | None = None) -> bool:
     """
     Ensure catalog categories/works from the dictionary exist.
     Inserts missing rows (by slug / name_work) and refreshes name, description
-    and icon of an existing category. Does not delete categories removed from
-    the dictionary and does not overwrite access_users or work prices.
+    and icon of an existing category. Also refreshes unit, currency and price
+    of a dictionary work. Does not delete categories or works removed from
+    the dictionary and does not overwrite access_users.
     Returns True if anything was inserted or updated.
     """
     load_all_models()

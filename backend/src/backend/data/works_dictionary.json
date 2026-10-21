@@ -8,32 +8,98 @@
     "access_users": true,
     "works": [
       {
+        "name_work": "Демонтаж старой отделки",
+        "unit_measurement": "м²",
+        "cost": 8,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Демонтаж плитки",
+        "unit_measurement": "м²",
+        "cost": 14,
+        "currency": "BYN"
+      },
+      {
         "name_work": "Кирпичная кладка",
         "unit_measurement": "м²",
-        "cost": 20,
+        "cost": 40,
         "currency": "BYN"
       },
       {
-        "name_work": "Штукатурка",
+        "name_work": "Монтаж перегородки из гипсокартона",
         "unit_measurement": "м²",
-        "cost": 15,
-        "currency": "BYN"
-      },
-      {
-        "name_work": "Укладка плитки",
-        "unit_measurement": "м²",
-        "cost": 25,
+        "cost": 35,
         "currency": "BYN"
       },
       {
         "name_work": "Монтаж гипсокартона",
         "unit_measurement": "м²",
-        "cost": 18,
+        "cost": 25,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Штукатурка",
+        "unit_measurement": "м²",
+        "cost": 20,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Штукатурка откосов",
+        "unit_measurement": "м.п.",
+        "cost": 20,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Грунтовка поверхности",
+        "unit_measurement": "м²",
+        "cost": 1.5,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Шпаклёвка стен",
+        "unit_measurement": "м²",
+        "cost": 8,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Покраска стен",
+        "unit_measurement": "м²",
+        "cost": 8,
         "currency": "BYN"
       },
       {
         "name_work": "Поклейка обоев",
         "unit_measurement": "м²",
+        "cost": 10,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Стяжка пола",
+        "unit_measurement": "м²",
+        "cost": 18,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Укладка ламината",
+        "unit_measurement": "м²",
+        "cost": 12,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Укладка плитки",
+        "unit_measurement": "м²",
+        "cost": 40,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Гидроизоляция санузла",
+        "unit_measurement": "м²",
+        "cost": 20,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Монтаж плинтуса",
+        "unit_measurement": "м.п.",
         "cost": 8,
         "currency": "BYN"
       }
@@ -48,15 +114,45 @@
     "access_users": true,
     "works": [
       {
-        "name_work": "Установка розетки / выключателя",
-        "unit_measurement": "шт",
-        "cost": 15,
+        "name_work": "Штробление стены под кабель",
+        "unit_measurement": "м.п.",
+        "cost": 7,
         "currency": "BYN"
       },
       {
         "name_work": "Прокладка кабеля",
         "unit_measurement": "м.п.",
+        "cost": 4,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Прокладка кабеля в гофре",
+        "unit_measurement": "м.п.",
         "cost": 5,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Монтаж кабель-канала",
+        "unit_measurement": "м.п.",
+        "cost": 4,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка подрозетника",
+        "unit_measurement": "шт",
+        "cost": 8,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка розетки / выключателя",
+        "unit_measurement": "шт",
+        "cost": 12,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Монтаж распределительной коробки",
+        "unit_measurement": "шт",
+        "cost": 12,
         "currency": "BYN"
       },
       {
@@ -66,9 +162,39 @@
         "currency": "BYN"
       },
       {
+        "name_work": "Установка точечного светильника",
+        "unit_measurement": "шт",
+        "cost": 12,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка бра",
+        "unit_measurement": "шт",
+        "cost": 18,
+        "currency": "BYN"
+      },
+      {
         "name_work": "Сборка электрощита",
         "unit_measurement": "шт",
-        "cost": 80,
+        "cost": 120,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Замена автомата в щите",
+        "unit_measurement": "шт",
+        "cost": 15,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Подключение варочной панели",
+        "unit_measurement": "шт",
+        "cost": 35,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Монтаж электрического тёплого пола",
+        "unit_measurement": "м²",
+        "cost": 30,
         "currency": "BYN"
       }
     ]
@@ -82,19 +208,97 @@
     "access_users": true,
     "works": [
       {
+        "name_work": "Прокладка труб водоснабжения",
+        "unit_measurement": "м.п.",
+        "cost": 25,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Прокладка канализационной трубы",
+        "unit_measurement": "м.п.",
+        "cost": 20,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Замена труб",
+        "unit_measurement": "м.п.",
+        "cost": 25,
+        "currency": "BYN"
+      },
+      {
         "name_work": "Установка смесителя",
         "unit_measurement": "шт",
-        "cost": 30,
+        "cost": 40,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Замена сифона",
+        "unit_measurement": "шт",
+        "cost": 25,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка раковины",
+        "unit_measurement": "шт",
+        "cost": 60,
         "currency": "BYN"
       },
       {
         "name_work": "Установка унитаза",
         "unit_measurement": "шт",
-        "cost": 50,
+        "cost": 70,
         "currency": "BYN"
       },
       {
-        "name_work": "Установка раковины",
+        "name_work": "Установка инсталляции",
+        "unit_measurement": "шт",
+        "cost": 120,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка ванны",
+        "unit_measurement": "шт",
+        "cost": 130,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка душевой кабины",
+        "unit_measurement": "шт",
+        "cost": 180,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка душевого трапа",
+        "unit_measurement": "шт",
+        "cost": 70,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка полотенцесушителя",
+        "unit_measurement": "шт",
+        "cost": 80,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Монтаж радиатора отопления",
+        "unit_measurement": "шт",
+        "cost": 80,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Подключение стиральной машины",
+        "unit_measurement": "шт",
+        "cost": 45,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка водонагревателя",
+        "unit_measurement": "шт",
+        "cost": 80,
+        "currency": "BYN"
+      },
+      {
+        "name_work": "Установка счётчика воды",
         "unit_measurement": "шт",
         "cost": 40,
         "currency": "BYN"
@@ -102,13 +306,7 @@
       {
         "name_work": "Прочистка засора",
         "unit_measurement": "услуга",
-        "cost": 35,
-        "currency": "BYN"
-      },
-      {
-        "name_work": "Замена труб",
-        "unit_measurement": "м.п.",
-        "cost": 20,
+        "cost": 40,
         "currency": "BYN"
       }
     ]

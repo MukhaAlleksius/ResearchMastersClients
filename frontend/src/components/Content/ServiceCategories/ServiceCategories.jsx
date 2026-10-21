@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { API, apiFetch, buildApiUrl } from "../../../utils/api.js";
+import { apiFetch, buildApiUrl } from "../../../utils/api.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useNavigate } from "react-router-dom";
 import {
@@ -17,17 +17,97 @@ import {
   faGraduationCap,
   faTasks,
   faCamera,
+  faBolt,
+  faFaucet,
 } from "@fortawesome/free-solid-svg-icons";
 import "./service_categories.css";
+
+const FALLBACK_CATEGORIES = [
+  {
+    id: 1,
+    title: "Ремонт и отделка",
+    slug: "stroitelstvo",
+    iconName: "Строитель",
+    accent: "#9a5b3c",
+    description: "Ремонт, отделка и строительные работы",
+    works: [
+      { id: 1, name: "Штукатурка", cost: 15, currency: "BYN", unit: "м²" },
+      { id: 2, name: "Укладка плитки", cost: 25, currency: "BYN", unit: "м²" },
+      { id: 3, name: "Поклейка обоев", cost: 8, currency: "BYN", unit: "м²" },
+    ],
+  },
+  {
+    id: 2,
+    title: "Электрика",
+    slug: "elektrika",
+    iconName: "Работа",
+    accent: "#a16207",
+    description: "Монтаж и ремонт электропроводки, розеток и освещения",
+    works: [
+      { id: 4, name: "Установка розетки / выключателя", cost: 15, currency: "BYN", unit: "шт" },
+      { id: 5, name: "Прокладка кабеля", cost: 5, currency: "BYN", unit: "м.п." },
+      { id: 6, name: "Сборка электрощита", cost: 80, currency: "BYN", unit: "шт" },
+    ],
+  },
+  {
+    id: 3,
+    title: "Сантехника",
+    slug: "santehnika",
+    iconName: "Работа",
+    accent: "#0f766e",
+    description: "Установка и ремонт сантехнического оборудования",
+    works: [
+      { id: 7, name: "Установка смесителя", cost: 30, currency: "BYN", unit: "шт" },
+      { id: 8, name: "Установка унитаза", cost: 50, currency: "BYN", unit: "шт" },
+      { id: 9, name: "Замена труб", cost: 20, currency: "BYN", unit: "м.п." },
+    ],
+  },
+];
+
+function mapWork(work, index) {
+  return {
+    id: work.work_id || work.id || index,
+    name: work.name_work || work.name || "",
+    cost: work.cost,
+    currency: work.currency || "BYN",
+    unit: work.unit_measurement || work.unit || "",
+  };
+}
+
+const ICON_BY_NAME = {
+  Программист: faLaptopCode,
+  Строитель: faHammer,
+  Водитель: faTruck,
+  Повар: faSpa,
+  Уборка: faBroom,
+  Обучение: faGraduationCap,
+  Работа: faTasks,
+  Фото: faCamera,
+};
+
+const ICON_BY_SLUG = {
+  elektrika: faBolt,
+  santehnika: faFaucet,
+  stroitelstvo: faHammer,
+};
+
+function iconFor(iconName, slug) {
+  if (slug && ICON_BY_SLUG[slug]) return ICON_BY_SLUG[slug];
+  return ICON_BY_NAME[iconName] || faTasks;
+}
+
+function withIcons(categories) {
+  return categories.map((category) => ({
+    ...category,
+    icon: iconFor(category.iconName, category.slug),
+  }));
+}
 
 export default function ServiceCategories() {
   const [categoriesWorks, setCategoriesWorks] = useState([]);
   const gridRef = useRef(null);
   const navigate = useNavigate();
 
-  // ✅ УБРАЛИ transliterate — используем slug из БД!
-
-  // 🔥 НОВАЯ ФУНКЦИЯ — передаёт объект целиком!
   const linkToCatalog = useCallback(
     (categoryObj) => {
       const { title, slug } = categoryObj;
@@ -53,94 +133,44 @@ export default function ServiceCategories() {
       const data = await response.json();
 
       if (!data || data.length === 0) {
-        setCategoriesWorks(getFallbackData());
+        setCategoriesWorks(withIcons(FALLBACK_CATEGORIES));
         return;
       }
 
-      const formattedData = data.map((cat) => ({
-        id: cat.category_work_id || cat.id,
-        title: cat.name || "Без названия",
-        slug: cat.slug, // ✅ ТОЧНЫЙ slug из БД: 'programmirovanie'!
-        icon: getIconByName(cat.icon_name),
-        iconColorClass: getColorClass(cat.icon_color),
-        description: cat.description || "Описание услуги",
-        dropdownItems:
-          cat.works?.map((work) => ({
-            id: work.id,
-            name: work.name_work,
-            slug: work.slug, // ✅ Точный slug работы из БД!
-            cost: work.cost,
-            unit: work.unit_measurement,
-          })) || [],
-      }));
+      const formattedData = await Promise.all(
+        data.map(async (cat) => {
+          const id = cat.category_work_id || cat.id;
+          let works = [];
+          try {
+            const worksResponse = await apiFetch(
+              buildApiUrl(`/works_for_category_work/${id}`),
+            );
+            if (worksResponse.ok) {
+              const worksData = await worksResponse.json();
+              works = Array.isArray(worksData) ? worksData.map(mapWork) : [];
+            }
+          } catch {
+            works = [];
+          }
+
+          return {
+            id,
+            title: cat.name || "Без названия",
+            slug: cat.slug,
+            icon: iconFor(cat.icon_name, cat.slug),
+            accent: cat.icon_color || "#334155",
+            description: cat.description || "Описание услуги",
+            works: works.filter((work) => work.name),
+          };
+        }),
+      );
 
       setCategoriesWorks(formattedData);
     } catch (error) {
       console.error("Ошибка загрузки категорий:", error);
-      setCategoriesWorks(getFallbackData());
+      setCategoriesWorks(withIcons(FALLBACK_CATEGORIES));
     }
   };
-
-  const getIconByName = (iconName) => {
-    const iconMap = {
-      Программист: faLaptopCode,
-      Строитель: faHammer,
-      Водитель: faTruck,
-      Повар: faSpa,
-      Уборка: faBroom,
-      Обучение: faGraduationCap,
-      Работа: faTasks,
-      Фото: faCamera,
-    };
-    return iconMap[iconName] || faTasks;
-  };
-
-  const getColorClass = (color) => {
-    if (!color) return "blue";
-    if (color.includes("#FF") || color.includes("#F")) return "red";
-    if (color.includes("#00")) return "green";
-    if (color.includes("#2C") || color.includes("#344")) return "dark";
-    return "blue";
-  };
-
-  const getFallbackData = () => [
-    {
-      id: 1,
-      title: "Ремонт и отделка",
-      slug: "stroitelstvo",
-      icon: faHammer,
-      iconColorClass: "red",
-      description: "Ремонт, отделка и строительные работы",
-      dropdownItems: [
-        { id: 1, name: "Штукатурка", cost: 15, unit: "м²" },
-        { id: 2, name: "Укладка плитки", cost: 25, unit: "м²" },
-      ],
-    },
-    {
-      id: 2,
-      title: "Электрика",
-      slug: "elektrika",
-      icon: faTasks,
-      iconColorClass: "red",
-      description: "Монтаж и ремонт электропроводки, розеток и освещения",
-      dropdownItems: [
-        { id: 3, name: "Установка розетки / выключателя", cost: 15, unit: "шт" },
-        { id: 4, name: "Прокладка кабеля", cost: 5, unit: "м.п." },
-      ],
-    },
-    {
-      id: 3,
-      title: "Сантехника",
-      slug: "santehnika",
-      icon: faTasks,
-      iconColorClass: "green",
-      description: "Установка и ремонт сантехнического оборудования",
-      dropdownItems: [
-        { id: 5, name: "Установка смесителя", cost: 30, unit: "шт" },
-        { id: 6, name: "Установка унитаза", cost: 50, unit: "шт" },
-      ],
-    },
-  ];
 
   useEffect(() => {
     fetchCategoriesWorks();
@@ -195,72 +225,62 @@ export default function ServiceCategories() {
     <section className="home-categories">
       <div className="home-categories__container">
         <header className="home-categories__head">
-          <span className="home-categories__badge">Услуги</span>
-          <h2 className="home-categories__title">Популярные услуги</h2>
+          <p className="home-categories__kicker">Каталог</p>
+          <h2 className="home-categories__title">Специализации</h2>
           <p className="home-categories__subtitle">
-            Выберите категорию, чтобы перейти в каталог исполнителей
+            Выберите направление — откроется список исполнителей
           </p>
         </header>
         <div className="home-categories__grid" ref={gridRef}>
           {categoriesWorks.map(
-            ({
-              id,
-              title,
-              slug,
-              icon,
-              iconColorClass,
-              description,
-              dropdownItems,
-            }) => (
-              <div
-                key={id}
-                className="home-category-dropdown"
-                role="button"
-                tabIndex={0}
-                onClick={() => linkToCatalog({ title, slug })}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    linkToCatalog({ title, slug });
-                  }
-                }}
-              >
-                <article className="home-category-card">
-                  <div
-                    className={`home-category-card__glow home-category-card__glow--${iconColorClass}`}
-                    aria-hidden="true"
-                  />
-                  <div className="home-category-card__head">
-                    <div
-                      className={`home-category-card__icon home-category-card__icon--${iconColorClass}`}
-                    >
-                      <FontAwesomeIcon icon={icon} fixedWidth />
-                    </div>
-                    {dropdownItems.length > 0 && (
-                      <span className="home-category-card__count">
-                        {dropdownItems.length}{" "}
-                        {dropdownItems.length === 1
-                          ? "услуга"
-                          : dropdownItems.length < 5
-                            ? "услуги"
-                            : "услуг"}
+            ({ id, title, slug, icon, accent, description, works }) => {
+              const preview = (works || []).slice(0, 3);
+              return (
+                <div
+                  key={id}
+                  className="home-category-card-wrap"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => linkToCatalog({ title, slug })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      linkToCatalog({ title, slug });
+                    }
+                  }}
+                >
+                  <article
+                    className="home-category-card"
+                    style={{ "--card-accent": accent || "#334155" }}
+                  >
+                    <div className="home-category-card__top">
+                      <span className="home-category-card__mark" aria-hidden="true">
+                        <FontAwesomeIcon icon={icon} />
                       </span>
+                    </div>
+                    <h3 className="home-category-card__title">{title}</h3>
+                    <p className="home-category-card__desc">{description}</p>
+                    {preview.length > 0 && (
+                      <ul className="home-category-card__works">
+                        {preview.map((work) => (
+                          <li key={work.id}>
+                            <span className="home-category-card__work-name">
+                              {work.name}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     )}
-                  </div>
-                  <h3 className="home-category-card__title">{title}</h3>
-                  <p className="home-category-card__desc">{description}</p>
-                  <ul className="home-category-card__samples">{dropdownItems.slice(0, 2).map((work) => (
-                      <li key={work.id || work.slug}>{work.name}</li>
-                    ))}</ul>
-                  <span className="home-category-card__cta">
-                    Смотреть каталог
-                    <span className="home-category-card__arrow" aria-hidden>
-                      →
+                    <span className="home-category-card__cta">
+                      Исполнители
+                      <span className="home-category-card__arrow" aria-hidden="true">
+                        →
+                      </span>
                     </span>
-                  </span>
-                </article>
-              </div>
-            ),
+                  </article>
+                </div>
+              );
+            },
           )}
         </div>
       </div>
