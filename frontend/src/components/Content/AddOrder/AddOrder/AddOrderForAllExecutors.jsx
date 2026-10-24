@@ -15,10 +15,17 @@ import {
   BUDGET_TYPE_PLACEHOLDER,
   isFixedBudgetType,
 } from "../../../../utils/budgetTypes.js";
+import {
+  CUSTOMER_ORDER_RESPONSES_TAB,
+  customerOrderResponsesPath,
+} from "../../../../utils/orders.js";
 
 export default function AddOrderForAllExecutors({
   showAuthBanner = false,
   openModal,
+  embedded = false,
+  executorId = null,
+  onCreated,
 }) {
   const navigate = useNavigate();
   const [categoryWork, setCategoryWork] = useState("");
@@ -42,6 +49,7 @@ export default function AddOrderForAllExecutors({
   const [countries, setCountries] = useState([]);
   const [regions, setRegions] = useState([]);
   const [towns, setTowns] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
 
   const countryOptions = countries;
   const areaOptions = regions;
@@ -176,6 +184,7 @@ export default function AddOrderForAllExecutors({
   // Отправка заказа на сервер
   const handleAddOrderUser = async (e) => {
     e.preventDefault();
+    if (submitting) return;
 
     // ✅ Валидация
     if (!categoryWorkMaster) {
@@ -238,6 +247,7 @@ export default function AddOrderForAllExecutors({
       deadline: deadline,
     };
 
+    setSubmitting(true);
     try {
       // ✅ Создание заказа
       const response = await apiFetch(buildApiUrl("/add_order_user"), {
@@ -276,6 +286,43 @@ export default function AddOrderForAllExecutors({
 
       if (!response_status_order_customer.ok) {
         console.error("Ошибка создания статуса заказа");
+        await uiAlert(
+          "Заказ создан, но не удалось отправить его в поиск исполнителя",
+        );
+        resetForm();
+        onCreated?.();
+        navigate("/profile/orders", {
+          replace: true,
+          state: { highlightOrderId: data.id },
+        });
+        return;
+      }
+
+      if (executorId) {
+        const executorResponse = await apiFetch(
+          buildApiUrl("/add_status_order_executor"),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              order_id: data.id,
+              executor_id: Number(executorId),
+              status: "Предложения заказчиков",
+            }),
+          },
+        );
+        if (!executorResponse.ok) {
+          let detail = "Не удалось предложить заказ мастеру";
+          try {
+            const errorData = await executorResponse.json();
+            detail = formatApiDetail(errorData?.detail, detail);
+          } catch {
+            // ignore
+          }
+          await uiAlert(
+            `Заказ создан и опубликован, но не ушёл этому мастеру: ${detail}`,
+          );
+        }
       }
 
       // ✅ Сохранение в localStorage
@@ -285,19 +332,20 @@ export default function AddOrderForAllExecutors({
         data.category_work_id?.toString() || categoryWorkMaster.value,
       );
 
-      // ✅ Обновление списка заказов (важно для вкладок статусов!)
-      // if (typeof fetchOrdersCustomer === "function") {
-      //   await fetchOrdersCustomer(); // Перезагружаем список заказов
-      // }
-
       resetForm();
-      navigate("/orders", {
+      onCreated?.();
+      navigate(customerOrderResponsesPath(data.id), {
         replace: true,
-        state: { highlightOrderId: data.id },
+        state: {
+          activeTab: CUSTOMER_ORDER_RESPONSES_TAB,
+          fromTab: "researchExecutor",
+        },
       });
     } catch (error) {
       console.error("Ошибка: ", error);
       await uiAlert("❌ Произошла ошибка при размещении заказа");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -363,51 +411,11 @@ export default function AddOrderForAllExecutors({
     loadData();
   }, [fetchCategoriesWorks, fetchCountries]);
 
-  return (
-    <div id="order" className="page order-page">
-      <div className="order-page__inner">
-        {showAuthBanner && (
-          <div className="add-order-auth-banner" role="status">
-            <div className="add-order-auth-banner__icon" aria-hidden="true">
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="5" y="11" width="14" height="10" rx="2" />
-                <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-              </svg>
-            </div>
-            <div className="add-order-auth-banner__content">
-              <p className="add-order-auth-banner__title">
-                Нужен вход в личный кабинет
-              </p>
-              <p className="add-order-auth-banner__text">
-                Размещать заказ можно только после входа в личный кабинет.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="add-order-auth-banner__btn"
-              onClick={() => openModal?.("loginModal")}
-            >
-              Войти
-            </button>
-          </div>
-        )}
-        <header className="order-page__hero">
-          <span className="order-page__badge">Новый заказ</span>
-          <h1 className="order-page__title">Разместить заказ</h1>
-          <p className="order-page__subtitle">
-            Опишите задачу — исполнители увидят её в каталоге и смогут откликнуться
-          </p>
-        </header>
-        <div className="order-form-wrapper">
+  const fieldSelectProps = embedded
+    ? { ...selectMenuProps, styles: compactSelectStyles }
+    : selectMenuProps;
+
+  const orderForm = (
         <form className="form" onSubmit={handleAddOrderUser}>
           {/* Категория */}
           <div>
@@ -415,7 +423,7 @@ export default function AddOrderForAllExecutors({
               Категория услуги <span className="required">*</span>
             </label>
             <Select
-              {...selectMenuProps}
+              {...fieldSelectProps}
               options={categoriesWorksOptions}
               value={categoryWorkMaster}
               onChange={handleSelectCategoryWorkMaster}
@@ -451,7 +459,7 @@ export default function AddOrderForAllExecutors({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Опишите подробно, что нужно сделать..."
-              rows={5}
+              rows={embedded ? 3 : 5}
               maxLength={2000}
               className="textarea"
             />
@@ -514,7 +522,7 @@ export default function AddOrderForAllExecutors({
                 Страна <span className="required">*</span>
               </label>
               <Select
-                {...selectMenuProps}
+                {...fieldSelectProps}
                 inputId="order-geo-country"
                 options={countryOptions}
                 value={geoCountry}
@@ -530,7 +538,7 @@ export default function AddOrderForAllExecutors({
                 Область <span className="required">*</span>
               </label>
               <Select
-                {...selectMenuProps}
+                {...fieldSelectProps}
                 inputId="order-geo-region"
                 options={areaOptions}
                 value={geoRegion}
@@ -550,7 +558,7 @@ export default function AddOrderForAllExecutors({
                 Город <span className="required">*</span>
               </label>
               <GeoTownSelect
-                {...selectMenuProps}
+                {...fieldSelectProps}
                 inputId="order-geo-town"
                 regionLabel={geoRegion?.label}
                 options={townOptions}
@@ -592,15 +600,75 @@ export default function AddOrderForAllExecutors({
 
           {/* Кнопка отправки */}
           <div>
-            <button type="submit" className="submit-button">
-              Разместить заказ
+            <button type="submit" className="submit-button" disabled={submitting}>
+              {submitting
+                ? "Отправка…"
+                : embedded
+                  ? "Отправить заказ мастеру"
+                  : "Разместить заказ"}
             </button>
-            <p className="text-center">
-              Нажимая кнопку, вы соглашаетесь с условиями использования
-            </p>
+            {!embedded && (
+              <p className="text-center">
+                Нажимая кнопку, вы соглашаетесь с условиями использования
+              </p>
+            )}
           </div>
         </form>
-        </div>
+  );
+
+  if (embedded) {
+    return (
+      <div className="order-form-wrapper order-form-wrapper--compact">
+        {orderForm}
+      </div>
+    );
+  }
+
+  return (
+    <div id="order" className="page order-page">
+      <div className="order-page__inner">
+        {showAuthBanner && (
+          <div className="add-order-auth-banner" role="status">
+            <div className="add-order-auth-banner__icon" aria-hidden="true">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="5" y="11" width="14" height="10" rx="2" />
+                <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+              </svg>
+            </div>
+            <div className="add-order-auth-banner__content">
+              <p className="add-order-auth-banner__title">
+                Нужен вход в личный кабинет
+              </p>
+              <p className="add-order-auth-banner__text">
+                Размещать заказ можно только после входа в личный кабинет.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="add-order-auth-banner__btn"
+              onClick={() => openModal?.("loginModal")}
+            >
+              Войти
+            </button>
+          </div>
+        )}
+        <header className="order-page__hero">
+          <span className="order-page__badge">Новый заказ</span>
+          <h1 className="order-page__title">Разместить заказ</h1>
+          <p className="order-page__subtitle">
+            Опишите задачу — исполнители увидят её в каталоге и смогут откликнуться
+          </p>
+        </header>
+        <div className="order-form-wrapper">{orderForm}</div>
       </div>
     </div>
   );
@@ -682,4 +750,28 @@ const selectMenuProps = {
   styles: customStyles,
   menuPortalTarget: typeof document !== "undefined" ? document.body : null,
   menuPosition: "fixed",
+};
+
+const compactSelectStyles = {
+  ...customStyles,
+  control: (base, state) => ({
+    ...customStyles.control(base, state),
+    minHeight: 36,
+    height: 36,
+    fontSize: "0.875rem",
+  }),
+  valueContainer: (base) => ({
+    ...customStyles.valueContainer(base),
+    height: 34,
+    padding: "0 8px",
+  }),
+  indicatorsContainer: (base) => ({
+    ...customStyles.indicatorsContainer(base),
+    height: 34,
+  }),
+  option: (base, state) => ({
+    ...customStyles.option(base, state),
+    fontSize: "0.8125rem",
+    padding: "6px 10px",
+  }),
 };

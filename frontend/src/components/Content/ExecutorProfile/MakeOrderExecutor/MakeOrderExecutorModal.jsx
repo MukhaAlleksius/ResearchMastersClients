@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { API, apiFetch, ensureStoredUserId, formatApiDetail } from "../../../../utils/api.js";
+import AddOrderForAllExecutors from "../../AddOrder/AddOrder/AddOrderForAllExecutors";
 import "./make_order_executor_modal.css";
 import { uiAlert } from "../../../UiDialog/uiDialog.js";
 
@@ -14,10 +15,12 @@ async function readErrorMessage(response, fallback) {
 }
 export default function MakeOrderExecutorModal({
   ordersCustomer = [],
+  ordersLoading = false,
   closeOrderModal,
   handleOrderSelect,
   executorId,
 }) {
+  const [view, setView] = useState("create");
   const [selectedIds, setSelectedIds] = useState(() => new Set());
 
   const toggleOrder = (orderId) => {
@@ -117,7 +120,7 @@ export default function MakeOrderExecutorModal({
       role="presentation"
     >
       <div
-        className="moe-modal"
+        className={`moe-modal${view === "create" ? " moe-modal--form" : ""}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -125,7 +128,7 @@ export default function MakeOrderExecutorModal({
       >
         <header className="moe-modal__header">
           <h2 id="moe-modal-title" className="moe-modal__title">
-            Предложить заказы мастеру
+            {view === "create" ? "Сделать заказ" : "Сохранённые заказы"}
           </h2>
           <button
             type="button"
@@ -137,8 +140,44 @@ export default function MakeOrderExecutorModal({
           </button>
         </header>
 
+        <div className="moe-modal__switch">
+          {view === "create" ? (
+            <button
+              type="button"
+              className="moe-modal__switch-btn"
+              onClick={() => setView("saved")}
+            >
+              Выбрать из сохранённых заказов
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="moe-modal__switch-btn"
+              onClick={() => setView("create")}
+            >
+              Создать новый заказ
+            </button>
+          )}
+          <p className="moe-modal__switch-note">
+            {view === "create"
+              ? "Те же поля, что на странице «Разместить заказ». Заказ уйдёт в поиск и сразу этому мастеру."
+              : "Заказы в статусе «В поиске исполнителя», которые ещё не предлагали этому мастеру."}
+          </p>
+        </div>
+
+        {view === "create" ? (
+          <div className="moe-modal__body moe-modal__body--form">
+            <AddOrderForAllExecutors
+              embedded
+              executorId={executorId}
+              onCreated={closeOrderModal}
+            />
+          </div>
+        ) : (
         <div className="moe-modal__body">
-          {totalCount === 0 ? (
+          {ordersLoading ? (
+            <p className="moe-modal__empty">Загружаем сохранённые заказы…</p>
+          ) : totalCount === 0 ? (
             <p className="moe-modal__empty">
               Нет заказов со статусом «В поиске исполнителя», которые ещё не
               были предложены этому мастеру.
@@ -184,7 +223,9 @@ export default function MakeOrderExecutorModal({
             </>
           )}
         </div>
+        )}
 
+        {view === "saved" && (
         <footer className="moe-modal__footer">
           <button
             type="button"
@@ -202,6 +243,7 @@ export default function MakeOrderExecutorModal({
             Отправить{selectedCount > 0 ? ` (${selectedCount})` : ""}
           </button>
         </footer>
+        )}
       </div>
     </div>
   );

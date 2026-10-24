@@ -246,3 +246,64 @@
   line-height: 1.5;
   color: #64748b;
 }
+
+.order-form-wrapper--compact .form {
+  padding: 0;
+  gap: 0.7rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.order-form-wrapper--compact .label {
+  margin-bottom: 0.2rem;
+  font-size: 0.6875rem;
+}
+
+.order-form-wrapper--compact .input,
+.order-form-wrapper--compact .select,
+.order-form-wrapper--compact .textarea {
+  padding: 0.4rem 0.65rem;
+  font-size: 0.875rem;
+  border-radius: 8px;
+}
+
+.order-form-wrapper--compact .textarea {
+  min-height: 68px;
+}
+
+.order-form-wrapper--compact .grid-2cols,
+.order-form-wrapper--compact .grid-3cols {
+  gap: 0.5rem;
+}
+
+.order-form-wrapper--compact .grid-3cols {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 520px) {
+  .order-form-wrapper--compact .grid-3cols {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.order-form-wrapper--compact .submit-button {
+  padding: 0.6rem 1rem;
+  font-size: 0.875rem;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.order-form-wrapper--compact .submit-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  transform: none;
+}
+
+.order-form-wrapper--compact .field-note,
+.order-form-wrapper--compact .budget-type-hint {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.65rem;
+}

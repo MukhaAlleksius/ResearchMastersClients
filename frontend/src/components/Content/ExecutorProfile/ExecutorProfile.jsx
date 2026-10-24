@@ -508,7 +508,7 @@ function ScheduleModal({ open, onClose, executorId }) {
       >
         <header className="ep-price-modal__header">
           <h2 id="ep-schedule-modal-title" className="ep-price-modal__title">
-            Календарь работ
+            Календарь работ мастера
           </h2>
           <button
             type="button"
@@ -574,6 +574,7 @@ export default function ExecutorProfile({ openModal }) {
   });
   const [hasAvatar, setHasAvatar] = useState(false);
   const [ordersCustomer, setOrdersCustomer] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [categoriesWorksMaster, setCategoriesWorksMaster] = useState([]);
   const [commonWorks, setCommonWorks] = useState([]);
   const [masterWorks, setMasterWorks] = useState([]);
@@ -615,6 +616,9 @@ export default function ExecutorProfile({ openModal }) {
       return;
     }
 
+    setOrdersCustomer([]);
+    setIsOrderModalOpen(true);
+    setOrdersLoading(true);
     try {
       const params = new URLSearchParams({
         exclude_offered_to_executor_id: String(executorId),
@@ -628,10 +632,14 @@ export default function ExecutorProfile({ openModal }) {
         (order) => isOrderAvailableForExecutorOffer(order, executorId),
       );
       setOrdersCustomer(eligible);
-      setIsOrderModalOpen(true);
     } catch (error) {
       console.error("Ошибка загрузки заказов:", error);
-      await uiAlert("Не удалось загрузить ваши заказы");
+      setOrdersCustomer([]);
+      await uiAlert(
+        "Не удалось загрузить сохранённые заказы. Новый заказ можно заполнить в форме.",
+      );
+    } finally {
+      setOrdersLoading(false);
     }
   };
 
@@ -1022,13 +1030,13 @@ export default function ExecutorProfile({ openModal }) {
                   <IconCalendar />
                 </span>
                 <h2 id="ep-schedule-title" className="ep-card__title">
-                  График заказов
+                  Календарь работ мастера
                 </h2>
               </div>
               <div className="ep-card__body">
                 <p className="ep-specs__hint" style={{ marginTop: 0 }}>
-                  Занятые дни исполнителя. Откройте календарь, чтобы увидеть
-                  запланированные работы.
+                  Здесь видны дни, которые мастер уже занял под работы.
+                  Забронировать дату через календарь нельзя.
                 </p>
                 <button
                   type="button"
@@ -1036,7 +1044,7 @@ export default function ExecutorProfile({ openModal }) {
                   onClick={() => setIsScheduleOpen(true)}
                 >
                   <IconCalendar />
-                  Показать календарь работ
+                  Показать занятые дни
                 </button>
               </div>
             </section>
@@ -1187,6 +1195,7 @@ export default function ExecutorProfile({ openModal }) {
       {isOrderModalOpen && (
         <MakeOrderExecutorModal
           ordersCustomer={ordersCustomer}
+          ordersLoading={ordersLoading}
           closeOrderModal={() => setIsOrderModalOpen(false)}
           handleOrderSelect={handleOrderSelect}
           executorId={executorId}

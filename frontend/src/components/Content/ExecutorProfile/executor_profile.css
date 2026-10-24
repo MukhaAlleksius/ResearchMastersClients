@@ -956,7 +956,7 @@
 
 .ep-schedule-modal {
   width: 100%;
-  max-width: 640px;
+  max-width: 420px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -968,7 +968,7 @@
 }
 
 .ep-schedule-modal__body {
-  padding: 16px;
+  padding: 12px;
   overflow-y: auto;
   flex: 1;
 }

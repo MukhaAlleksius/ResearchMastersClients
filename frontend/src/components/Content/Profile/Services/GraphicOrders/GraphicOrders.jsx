@@ -320,9 +320,14 @@ export default function ExecutorOrdersSchedule({
       )}
 
       <div className="gos-layout">
-        <section className="gos-card gos-card--calendar" aria-label="Календарь">
+        <section
+          className="gos-card gos-card--calendar"
+          aria-label={readOnly ? "Занятые дни мастера" : "Календарь"}
+        >
           <div className="gos-card__head">
-            <h2 className="gos-card__title">Календарь</h2>
+            <h2 className="gos-card__title">
+              {readOnly ? "Занятые дни" : "Календарь"}
+            </h2>
             <button
               type="button"
               className="gos-btn gos-btn--ghost gos-btn--sm"
@@ -334,6 +339,12 @@ export default function ExecutorOrdersSchedule({
             </button>
           </div>
           <div className="gos-card__body">
+            {readOnly && (
+              <p className="gos-readonly-note">
+                Здесь можно посмотреть дни, которые мастер уже забронировал под
+                работы. Выбрать свободную дату и записаться на неё нельзя.
+              </p>
+            )}
             <div className="gos-cal">
               <div className="gos-cal__nav">
                 <button
@@ -433,7 +444,7 @@ export default function ExecutorOrdersSchedule({
                 </span>
                 <span className="gos-cal__legend-item">
                   <span className="gos-cal__legend-dot gos-cal__legend-dot--work" />
-                  Есть заказы
+                  {readOnly ? "День занят" : "Есть заказы"}
                 </span>
               </div>
             </div>
@@ -489,9 +500,14 @@ export default function ExecutorOrdersSchedule({
           </section>
           )}
 
-          <section className="gos-card" aria-label="Заказы на выбранный день">
+          <section
+            className="gos-card"
+            aria-label={readOnly ? "Работы в этот день" : "Заказы на выбранный день"}
+          >
             <div className="gos-card__head">
-              <h2 className="gos-card__title">На выбранный день</h2>
+              <h2 className="gos-card__title">
+                {readOnly ? "Работы в этот день" : "На выбранный день"}
+              </h2>
               <span className="gos-card__count">{dateOrders.length}</span>
             </div>
             <div className="gos-card__body">
@@ -499,7 +515,7 @@ export default function ExecutorOrdersSchedule({
                 <div className="gos-empty">
                   <p className="gos-empty__text">
                     {readOnly
-                      ? "На выбранный день заказов нет."
+                      ? "В этот день у мастера нет запланированных работ."
                       : "На выбранный день заказов нет. Выберите другой день или запланируйте заказ выше."}
                   </p>
                 </div>
