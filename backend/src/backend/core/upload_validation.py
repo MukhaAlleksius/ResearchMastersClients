@@ -5,13 +5,15 @@ from __future__ import annotations  # Отложенные аннотации
 import io  # BytesIO для Pillow
 
 from fastapi import HTTPException, status  # HTTP-ошибки 400
-from PIL import Image  # Проверка, что байты — реальное изображение
+from PIL import Image, ImageOps  # Проверка и уменьшение картинки
 
 ALLOWED_IMAGE_EXTENSIONS = frozenset({".png", ".jpg", ".jpeg", ".webp", ".gif"})  # Разрешённые расширения
 ALLOWED_IMAGE_FORMATS = frozenset({"PNG", "JPEG", "GIF", "WEBP"})  # Разрешённые форматы Pillow
 MAX_AVATAR_BYTES = 5 * 1024 * 1024  # Макс. размер аватара — 5 МБ
 MAX_PORTFOLIO_BYTES = 10 * 1024 * 1024  # Макс. размер картинки портфолио — 10 МБ
-MAX_IMAGE_PIXELS = 4096 * 4096  # Макс. ширина*высота (защита от decompression bomb)
+MAX_IMAGE_PIXELS = 120_000_000  # Допуск для снимка с телефона до уменьшения
+AVATAR_MAX_EDGE = 1600  # Длинная сторона аватара после уменьшения
+PORTFOLIO_MAX_EDGE = 2200  # Длинная сторона фото портфолио после уменьшения
 
 
 def sanitize_filename(filename: str) -> str:  # Очищает имя файла от опасных символов
@@ -28,6 +30,75 @@ def assert_allowed_image_extension(filename: str) -> None:  # Проверяет
             status_code=400,
             detail="Допустимы только изображения: PNG, JPG, JPEG, WEBP, GIF",
         )
+
+
+def _to_rgb(image: Image.Image) -> Image.Image:  # JPEG не хранит прозрачность
+    if image.mode == "RGB":
+        return image
+    if image.mode in ("RGBA", "LA") or (
+        image.mode == "P" and "transparency" in image.info
+    ):
+        rgba = image.convert("RGBA")
+        background = Image.new("RGB", rgba.size, (255, 255, 255))
+        background.paste(rgba, mask=rgba.getchannel("A"))
+        return background
+    return image.convert("RGB")
+
+
+def normalize_uploaded_image(  # Уменьшает снимок с телефона вместо отказа по размеру
+    content: bytes,
+    *,
+    max_bytes: int,
+    max_edge: int,
+    label: str = "Файл",
+) -> bytes:
+    if not content:
+        raise HTTPException(status_code=400, detail=f"{label} пустой")
+
+    previous_pixel_limit = Image.MAX_IMAGE_PIXELS
+    Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
+    try:
+        with Image.open(io.BytesIO(content)) as image:
+            image.load()
+            if image.format not in ALLOWED_IMAGE_FORMATS:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Неподдерживаемый формат изображения",
+                )
+            fitted = ImageOps.exif_transpose(image)
+            fitted = _to_rgb(fitted)
+            fitted.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+
+            quality = 85
+            encoded = b""
+            for _ in range(8):
+                buffer = io.BytesIO()
+                fitted.save(buffer, format="JPEG", quality=quality, optimize=True)
+                encoded = buffer.getvalue()
+                if len(encoded) <= max_bytes:
+                    return encoded
+                if quality > 55:
+                    quality -= 10
+                else:
+                    width, height = fitted.size
+                    fitted = fitted.resize(
+                        (max(1, int(width * 0.75)), max(1, int(height * 0.75))),
+                        Image.Resampling.LANCZOS,
+                    )
+                    quality = 75
+            raise HTTPException(
+                status_code=400,
+                detail=f"{label} слишком большой даже после сжатия",
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Некорректное изображение",
+        ) from exc
+    finally:
+        Image.MAX_IMAGE_PIXELS = previous_pixel_limit
 
 
 def validate_image_bytes(  # Проверяет размер и содержимое изображения

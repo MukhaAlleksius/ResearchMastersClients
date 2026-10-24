@@ -402,7 +402,7 @@ async def get_services_executor(  # Карточки услуг исполнит
                     id=order.id,  # Продолжение выражения
                     customer_id=order.customer_id,  # ID заказчика
                     category_work=(
-                        category.name if category else None
+                        category.name if category and category.name else "Без категории"
                     ),  # Категория работ
                     title=order.title,  # Заголовок
                     budget=(

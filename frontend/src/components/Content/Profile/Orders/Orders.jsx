@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   API,
   apiFetch,
   ensureStoredUserId,
   getStoredUserId,
 } from "../../../../utils/api.js";
-import { dedupeOrdersById, getCustomerOrderStatusLabel } from "../../../../utils/orders.js";
+import {
+  dedupeOrdersById,
+  getCustomerOrderCardCue,
+  getCustomerOrderStatusLabel,
+} from "../../../../utils/orders.js";
 import AddOrderForDraft from "./CommonComponents/AddOrder/AddOrderForDarft";
 import OrderServiceCard from "../Common/OrderServiceCard";
 import StatusFilterTabs from "../Common/StatusFilterTabs";
@@ -15,25 +19,11 @@ import "../Services/services.css";
 
 const statusTabs = [
   {
-    id: "completed",
-    label: "Выполненные работы",
-    shortLabel: "Выполненные",
-    statusKey: "Выполнен",
-    hint: "Здесь заказы, по которым работы уже завершены. Можно посмотреть итоги, отчёты и оценки.",
-  },
-  {
-    id: "inProgress",
-    label: "В процессе выполнения",
-    shortLabel: "В процессе",
-    statusKey: "В процессе выполнения",
-    hint: "Заказы, по которым исполнитель уже приступил к работам. Следите за ходом выполнения и отчётами.",
-  },
-  {
-    id: "awaiting",
-    label: "Ожидают выполнения",
-    shortLabel: "Ожидают",
-    statusKey: "Ожидают выполнения",
-    hint: "Исполнитель выбран, но работы ещё не начались. Заказ ждёт старта выполнения.",
+    id: "waitOfferExecutors",
+    label: "Не предложенные исполнителям",
+    shortLabel: "Черновики",
+    statusKey: "Не предложенные исполнителям",
+    hint: "Здесь хранятся заказы, которые ещё не предложены исполнителям. Вы можете спокойно заполнить и править данные — заказ никому не виден. Когда всё готово, опубликуйте его: заказ перейдёт в поиск исполнителя.",
   },
   {
     id: "researchExecutor",
@@ -43,25 +33,25 @@ const statusTabs = [
     hint: "Опубликованные заказы: их видят исполнители и могут откликаться. Выберите подходящее предложение.",
   },
   {
-    id: "waitOfferExecutors",
-    label: "Не предложенные исполнителям",
-    shortLabel: "Черновики",
-    statusKey: "Не предложенные исполнителям",
-    hint: "Здесь хранятся заказы, которые ещё не предложены исполнителям. Вы можете спокойно заполнить и править данные — заказ никому не виден. Когда всё готово, опубликуйте его: заказ перейдёт в поиск исполнителя.",
+    id: "awaiting",
+    label: "Ожидают выполнения",
+    shortLabel: "Ожидают",
+    statusKey: "Ожидают выполнения",
+    hint: "Исполнитель выбран, но работы ещё не начались. Заказ ждёт старта выполнения.",
   },
   {
-    id: "myselfExecutor",
-    label: "Самостоятельное выполнение",
-    shortLabel: "Самостоятельно",
-    statusKey: "Самостоятельное выполнение",
-    hint: "Заказы, которые вы выполняете сами, без привлечения исполнителя. Здесь можно вести смету и фиксировать выполненные работы.",
+    id: "inProgress",
+    label: "В процессе выполнения",
+    shortLabel: "В процессе",
+    statusKey: "В процессе выполнения",
+    hint: "Заказы, по которым исполнитель уже приступил к работам. Следите за ходом выполнения и отчётами.",
   },
   {
-    id: "refusedByCustomer",
-    label: "Отказано",
-    shortLabel: "Отказано",
-    statusKey: "Отказ от заказа",
-    hint: "Исполнитель отказался от заказа. Заказ не виден в поиске. Переведите его в черновик, при необходимости поправьте данные и снова опубликуйте.",
+    id: "completed",
+    label: "Выполненные работы",
+    shortLabel: "Выполненные",
+    statusKey: "Выполнен",
+    hint: "Здесь заказы, по которым работы уже завершены. Можно посмотреть итоги, отчёты и оценки.",
   },
   {
     id: "refusedFromOrder",
@@ -70,12 +60,32 @@ const statusTabs = [
     statusKey: "Отказано заказчиком",
     hint: "Вы отказались от исполнителя. Заказ не виден в поиске. Переведите его в черновик, при необходимости поправьте данные и снова опубликуйте.",
   },
+  {
+    id: "refusedByCustomer",
+    label: "Отказано",
+    shortLabel: "Отказано",
+    statusKey: "Отказ от заказа",
+    hint: "Исполнитель отказался от заказа. Заказ не виден в поиске. Переведите его в черновик, при необходимости поправьте данные и снова опубликуйте.",
+  },
 ];
 
+/** Черновики видны всегда: сюда сохраняется новый заказ, даже если список пуст. */
+const ALWAYS_VISIBLE_TAB_IDS = new Set(["waitOfferExecutors"]);
+
+const SELF_TAB_ID = "myselfExecutor";
+const SELF_STATUS = "Самостоятельное выполнение";
+
+function isSelfOrder(order) {
+  return (order?.status_order_customer || "").includes(SELF_STATUS);
+}
+
 const allTabHint = [
-  "Здесь собраны заказы, для которых вы хотите найти исполнителя, а также те, которые исполнитель уже выполняет.",
-  "Все ваши заказы в одном списке. Выберите статус слева, чтобы отфильтровать заказы по этапу.",
+  "Здесь заказы, для которых вы ищете исполнителя, и те, которые мастер уже выполняет.",
+  "Выберите статус слева, чтобы оставить заказы одного этапа.",
 ];
+
+const selfTabHint =
+  "Эти заказы вы ведёте сами: смета и журнал работ. Чтобы снова искать мастера, верните заказ в черновик.";
 
 export default function Orders() {
   const navigate = useNavigate();
@@ -86,6 +96,7 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(() => getStoredUserId());
+  const [executorCount, setExecutorCount] = useState(0);
   const [activeStatusTab, setActiveStatusTab] = useState(
     location.state?.activeStatusTab ?? "all",
   );
@@ -155,30 +166,93 @@ export default function Orders() {
   }, [fetchOrders]);
 
   useEffect(() => {
+    if (!userId) return undefined;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await apiFetch(
+          `${API.baseURL}/customer_executors/${userId}`,
+        );
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled) {
+          setExecutorCount(Array.isArray(data) ? data.length : 0);
+        }
+      } catch (err) {
+        console.error("Ошибка загрузки исполнителей:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
     if (location.state?.activeStatusTab) {
       navigate("/profile/orders", { replace: true, state: {} });
     }
   }, [location.state?.activeStatusTab, navigate]);
-
-  const currentOrders = useMemo(() => {
-    if (activeStatusTab === "all") return allOrders;
-    const statusKey = statusTabs.find(
-      (tab) => tab.id === activeStatusTab,
-    )?.statusKey;
-    return allOrders.filter(
-      (order) => (order.status_order_customer || "Без статуса") === statusKey,
-    );
-  }, [activeStatusTab, allOrders]);
 
   const getStatusCount = useCallback(
     (statusKey) => ordersByStatus[statusKey]?.length || 0,
     [ordersByStatus],
   );
 
+  const visibleStatusTabs = useMemo(
+    () =>
+      statusTabs.filter(
+        (tab) =>
+          ALWAYS_VISIBLE_TAB_IDS.has(tab.id) || getStatusCount(tab.statusKey) > 0,
+      ),
+    [getStatusCount],
+  );
+
+  const dealOrders = useMemo(
+    () => allOrders.filter((order) => !isSelfOrder(order)),
+    [allOrders],
+  );
+  const selfOrders = useMemo(
+    () => allOrders.filter(isSelfOrder),
+    [allOrders],
+  );
+
+  const visibleActiveStatusTab =
+    activeStatusTab === SELF_TAB_ID && selfOrders.length > 0
+      ? SELF_TAB_ID
+      : visibleStatusTabs.some((tab) => tab.id === activeStatusTab)
+        ? activeStatusTab
+        : "all";
+
   const activeTabMeta =
-    activeStatusTab === "all"
+    visibleActiveStatusTab === "all"
       ? { label: "Все заказы", hint: allTabHint }
-      : statusTabs.find((tab) => tab.id === activeStatusTab);
+      : visibleActiveStatusTab === SELF_TAB_ID
+        ? { label: "Веду сам", hint: selfTabHint }
+        : statusTabs.find((tab) => tab.id === visibleActiveStatusTab);
+
+  const currentOrders = useMemo(() => {
+    if (visibleActiveStatusTab === SELF_TAB_ID) return selfOrders;
+    if (visibleActiveStatusTab === "all") return dealOrders;
+    const statusKey = statusTabs.find(
+      (tab) => tab.id === visibleActiveStatusTab,
+    )?.statusKey;
+    return dealOrders.filter(
+      (order) => (order.status_order_customer || "Без статуса") === statusKey,
+    );
+  }, [visibleActiveStatusTab, dealOrders, selfOrders]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (activeStatusTab === SELF_TAB_ID) {
+      if (selfOrders.length === 0) setActiveStatusTab("all");
+      return;
+    }
+    if (activeStatusTab === "all") return;
+    if (visibleStatusTabs.some((tab) => tab.id === activeStatusTab)) return;
+    setActiveStatusTab("all");
+  }, [loading, activeStatusTab, visibleStatusTabs, selfOrders.length]);
 
   const handleDraftOrderCreated = async (createdOrder) => {
     setAddOrder(false);
@@ -226,19 +300,20 @@ export default function Orders() {
         <div>
           <h2 className="list-page__title">Мои заказы</h2>
           <p className="list-page__subtitle">
-            {allOrders.length > 0
-              ? `Всего ${allOrders.length} — выберите статус для фильтрации`
-              : "Создайте первый заказ"}
+            {allOrders.length === 0
+              ? "Создайте первый заказ"
+              : dealOrders.length > 0
+                ? `Всего ${dealOrders.length} — выберите статус для фильтрации`
+                : "Эти заказы вы ведёте сами"}
           </p>
+          {executorCount > 0 && (
+            <Link to="/profile/my_executors" className="list-page__quiet-link">
+              Мои исполнители
+              <span className="list-page__quiet-count">{executorCount}</span>
+            </Link>
+          )}
         </div>
         <div className="list-page__actions">
-          <button
-            type="button"
-            className="btn-list-primary btn-list-header"
-            onClick={() => navigate("/profile/my_executors")}
-          >
-            Мои исполнители
-          </button>
           <button
             type="button"
             className="btn-list-primary btn-list-header"
@@ -264,15 +339,25 @@ export default function Orders() {
 
       <div className="list-page__body">
         <StatusFilterTabs
-          tabs={statusTabs}
-          activeId={activeStatusTab}
+          tabs={visibleStatusTabs}
+          activeId={visibleActiveStatusTab}
           onChange={setActiveStatusTab}
           allTab={{
             id: "all",
             label: "Все заказы",
-            count: allOrders.length,
+            count: dealOrders.length,
           }}
           getCount={getStatusCount}
+          aside={
+            selfOrders.length > 0
+              ? {
+                  heading: "Веду сам",
+                  id: SELF_TAB_ID,
+                  label: "Веду сам",
+                  count: selfOrders.length,
+                }
+              : null
+          }
         />
 
         <div className="list-page__content">
@@ -295,49 +380,58 @@ export default function Orders() {
                   <IconInbox width={28} height={28} />
                 </div>
                 <h3 className="list-empty__title">
-                  {activeStatusTab === "all"
-                    ? "Нет заказов"
-                    : activeStatusTab === "waitOfferExecutors"
+                  {visibleActiveStatusTab === "all"
+                    ? selfOrders.length > 0
+                      ? "Заказов с мастером нет"
+                      : "Нет заказов"
+                    : visibleActiveStatusTab === "waitOfferExecutors"
                       ? "Черновиков пока нет"
                       : `Нет заказов: «${activeTabMeta?.label}»`}
                 </h3>
                 <p className="list-empty__text">
-                  {activeStatusTab === "all"
-                    ? "Создайте первый заказ, чтобы начать работу."
-                    : activeStatusTab === "waitOfferExecutors"
+                  {visibleActiveStatusTab === "all"
+                    ? selfOrders.length > 0
+                      ? "Заказы, которые вы ведёте сами, собраны в блоке «Веду сам»."
+                      : "Создайте первый заказ, чтобы начать работу."
+                    : visibleActiveStatusTab === "waitOfferExecutors"
                       ? "Нажмите «Добавить заказ в черновик», чтобы создать новый заказ."
                       : "Выберите другой статус или создайте новый заказ."}
                 </p>
-                {(activeStatusTab === "all" ||
-                  activeStatusTab === "waitOfferExecutors") && (
+                {((visibleActiveStatusTab === "all" &&
+                  selfOrders.length === 0) ||
+                  visibleActiveStatusTab === "waitOfferExecutors") && (
                   <button
                     type="button"
                     className="btn-list-primary"
                     onClick={() => setAddOrder(true)}
                   >
-                    {activeStatusTab === "waitOfferExecutors"
+                    {visibleActiveStatusTab === "waitOfferExecutors"
                       ? "Добавить заказ в черновик"
                       : "Создать заказ"}
                   </button>
                 )}
               </div>
             ) : (
-              currentOrders.map((order) => (
-                <OrderServiceCard
-                  key={order.id}
-                  item={order}
-                  statusLabel={getCustomerOrderStatusLabel(
-                    order.status_order_customer,
-                  )}
-                  partyLabel="Клиент"
-                  partyName={order.customer_name || order.executor_name}
-                  to={`/profile/orders/${order.id}`}
-                  linkState={{ order, fromTab: activeStatusTab }}
-                  highlighted={
-                    Number(order.id) === Number(location.state?.highlightOrderId)
-                  }
-                />
-              ))
+              currentOrders.map((order) => {
+                const cue = getCustomerOrderCardCue(order);
+                return (
+                  <OrderServiceCard
+                    key={order.id}
+                    item={order}
+                    statusLabel={getCustomerOrderStatusLabel(
+                      order.status_order_customer,
+                    )}
+                    detail={cue.detail}
+                    partyName={cue.person}
+                    to={`/profile/orders/${order.id}`}
+                    linkState={{ order, fromTab: visibleActiveStatusTab }}
+                    highlighted={
+                      Number(order.id) ===
+                      Number(location.state?.highlightOrderId)
+                    }
+                  />
+                );
+              })
             )}
           </div>
         </div>

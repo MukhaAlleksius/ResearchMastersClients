@@ -68,10 +68,13 @@ export default function CustomerOrderView() {
   }, [fetchOrder]);
 
   const handleBack = useCallback(() => {
+    const tab = matchesStatus(order, "Самостоятельное выполнение")
+      ? "myselfExecutor"
+      : location.state?.fromTab ?? "all";
     navigate("/profile/orders", {
-      state: { activeStatusTab: location.state?.fromTab ?? "all" },
+      state: { activeStatusTab: tab },
     });
-  }, [navigate, location.state?.fromTab]);
+  }, [navigate, location.state?.fromTab, order]);
 
   const handleOrderUpdated = useCallback((updatedOrder) => {
     setOrder((prev) => ({

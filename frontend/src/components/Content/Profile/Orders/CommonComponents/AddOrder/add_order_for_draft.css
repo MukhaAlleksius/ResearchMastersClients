@@ -308,6 +308,31 @@
   line-height: 1.45;
 }
 
+.aod-self-link {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.15rem;
+  border: none;
+  background: none;
+  color: #64748b;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.aod-self-link:hover:not(:disabled) {
+  color: #0f172a;
+}
+
+.aod-self-link:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .aod-form-message {
   margin: 0;
   padding: 0.75rem 0.875rem;

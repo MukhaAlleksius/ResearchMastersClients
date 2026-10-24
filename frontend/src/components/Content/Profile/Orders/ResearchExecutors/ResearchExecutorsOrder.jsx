@@ -261,22 +261,6 @@ export default function ResearchExecutor({ order, onBack, onOrderUpdated, onOrde
       backLabel="Назад к заказам"
       showOptionalNotice={false}
       onBack={onBack || (() => navigate(-1))}
-      headerExtra={
-        <button
-          type="button"
-          onClick={() => setShowSelfModal(true)}
-          disabled={loadingSelfExecution || !currentOrder?.id}
-          className="work-detail__btn-primary"
-          style={{
-            background: loadingSelfExecution
-              ? undefined
-              : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-            boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
-          }}
-        >
-          {loadingSelfExecution ? "Сохраняем..." : "Самостоятельное выполнение"}
-        </button>
-      }
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
@@ -323,6 +307,18 @@ export default function ResearchExecutor({ order, onBack, onOrderUpdated, onOrde
         <OrderResponsesExecutors
           order={currentOrder}
           onAcceptSuccess={handleAcceptSuccess}
+          footer={
+            <div className="order-responses__self">
+              <button
+                type="button"
+                className="order-responses__self-link"
+                onClick={() => setShowSelfModal(true)}
+                disabled={loadingSelfExecution || !currentOrder?.id}
+              >
+                Не искать мастера и вести самому
+              </button>
+            </div>
+          }
         />
       )}
 

@@ -1,7 +1,13 @@
-import React, { useState, useMemo } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { apiFetch, buildApiUrl, getStoredUserId } from "../../../utils/api.js";
 import ProfileNavIcon from "./ProfileNavIcons";
 import "./profile.css";
+
+const SPECIALIZATIONS_CHANGED_EVENT = "fixer:specializations-changed";
+
+const MASTER_TAB_IDS = new Set(["services", "portfolio"]);
+const MASTER_SECTIONS = new Set(["services", "my_customers", "portfolio"]);
 
 const baseTabs = [
   { id: "main_page", label: "Моя страница" },
@@ -15,22 +21,70 @@ const baseTabs = [
   { id: "administrator", label: "Администратор" },
 ];
 
+export function emitSpecializationsChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(SPECIALIZATIONS_CHANGED_EVENT));
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [hasSpecialization, setHasSpecialization] = useState(null);
 
-  const tabs = baseTabs;
+  const refreshSpecializations = useCallback(async () => {
+    const userId = getStoredUserId();
+    if (!userId) {
+      setHasSpecialization(false);
+      return;
+    }
+
+    try {
+      const response = await apiFetch(
+        buildApiUrl(`/categories_works_master/${userId}`),
+      );
+      if (!response.ok) return;
+      const data = await response.json();
+      setHasSpecialization(Array.isArray(data) && data.length > 0);
+    } catch (error) {
+      console.error("Ошибка загрузки специализаций:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshSpecializations();
+    window.addEventListener(
+      SPECIALIZATIONS_CHANGED_EVENT,
+      refreshSpecializations,
+    );
+    return () => {
+      window.removeEventListener(
+        SPECIALIZATIONS_CHANGED_EVENT,
+        refreshSpecializations,
+      );
+    };
+  }, [refreshSpecializations]);
+
+  const tabs = useMemo(
+    () =>
+      hasSpecialization
+        ? baseTabs
+        : baseTabs.filter((tab) => !MASTER_TAB_IDS.has(tab.id)),
+    [hasSpecialization],
+  );
 
   const profileSections = useMemo(
-    () => new Set(tabs.map(({ id }) => id)),
+    () => new Set(baseTabs.map(({ id }) => id)),
     [],
   );
 
+  const section = location.pathname.split("/")[2];
+  const blockMasterSection =
+    hasSpecialization === false && MASTER_SECTIONS.has(section);
+
   const activeTab = useMemo(() => {
-    const section = location.pathname.split("/")[2];
     if (!section) {
-      return "main_page";
+      return "orders";
     }
     if (section === "my_executors") {
       return "orders";
@@ -39,7 +93,7 @@ export default function ProfilePage() {
       return "services";
     }
     return profileSections.has(section) ? section : "main_page";
-  }, [location.pathname, profileSections]);
+  }, [section, profileSections]);
 
   const handleMenuClick = (tabId) => {
     navigate(`/profile/${tabId}`);
@@ -106,7 +160,11 @@ export default function ProfilePage() {
       />
 
       <main className="profile-content">
-        <Outlet />
+        {blockMasterSection ? (
+          <Navigate to="/profile/specialization" replace />
+        ) : (
+          <Outlet />
+        )}
       </main>
     </div>
   );

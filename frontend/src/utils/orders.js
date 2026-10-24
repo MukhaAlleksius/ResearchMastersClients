@@ -88,6 +88,14 @@ function pluralizeRu(count, one, few, many) {
   return many;
 }
 
+/** Вкладка откликов на карточке заказа заказчика (id с опечаткой сохранён в каталоге вкладок). */
+export const CUSTOMER_ORDER_RESPONSES_TAB = "orderResponesExecutors";
+
+/** Куда вести после публикации: этот заказ, сразу на отклики. */
+export function customerOrderResponsesPath(orderId) {
+  return `/profile/orders/${orderId}?tab=${CUSTOMER_ORDER_RESPONSES_TAB}`;
+}
+
 /**
  * Подпись статуса в «Мои заказы»:
  * отказ — заказчик отказался от исполнителя;
@@ -97,7 +105,39 @@ export function getCustomerOrderStatusLabel(status) {
   const text = status || "";
   if (text.includes("Отказано заказчиком")) return "Отказ";
   if (text.includes("Отказ от заказа")) return "Отказано";
+  if (text.includes("Самостоятельное выполнение")) return "Веду сам";
   return status || "Без статуса";
+}
+
+/**
+ * Строки карточки в «Моих заказах».
+ * detail — следующее действие или отклики; person — имя мастера, когда он уже выбран.
+ */
+export function getCustomerOrderCardCue(order) {
+  const status = order?.status_order_customer || "";
+  const executorName = String(order?.executor_name || "").trim();
+
+  if (status.includes("Не предложенные")) {
+    return { detail: "Опубликовать", person: "" };
+  }
+
+  if (status.includes("В поиске исполнителя")) {
+    const count = Number(order?.responses_count);
+    const safe = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+    return {
+      detail:
+        safe > 0
+          ? `Откликнулись: ${formatExecutorResponses(safe)}`
+          : "Пока нет откликов",
+      person: "",
+    };
+  }
+
+  if (status.includes("Самостоятельное выполнение")) {
+    return { detail: "", person: "" };
+  }
+
+  return { detail: "", person: executorName };
 }
 
 /** Подпись для числа откликнувшихся исполнителей: «3 исполнителя». */

@@ -163,7 +163,7 @@ function App() {
               <Route element={<ProfilePage />}>
                 <Route
                   path="/profile"
-                  element={<Navigate to="/profile/main_page" replace />}
+                  element={<Navigate to="/profile/orders" replace />}
                 />
                 <Route path="/profile/orders" element={<Orders />} />
                 <Route

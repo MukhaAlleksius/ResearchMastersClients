@@ -23,6 +23,7 @@ export default function StatusFilterTabs({
   onChange,
   allTab,
   getCount,
+  aside = null,
 }) {
   const renderItem = (id, label, count, variant, iconKey) => {
     const isActive = activeId === id;
@@ -72,6 +73,22 @@ export default function StatusFilterTabs({
           ),
         )}
       </div>
+      {aside && aside.count > 0 && (
+        <div className="status-filter__group">
+          {aside.heading ? (
+            <p className="status-filter__heading">{aside.heading}</p>
+          ) : null}
+          <div className="status-filter__list">
+            {renderItem(
+              aside.id,
+              aside.label,
+              aside.count,
+              TAB_VARIANTS[aside.id] || "cyan",
+              aside.id,
+            )}
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

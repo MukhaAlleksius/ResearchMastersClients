@@ -11,6 +11,7 @@ import {
 } from "../../../../utils/currency";
 import "./specializations.css";
 import { uiAlert, uiConfirm } from "../../../UiDialog/uiDialog.js";
+import { emitSpecializationsChanged } from "../Profile.jsx";
 
 const emptyFieldErrors = {
   category: false,
@@ -262,6 +263,7 @@ export default function Specializations() {
       );
       if (!response.ok) throw new Error("Ошибка добавления");
       await fetchCategoriesWorksMaster();
+      emitSpecializationsChanged();
       setCategoryWorkMaster(null);
       setDescription("");
       setExperience("");
@@ -301,6 +303,7 @@ export default function Specializations() {
       );
       if (!response.ok) throw new Error("Ошибка удаления");
       await fetchCategoriesWorksMaster();
+      emitSpecializationsChanged();
       setSelectedSpecialization(null);
     } catch (error) {
       console.error(error);

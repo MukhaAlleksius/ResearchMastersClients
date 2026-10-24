@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { API, apiFetch } from "../../../../../../utils/api.js";
+import {
+  CUSTOMER_ORDER_RESPONSES_TAB,
+  customerOrderResponsesPath,
+} from "../../../../../../utils/orders.js";
 import CreatableSelect from "react-select/creatable";
 import Select from "react-select";
 import DeleteOrderButton from "../DeleteOrder/DeleteOrderButton";
@@ -13,6 +18,7 @@ import GeoTownSelect from "../../../../../Common/GeoTownSelect.jsx";
 import { isCityAsRegion } from "../../../../../../utils/geographyApi.js";
 import "../AddOrder/add_order_for_draft.css";
 import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
+import SelfExecutionModal from "../SelfExecution/SelfExecutionModal";
 import {
   budgetTypeHint,
   BUDGET_TYPE_OPTIONS,
@@ -158,6 +164,7 @@ function CustomerOrderEditForm({
   onOrderUpdated,
   onOrderDeleted,
 }) {
+  const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [budget, setBudget] = useState("");
@@ -177,6 +184,7 @@ function CustomerOrderEditForm({
   const [towns, setTowns] = useState([]);
 
   const [saving, setSaving] = useState(false);
+  const [showSelfModal, setShowSelfModal] = useState(false);
   const [formError, setFormError] = useState("");
 
   const isSearchStatus = order?.status_order_customer?.includes(
@@ -522,18 +530,41 @@ function CustomerOrderEditForm({
     );
   };
 
-  const handlePlaceOrder = () => {
-    runAction(
-      ORDER_STATUS.SEARCH,
-      "Заказ размещён и отправлен в поиск исполнителя",
-    );
+  const handlePlaceOrder = async () => {
+    setSaving(true);
+    setFormError("");
+    try {
+      await persistOrder(ORDER_STATUS.SEARCH);
+      navigate(customerOrderResponsesPath(order.id), {
+        replace: true,
+        state: {
+          activeTab: CUSTOMER_ORDER_RESPONSES_TAB,
+          fromTab: "researchExecutor",
+        },
+      });
+      await uiAlert("Заказ размещён и отправлен в поиск исполнителя");
+    } catch (error) {
+      console.error(error);
+      setFormError(error.message || "Не удалось выполнить действие");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSelfExecution = () => {
-    runAction(
-      ORDER_STATUS.SELF,
-      "Заказ переведён в самостоятельное выполнение",
-    );
+  const handleSelfExecution = async () => {
+    setSaving(true);
+    setFormError("");
+    try {
+      await persistOrder(ORDER_STATUS.SELF);
+      setShowSelfModal(false);
+      await uiAlert("Заказ переведён в самостоятельное выполнение");
+    } catch (error) {
+      console.error(error);
+      setFormError(error.message || "Не удалось выполнить действие");
+      setShowSelfModal(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -799,16 +830,6 @@ function CustomerOrderEditForm({
               {saving ? "Сохранение…" : "Разместить заказ"}
             </button>
           )}
-          {!isSearchStatus && (
-            <button
-              type="button"
-              className="aod-btn-self"
-              disabled={saving}
-              onClick={handleSelfExecution}
-            >
-              {saving ? "Сохранение…" : "Самостоятельное выполнение"}
-            </button>
-          )}
           <DeleteOrderButton
             orderId={order.id}
             orderTitle={title}
@@ -819,8 +840,27 @@ function CustomerOrderEditForm({
           <p className="aod-legal">
             Нажимая кнопку, вы соглашаетесь с условиями использования сервиса
           </p>
+          {!isSearchStatus && (
+            <button
+              type="button"
+              className="aod-self-link"
+              disabled={saving}
+              onClick={() => setShowSelfModal(true)}
+            >
+              Вести работы самому
+            </button>
+          )}
         </div>
       </form>
+      {showSelfModal && (
+        <SelfExecutionModal
+          loading={saving}
+          onClose={() => {
+            if (!saving) setShowSelfModal(false);
+          }}
+          onConfirm={handleSelfExecution}
+        />
+      )}
     </div>
   );
 }

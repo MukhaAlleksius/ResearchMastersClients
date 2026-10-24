@@ -89,7 +89,12 @@ export const getStatusTone = (status) => {
   }
   if (normalizedStatus.includes("поиск")) return STATUS_TONES.purple;
   if (normalizedStatus.includes("предложен")) return STATUS_TONES.orange;
-  if (normalizedStatus.includes("самостоятель")) return STATUS_TONES.cyan;
+  if (
+    normalizedStatus.includes("самостоятель") ||
+    normalizedStatus.includes("веду сам")
+  ) {
+    return STATUS_TONES.cyan;
+  }
   if (normalizedStatus.includes("отказано")) return STATUS_TONES.rose;
   if (normalizedStatus.includes("отказ")) return STATUS_TONES.danger;
   if (normalizedStatus.includes("график")) return STATUS_TONES.teal;

@@ -11,7 +11,12 @@ import "./order_responses_executors.css";
 
 import { uiAlert } from "../../../../../UiDialog/uiDialog.js";
 
-const OrderResponsesExecutors = ({ order, onReject, onAcceptSuccess }) => {
+const OrderResponsesExecutors = ({
+  order,
+  onReject,
+  onAcceptSuccess,
+  footer = null,
+}) => {
   const [orderResponsesExecutors, setOrderResponsesExecutors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -144,6 +149,7 @@ const OrderResponsesExecutors = ({ order, onReject, onAcceptSuccess }) => {
             Попробовать снова
           </button>
         </div>
+        {footer}
       </div>
     );
   }
@@ -170,6 +176,7 @@ const OrderResponsesExecutors = ({ order, onReject, onAcceptSuccess }) => {
             Обновить
           </button>
         </div>
+        {footer}
       </div>
     );
   }
@@ -271,6 +278,7 @@ const OrderResponsesExecutors = ({ order, onReject, onAcceptSuccess }) => {
           );
         })}
       </ul>
+      {footer}
     </div>
   );
 };

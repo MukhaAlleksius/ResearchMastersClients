@@ -14,6 +14,7 @@ export default function OrderServiceCard({
   statusLabel,
   partyLabel,
   partyName,
+  detail,
   onClick,
   to,
   linkState,
@@ -21,6 +22,15 @@ export default function OrderServiceCard({
 }) {
   const statusColor = getStatusColor(statusLabel);
   const statusVariant = statusColor.variant || "muted";
+  const responseText =
+    detail !== undefined
+      ? detail || ""
+      : item.responses_count != null
+        ? Number(item.responses_count) > 0
+          ? `Откликнулись: ${formatExecutorResponses(item.responses_count)}`
+          : "Пока нет откликов"
+        : "";
+  const person = partyName || partyLabel || "";
 
   const content = (
     <>
@@ -40,23 +50,22 @@ export default function OrderServiceCard({
       >
         {item.category_work || "Категория не указана"}
       </p>
-      <p className="service-card__responses">
-        {item.responses_count != null
-          ? Number(item.responses_count) > 0
-            ? `Откликнулись: ${formatExecutorResponses(item.responses_count)}`
-            : "Пока нет откликов"
-          : "\u00a0"}
-      </p>
+      <p className="service-card__responses">{responseText || "\u00a0"}</p>
 
       <div className="service-card__footer">
+        {person ? (
+          <span className="service-card__customer" title={person}>
+            <IconUser width={14} height={14} />
+            {person}
+          </span>
+        ) : null}
         <span
-          className="service-card__customer"
-          title={partyName || partyLabel}
+          className={`service-card__budget${
+            person ? "" : " service-card__budget--end"
+          }`}
         >
-          <IconUser width={14} height={14} />
-          {partyName || partyLabel}
+          {formatCardBudget(item)}
         </span>
-        <span className="service-card__budget">{formatCardBudget(item)}</span>
       </div>
     </>
   );

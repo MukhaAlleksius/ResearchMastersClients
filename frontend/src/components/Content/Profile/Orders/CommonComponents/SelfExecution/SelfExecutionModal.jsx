@@ -37,8 +37,8 @@ export default function SelfExecutionModal({ onClose, onConfirm, loading }) {
             <div className="oi-modal__warning-content">
               <p className="oi-modal__warning-title">Внимание</p>
               <p className="oi-modal__warning-text">
-                Заказ будет переведён в статус «Самостоятельное выполнение» и
-                исчезнет из поиска исполнителей.
+                Заказ исчезнет из поиска исполнителей и появится в «Мои
+                заказы», в блоке «Веду сам».
               </p>
               <p className="oi-modal__warning-text">
                 Все откликнувшиеся исполнители потеряют возможность выполнить

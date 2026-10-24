@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { API, apiFetch, ensureStoredUserId, getStoredUserId } from "../../../../utils/api.js";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import ConsiderationCustomer from "./ConsiderationCustomer/ConsiderationCustomer";
 import ContinueExecuteWorkServiceInfo from "./ContinueExecuteWork/ContinueExecuteWork";
 import ExecuteWorkServiceInfo from "./ExecuteWork/ExecuteWork";
@@ -15,25 +15,11 @@ import "./services.css";
 
 const statusTabs = [
   {
-    id: "completed",
-    label: "Выполненные работы",
-    shortLabel: "Выполненные",
-    statusKey: "Выполнен",
-    hint: "Здесь услуги, по которым работы уже завершены. Можно посмотреть итоги, отчёты и оценки заказчика.",
-  },
-  {
-    id: "inProgress",
-    label: "В процессе выполнения",
-    shortLabel: "В процессе",
-    statusKey: "В процессе выполнения",
-    hint: "Заказы, по которым вы уже приступили к работам. Ведите отчёты и следите за графиком выполнения.",
-  },
-  {
-    id: "awaiting",
-    label: "Ожидают выполнения",
-    shortLabel: "Ожидают",
-    statusKey: "Ожидают выполнения",
-    hint: "Заказчик принял ваше предложение, но работы ещё не начались. Заказ ждёт старта выполнения.",
+    id: "offersCustomers",
+    label: "Предложения заказчиков",
+    shortLabel: "Предложения",
+    statusKey: "Предложения заказчиков",
+    hint: "Заказы, на которые можно откликнуться. Изучите условия и отправьте предложение заказчику.",
   },
   {
     id: "considerationCustomer",
@@ -43,11 +29,25 @@ const statusTabs = [
     hint: "Вы откликнулись на заказ — предложение ждёт решения заказчика. Пока можно уточнять детали.",
   },
   {
-    id: "offersCustomers",
-    label: "Предложения заказчиков",
-    shortLabel: "Предложения",
-    statusKey: "Предложения заказчиков",
-    hint: "Заказы, на которые можно откликнуться. Изучите условия и отправьте предложение заказчику.",
+    id: "awaiting",
+    label: "Ожидают выполнения",
+    shortLabel: "Ожидают",
+    statusKey: "Ожидают выполнения",
+    hint: "Заказчик принял ваше предложение, но работы ещё не начались. Заказ ждёт старта выполнения.",
+  },
+  {
+    id: "inProgress",
+    label: "В процессе выполнения",
+    shortLabel: "В процессе",
+    statusKey: "В процессе выполнения",
+    hint: "Заказы, по которым вы уже приступили к работам. Ведите отчёты и следите за графиком выполнения.",
+  },
+  {
+    id: "completed",
+    label: "Выполненные работы",
+    shortLabel: "Выполненные",
+    statusKey: "Выполнен",
+    hint: "Здесь услуги, по которым работы уже завершены. Можно посмотреть итоги, отчёты и оценки заказчика.",
   },
   {
     id: "refusedByCustomer",
@@ -64,6 +64,9 @@ const statusTabs = [
     hint: "Заказы, от которых вы отказались. Здесь хранится история таких отказов.",
   },
 ];
+
+/** Предложения видны всегда: сюда попадают новые заказы, даже если список пуст. */
+const ALWAYS_VISIBLE_TAB_IDS = new Set(["offersCustomers"]);
 
 const graphicTabHint =
   "Общий график ваших заказов: сроки, этапы и загрузка по работам в одном месте.";
@@ -93,6 +96,7 @@ export default function Services() {
   const [error, setError] = useState(null);
 
   const [userId, setUserId] = useState(() => getStoredUserId());
+  const [customerCount, setCustomerCount] = useState(0);
 
   const applyServicesData = useCallback(
     (data) => {
@@ -166,27 +170,75 @@ export default function Services() {
   }, [fetchServicesExecutor]);
 
   useEffect(() => {
+    if (!userId) return undefined;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await apiFetch(
+          `${API.baseURL}/executor_customers/${userId}`,
+        );
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled) {
+          setCustomerCount(Array.isArray(data) ? data.length : 0);
+        }
+      } catch (err) {
+        console.error("Ошибка загрузки заказчиков:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
     if (location.state?.activeStatusTab) {
       navigate("/profile/services", { replace: true, state: {} });
     }
   }, [location.state?.activeStatusTab, navigate]);
 
-  const currentServices = useMemo(() => {
-    if (activeStatusTab === "all") return servicesExecutor;
-    if (activeStatusTab === "graphicOrders") return [];
-
-    const statusKey = statusTabs.find(
-      (tab) => tab.id === activeStatusTab,
-    )?.statusKey;
-    return servicesExecutor.filter(
-      (service) => (service.status_service_executor || "Без статуса") === statusKey,
-    );
-  }, [activeStatusTab, servicesExecutor]);
-
   const getStatusCount = useCallback(
     (statusKey) => servicesByStatus[statusKey]?.length || 0,
     [servicesByStatus],
   );
+
+  const visibleStatusTabs = useMemo(
+    () =>
+      statusTabs.filter(
+        (tab) =>
+          ALWAYS_VISIBLE_TAB_IDS.has(tab.id) || getStatusCount(tab.statusKey) > 0,
+      ),
+    [getStatusCount],
+  );
+
+  const visibleActiveStatusTab =
+    activeStatusTab === "all" ||
+    activeStatusTab === "graphicOrders" ||
+    visibleStatusTabs.some((tab) => tab.id === activeStatusTab)
+      ? activeStatusTab
+      : "all";
+
+  const currentServices = useMemo(() => {
+    if (visibleActiveStatusTab === "all") return servicesExecutor;
+    if (visibleActiveStatusTab === "graphicOrders") return [];
+
+    const statusKey = statusTabs.find(
+      (tab) => tab.id === visibleActiveStatusTab,
+    )?.statusKey;
+    return servicesExecutor.filter(
+      (service) => (service.status_service_executor || "Без статуса") === statusKey,
+    );
+  }, [visibleActiveStatusTab, servicesExecutor]);
+
+  useEffect(() => {
+    if (loading || activeStatusTab === "all" || activeStatusTab === "graphicOrders") {
+      return;
+    }
+    if (visibleStatusTabs.some((tab) => tab.id === activeStatusTab)) return;
+    setActiveStatusTab("all");
+  }, [loading, activeStatusTab, visibleStatusTabs]);
 
   const handleSelectService = useCallback((service) => {
     setSelectedService(service);
@@ -221,9 +273,9 @@ export default function Services() {
   );
 
   const activeTabMeta =
-    activeStatusTab === "all"
+    visibleActiveStatusTab === "all"
       ? { label: "Все услуги", hint: allTabHint }
-      : statusTabs.find((tab) => tab.id === activeStatusTab);
+      : statusTabs.find((tab) => tab.id === visibleActiveStatusTab);
 
   const handleStatusChange = (tabId) => {
     setActiveStatusTab(tabId);
@@ -326,16 +378,15 @@ export default function Services() {
                 ? `Всего ${servicesExecutor.length} — выберите статус для фильтрации`
                 : "У вас пока нет услуг"}
           </p>
+          {customerCount > 0 && !isGraphicTab && (
+            <Link to="/profile/my_customers" className="list-page__quiet-link">
+              Мои заказчики
+              <span className="list-page__quiet-count">{customerCount}</span>
+            </Link>
+          )}
         </div>
         {!isGraphicTab && (
           <div className="list-page__actions">
-            <button
-              type="button"
-              className="btn-list-primary btn-list-header"
-              onClick={() => navigate("/profile/my_customers")}
-            >
-              Мои заказчики
-            </button>
             <button
               type="button"
               className="btn-list-primary btn-list-header"
@@ -366,8 +417,8 @@ export default function Services() {
       >
         {!isGraphicTab && (
           <StatusFilterTabs
-            tabs={statusTabs}
-            activeId={activeStatusTab}
+            tabs={visibleStatusTabs}
+            activeId={visibleActiveStatusTab}
             onChange={handleStatusChange}
             allTab={{
               id: "all",
@@ -415,12 +466,16 @@ export default function Services() {
                     <IconInbox width={28} height={28} />
                   </div>
                   <h3 className="list-empty__title">
-                    {activeStatusTab === "all"
+                    {visibleActiveStatusTab === "all"
                       ? "Нет услуг"
-                      : `Нет услуг: «${activeTabMeta?.label}»`}
+                      : visibleActiveStatusTab === "offersCustomers"
+                        ? "Предложений пока нет"
+                        : `Нет услуг: «${activeTabMeta?.label}»`}
                   </h3>
                   <p className="list-empty__text">
-                    Выберите другой статус в панели слева.
+                    {visibleActiveStatusTab === "offersCustomers"
+                      ? "Когда появятся заказы в ваших специализациях, их можно будет открыть здесь."
+                      : "Выберите другой статус в панели слева."}
                   </p>
                 </div>
               ) : (

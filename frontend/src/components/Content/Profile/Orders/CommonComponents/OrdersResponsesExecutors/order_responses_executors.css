@@ -361,3 +361,29 @@
     width: 100%;
   }
 }
+
+.order-responses__self {
+  margin-top: 1.25rem;
+  text-align: center;
+}
+
+.order-responses__self-link {
+  padding: 0.15rem;
+  border: none;
+  background: none;
+  color: var(--or-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.order-responses__self-link:hover:not(:disabled) {
+  color: var(--or-text);
+}
+
+.order-responses__self-link:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}

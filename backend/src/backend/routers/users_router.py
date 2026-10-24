@@ -16,6 +16,7 @@ from fastapi.security import HTTPAuthorizationCredentials  # Bearer для refre
 from sqlalchemy import select  # SELECT для профиля пользователя
 from sqlalchemy.ext.asyncio import AsyncSession  # Асинхронная сессия БД
 
+import requests  # Сессия для проверки Google ID token
 from google.auth.transport.requests import (
     Request as GoogleRequest,
 )  # HTTP-запрос для проверки Google ID token
@@ -53,11 +54,13 @@ from core.tokens import (
     decode_token,
 )  # JWT access/refresh
 from core.upload_validation import (  # Валидация загрузок изображений
+    AVATAR_MAX_EDGE,  # Сторона аватара после сжатия
     MAX_AVATAR_BYTES,  # Лимит размера аватара
     MAX_PORTFOLIO_BYTES,  # Лимит размера фото портфолио
+    PORTFOLIO_MAX_EDGE,  # Сторона фото портфолио после сжатия
     assert_allowed_image_extension,  # Разрешённые расширения
+    normalize_uploaded_image,  # Уменьшение снимка с телефона
     sanitize_filename,  # Безопасное имя файла
-    validate_image_bytes,  # Проверка magic bytes и размера
 )
 from core.access import (
     assert_user_not_blocked,
@@ -137,6 +140,17 @@ from core.storage import (  # Хранилище файлов аватаров �
 logger = logging.getLogger(__name__)  # Логгер роутера users
 
 router = APIRouter(prefix="", tags=["users"])  # Роутер пользователей без префикса
+
+
+def _google_id_token_request() -> GoogleRequest:
+    """Запрос сертификатов Google без User-Agent python-requests.
+
+    На /oauth2/v1/certs Google отвечает 403, если клиент представляется
+    как python-requests. Без сертификатов подпись id_token не проверить.
+    """
+    session = requests.Session()
+    session.headers["User-Agent"] = "fixer-backend"
+    return GoogleRequest(session=session)
 
 _PORTFOLIO_IMAGE_SUFFIXES = {
     ".jpg",
@@ -272,7 +286,7 @@ async def google_register_user(
     try:  # проверка Google token
         token_payload = google_id_token.verify_oauth2_token(  # Проверка подписи и audience Google token
             payload.id_token,  # ID token от клиента
-            GoogleRequest(),  # HTTP transport
+            _google_id_token_request(),  # HTTP transport без User-Agent python-requests
             audience=GOOGLE_CLIENT_ID,  # audience
         )
     except Exception as e:  # Невалидный или просроченный token
@@ -447,7 +461,7 @@ async def user_enter_google(
     try:  # проверка подписи и audience
         token_payload = google_id_token.verify_oauth2_token(
             payload.id_token,  # JWT-строка с клиента
-            GoogleRequest(),
+            _google_id_token_request(),
             audience=GOOGLE_CLIENT_ID,
         )
     except Exception as e:
@@ -875,17 +889,17 @@ async def upload_avatar_api(
     assert_allowed_image_extension(safe_filename)  # jpg/png/...
 
     content = await file.read()  # Байты файла
-    validate_image_bytes(
-        content, max_bytes=MAX_AVATAR_BYTES, label="Аватар"
-    )  # Magic bytes и лимит
+    content = normalize_uploaded_image(
+        content,
+        max_bytes=MAX_AVATAR_BYTES,
+        max_edge=AVATAR_MAX_EDGE,
+        label="Аватар",
+    )  # JPEG не тяжелее лимита
 
     delete_avatar_files(user_id)  # Удалить старые файлы аватара
 
     # Stable ASCII key keeps Docker/local storage predictable across locales.
-    ext = (
-        os.path.splitext(safe_filename)[1].lower() or ".jpg"
-    )  # Расширение для ключа storage
-    filename = f"{user_id}_avatar{ext}"  # Детерминированное имя файла
+    filename = f"{user_id}_avatar.jpg"  # Всегда JPEG после сжатия
     relative_url = f"/avatar/{user_id}"  # URL в API и БД
     try:
         storage = get_avatar_storage()  # Backend аватаров
@@ -1008,13 +1022,18 @@ async def upload_images_portfolio_master_api(
         try:
             safe_filename = sanitize_filename(file.filename)  # Безопасное имя
             assert_allowed_image_extension(safe_filename)  # Допустимое расширение
+            content = await file.read()  # Байты изображения
+            content = normalize_uploaded_image(
+                content,
+                max_bytes=MAX_PORTFOLIO_BYTES,
+                max_edge=PORTFOLIO_MAX_EDGE,
+                label="Изображение",
+            )  # JPEG не тяжелее лимита
+            stem = os.path.splitext(safe_filename)[0] or "photo"
+            safe_filename = f"{stem}.jpg"
             storage_key = (
                 f"{master_id}/{project_folder}/{_PORTFOLIO_IMAGES_DIR}/{safe_filename}"
             )
-            content = await file.read()  # Байты изображения
-            validate_image_bytes(
-                content, max_bytes=MAX_PORTFOLIO_BYTES, label="Изображение"
-            )  # Проверка содержимого
 
             storage.save(storage_key, content)  # Сохранение файла
 
